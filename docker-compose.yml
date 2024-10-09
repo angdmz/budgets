@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: budget_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: budget_db
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - budget_network
+
+  alembic:
+    image: python:3.13
+    build:
+      context: .
+      dockerfile: alembic/Dockerfile  # Custom Dockerfile to handle migrations
+    volumes:
+      - ./alembic:/app/alembic
+      - ./models:/app/models
+    environment:
+      - DATABASE_URL=postgresql://budget_user:password@db:5432/budget_db
+    networks:
+      - budget_network
+    depends_on:
+      - db
+
+  api:
+    build:
+      context: ./go-server
+    volumes:
+      - ./go-server:/app
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=budget_user
+      - DB_PASSWORD=password
+      - DB_NAME=budget_db
+    networks:
+      - budget_network
+    depends_on:
+      - db
+
+volumes:
+  db_data:
+
+networks:
+  budget_network:
+    driver: bridge
