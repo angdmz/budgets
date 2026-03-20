@@ -1,0 +1,122 @@
+[1/2] STEP 1/6: FROM golang:1.22-alpine AS base
+[1/2] STEP 2/6: WORKDIR /app
+--> Using cache 5439b795b31cb07a61e1c50ab709227367d40a67b675111d6b788738232ec5d7
+--> 5439b795b31c
+[1/2] STEP 3/6: RUN apk add --no-cache git
+--> Using cache ceaa9486568d3b54284d38a856e1bb1efbf9629af88c519da53a2c6b831ef176
+--> ceaa9486568d
+[1/2] STEP 4/6: COPY go.mod ./
+--> Using cache cb5130f2c1dd4d0164bdd5ab3a9e67aa3028eae40cf95f77b3cc5912dbcc5312
+--> cb5130f2c1dd
+[1/2] STEP 5/6: COPY . .
+--> Using cache 83a3a46c1afaa0c1f3729f0878efaf99aea75bbd79cc94ac7a161181c5c82454
+--> 83a3a46c1afa
+[1/2] STEP 6/6: RUN go mod tidy
+--> Using cache 76838a4e2c4566f97a923e6bc1b21a964b0caecdd36af24ab7e05547e171ebe6
+--> 76838a4e2c45
+[2/2] STEP 1/2: FROM 76838a4e2c4566f97a923e6bc1b21a964b0caecdd36af24ab7e05547e171ebe6 AS test
+[2/2] STEP 2/2: CMD ["go", "test", "-v", "./..."]
+--> Using cache 681ce0b3f9a1dbbae72dd579184953d2b6bb98e69fbc33cb87758a567d89da54
+[2/2] COMMIT budgets_test
+--> 681ce0b3f9a1
+Successfully tagged localhost/budgets_test:latest
+681ce0b3f9a1dbbae72dd579184953d2b6bb98e69fbc33cb87758a567d89da54
+budgets_test_1
+budgets_db_1
+budgets_test_1
+budgets_db_1
+168f077bfab7cd112c1aeba4e7f879b92f3f0e7097174fbba0d36b3bca6d7b27
+12df96aafdccaeca41de88fe56b5250b7f8d94aed942fce0c99fd953816943d4
+[1;32m[db]         |[0m 
+[1;32m[db]         |[0m PostgreSQL Database directory appears to contain a database; Skipping initialization
+[1;32m[db]         |[0m 
+[1;32m[db]         |[0m 2026-03-20 20:25:45.351 UTC [1] LOG:  starting PostgreSQL 16.11 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+[1;32m[db]         |[0m 2026-03-20 20:25:45.353 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+[1;32m[db]         |[0m 2026-03-20 20:25:45.354 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+[1;32m[db]         |[0m 2026-03-20 20:25:45.367 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+[1;32m[db]         |[0m 2026-03-20 20:25:45.376 UTC [25] LOG:  database system was shut down at 2026-03-20 20:23:47 UTC
+[1;32m[db]         |[0m 2026-03-20 20:25:45.387 UTC [1] LOG:  database system is ready to accept connections
+[1;34m[test]       |[0m # github.com/budgets/core/internal/database
+[1;34m[test]       |[0m internal/database/transaction.go:13:6: WithTransaction redeclared in this block
+[1;34m[test]       |[0m 	internal/database/context.go:20:6: other declaration of WithTransaction
+[1;34m[test]       |[0m # github.com/budgets/core/internal/repository
+[1;34m[test]       |[0m internal/repository/participant.go:32:15: participant.ExternalUserID undefined (type *domain.Participant has no field or method ExternalUserID)
+[1;34m[test]       |[0m internal/repository/participant.go:33:15: participant.Email undefined (type *domain.Participant has no field or method Email)
+[1;34m[test]       |[0m internal/repository/participant.go:34:15: participant.DisplayName undefined (type *domain.Participant has no field or method DisplayName)
+[1;34m[test]       |[0m internal/repository/participant.go:53:16: participant.ExternalUserID undefined (type *domain.Participant has no field or method ExternalUserID)
+[1;34m[test]       |[0m internal/repository/participant.go:54:16: participant.Email undefined (type *domain.Participant has no field or method Email)
+[1;34m[test]       |[0m internal/repository/participant.go:55:16: participant.DisplayName undefined (type *domain.Participant has no field or method DisplayName)
+[1;34m[test]       |[0m internal/repository/participant.go:83:16: participant.ExternalUserID undefined (type *domain.Participant has no field or method ExternalUserID)
+[1;34m[test]       |[0m internal/repository/participant.go:84:16: participant.Email undefined (type *domain.Participant has no field or method Email)
+[1;34m[test]       |[0m internal/repository/participant.go:85:16: participant.DisplayName undefined (type *domain.Participant has no field or method DisplayName)
+[1;34m[test]       |[0m internal/repository/participant.go:121:7: p.ExternalUserID undefined (type domain.Participant has no field or method ExternalUserID)
+[1;34m[test]       |[0m internal/repository/participant.go:121:7: too many errors
+[1;34m[test]       |[0m # github.com/budgets/core/internal/middleware
+[1;34m[test]       |[0m internal/middleware/auth.go:71:3: unknown field ID in struct literal of type domain.User
+[1;34m[test]       |[0m internal/middleware/auth.go:74:3: unknown field Provider in struct literal of type domain.User
+[1;34m[test]       |[0m internal/middleware/auth.go:77:16: invalid operation: user.ID == "" (mismatched types int64 and untyped string)
+[1;34m[test]       |[0m internal/middleware/auth.go:89:20: user.Provider undefined (type *domain.User has no field or method Provider)
+[1;34m[test]       |[0m FAIL	github.com/budgets/core [build failed]
+[1;34m[test]       |[0m ?   	github.com/budgets/core/docs	[no test files]
+[1;34m[test]       |[0m ?   	github.com/budgets/core/internal/config	[no test files]
+[1;34m[test]       |[0m ?   	github.com/budgets/core/internal/currency	[no test files]
+[1;34m[test]       |[0m FAIL	github.com/budgets/core/internal/database [build failed]
+[1;34m[test]       |[0m ?   	github.com/budgets/core/internal/domain	[no test files]
+[1;34m[test]       |[0m FAIL	github.com/budgets/core/internal/handler [build failed]
+[1;34m[test]       |[0m FAIL	github.com/budgets/core/internal/integration [build failed]
+[1;34m[test]       |[0m FAIL	github.com/budgets/core/internal/middleware [build failed]
+[1;34m[test]       |[0m FAIL	github.com/budgets/core/internal/repository [build failed]
+[1;34m[test]       |[0m === RUN   TestGenerateKey
+[1;34m[test]       |[0m --- PASS: TestGenerateKey (0.00s)
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecrypt
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecrypt/simple_text
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecrypt/empty_string
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecrypt/unicode
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecrypt/special_chars
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecrypt/long_text
+[1;34m[test]       |[0m --- PASS: TestEncryptor_EncryptDecrypt (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEncryptor_EncryptDecrypt/simple_text (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEncryptor_EncryptDecrypt/empty_string (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEncryptor_EncryptDecrypt/unicode (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEncryptor_EncryptDecrypt/special_chars (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEncryptor_EncryptDecrypt/long_text (0.00s)
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecryptMoney
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecryptMoney/USD_amount
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecryptMoney/EUR_amount
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecryptMoney/zero_amount
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecryptMoney/large_amount
+[1;34m[test]       |[0m === RUN   TestEncryptor_EncryptDecryptMoney/small_decimals
+[1;34m[test]       |[0m --- PASS: TestEncryptor_EncryptDecryptMoney (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEncryptor_EncryptDecryptMoney/USD_amount (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEncryptor_EncryptDecryptMoney/EUR_amount (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEncryptor_EncryptDecryptMoney/zero_amount (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEncryptor_EncryptDecryptMoney/large_amount (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEncryptor_EncryptDecryptMoney/small_decimals (0.00s)
+[1;34m[test]       |[0m === RUN   TestEncryptor_InvalidKey
+[1;34m[test]       |[0m --- PASS: TestEncryptor_InvalidKey (0.00s)
+[1;34m[test]       |[0m === RUN   TestEncryptor_DecryptInvalidCiphertext
+[1;34m[test]       |[0m --- PASS: TestEncryptor_DecryptInvalidCiphertext (0.00s)
+[1;34m[test]       |[0m PASS
+[1;34m[test]       |[0m ok  	github.com/budgets/core/internal/encryption	0.002s
+[1;34m[test]       |[0m FAIL	github.com/budgets/core/internal/server [build failed]
+[1;34m[test]       |[0m FAIL	github.com/budgets/core/internal/service [build failed]
+[1;34m[test]       |[0m === RUN   TestEnvSecretsProvider_GetSecret
+[1;34m[test]       |[0m === RUN   TestEnvSecretsProvider_GetSecret/existing_secret
+[1;34m[test]       |[0m === RUN   TestEnvSecretsProvider_GetSecret/missing_secret
+[1;34m[test]       |[0m --- PASS: TestEnvSecretsProvider_GetSecret (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEnvSecretsProvider_GetSecret/existing_secret (0.00s)
+[1;34m[test]       |[0m     --- PASS: TestEnvSecretsProvider_GetSecret/missing_secret (0.00s)
+[1;34m[test]       |[0m === RUN   TestEnvSecretsProvider_WithPrefix
+[1;34m[test]       |[0m --- PASS: TestEnvSecretsProvider_WithPrefix (0.00s)
+[1;34m[test]       |[0m PASS
+[1;34m[test]       |[0m ok  	github.com/budgets/core/internal/secrets	0.003s
+[1;34m[test]       |[0m FAIL
+[1;32m[db]         |[0m 2026-03-20 20:30:45.450 UTC [23] LOG:  checkpoint starting: time
+[1;32m[db]         |[0m 2026-03-20 20:30:45.471 UTC [23] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.004 s, sync=0.002 s, total=0.022 s; sync files=2, longest=0.002 s, average=0.001 s; distance=0 kB, estimate=0 kB; lsn=0/195FDD0, redo lsn=0/195FD98
+[1;32m[db]         |[0m 2026-03-20 21:08:35.200 UTC [1] LOG:  received fast shutdown request
+[1;32m[db]         |[0m 2026-03-20 21:08:35.201 UTC [1] LOG:  aborting any active transactions
+[1;32m[db]         |[0m 2026-03-20 21:08:35.202 UTC [1] LOG:  background worker "logical replication launcher" (PID 28) exited with exit code 1
+[1;32m[db]         |[0m 2026-03-20 21:08:35.203 UTC [23] LOG:  shutting down
+[1;32m[db]         |[0m 2026-03-20 21:08:35.204 UTC [23] LOG:  checkpoint starting: shutdown immediate
+[1;32m[db]         |[0m 2026-03-20 21:08:35.206 UTC [23] LOG:  checkpoint complete: wrote 0 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.001 s, sync=0.001 s, total=0.003 s; sync files=0, longest=0.000 s, average=0.000 s; distance=0 kB, estimate=0 kB; lsn=0/195FE80, redo lsn=0/195FE80
+[1;32m[db]         |[0m 2026-03-20 21:08:35.207 UTC [1] LOG:  database system is shut down

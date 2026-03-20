@@ -1,53 +1,59 @@
 from logging.config import fileConfig
+import os
 
 from sqlalchemy import engine_from_config, pool, URL
 from alembic import context
 
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings
-
 from entities import metadata
+from secrets import get_secrets_provider, SecretNotFoundError
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
 target_metadata = metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
 
-class DatabaseSettings(BaseSettings):
-    db_url_prefix: str = "postgresql"
-    db_hostname: str = "localhost"
-    db_port: int = 5432
-    db_username: str
-    db_password: str
-    db_name: str
-    db_schema: str = "banking_db"
-    db_secret: SecretStr
-    db_secret_key: SecretStr
+def get_env_or_default(key: str, default: str) -> str:
+    return os.environ.get(key, default)
 
 
-def generate_db_url(settings: DatabaseSettings):
+def load_database_config():
+    """Load database configuration using secrets provider."""
+    provider = get_secrets_provider()
+    
+    # Get secrets
+    try:
+        db_password = provider.get_secret("db_password")
+    except SecretNotFoundError:
+        db_password = get_env_or_default("DB_PASSWORD", "postgres")
+    
+    try:
+        encryption_key = provider.get_secret("encryption_key")
+    except SecretNotFoundError:
+        encryption_key = get_env_or_default("ENCRYPTION_KEY", "")
+    
+    return {
+        "url_prefix": get_env_or_default("DB_URL_PREFIX", "postgresql"),
+        "hostname": get_env_or_default("DB_HOSTNAME", "localhost"),
+        "port": int(get_env_or_default("DB_PORT", "5432")),
+        "username": get_env_or_default("DB_USERNAME", "postgres"),
+        "password": db_password,
+        "name": get_env_or_default("DB_NAME", "budgets"),
+        "schema": get_env_or_default("DB_SCHEMA", "public"),
+        "encryption_key": encryption_key,
+    }
+
+
+def generate_db_url(db_config: dict):
     return URL.create(
-        drivername=settings.db_url_prefix,
-        username=settings.db_username,
-        password=settings.db_password,
-        host=settings.db_hostname,
-        port=settings.db_port,
-        database=settings.db_name,
+        drivername=db_config["url_prefix"],
+        username=db_config["username"],
+        password=db_config["password"],
+        host=db_config["hostname"],
+        port=db_config["port"],
+        database=db_config["name"],
     )
 
 
@@ -84,8 +90,8 @@ def run_migrations_online() -> None:
 
     """
 
-    settings = DatabaseSettings()
-    db_url = generate_db_url(settings)
+    db_config = load_database_config()
+    db_url = generate_db_url(db_config)
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = db_url
     connectable = engine_from_config(

@@ -1,37 +1,229 @@
 services:
   db:
-    image: postgres:latest
-    env_file:
-      - .env
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: ${DB_NAME:-budgets}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    secrets:
+      - db_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - budget_network
 
   migrations:
-    image: migrations
     build:
-      context: .
-      dockerfile: migrations/Dockerfile  # Custom Dockerfile to handle migrations
-    working_dir: /app
-    volumes:
-      - ./migrations:/app
-    env_file:
-      - migrations/.env
+      context: ./migrations
+      dockerfile: Dockerfile
+    environment:
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_NAME: ${DB_NAME:-budgets}
+      DB_HOSTNAME: db
+      DB_PORT: 5432
+      SECRETS_PROVIDER: docker
+    secrets:
+      - db_password
+      - encryption_key
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    networks:
+      - budget_network
+
+  migrate-create:
+    build:
+      context: ./migrations
+      dockerfile: Dockerfile
+    entrypoint: ["alembic", "revision", "--autogenerate", "-m"]
+    environment:
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_NAME: ${DB_NAME:-budgets}
+      DB_HOSTNAME: db
+      DB_PORT: 5432
+      SECRETS_PROVIDER: docker
+    secrets:
+      - db_password
+      - encryption_key
+    volumes:
+      - ./migrations/versions:/app/versions
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - budget_network
+    profiles:
+      - tools
+
+  migrate-upgrade:
+    build:
+      context: ./migrations
+      dockerfile: Dockerfile
+    entrypoint: ["alembic", "upgrade"]
+    command: ["head"]
+    environment:
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_NAME: ${DB_NAME:-budgets}
+      DB_HOSTNAME: db
+      DB_PORT: 5432
+      SECRETS_PROVIDER: docker
+    secrets:
+      - db_password
+      - encryption_key
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - budget_network
+    profiles:
+      - tools
+
+  migrate-downgrade:
+    build:
+      context: ./migrations
+      dockerfile: Dockerfile
+    entrypoint: ["alembic", "downgrade"]
+    command: ["-1"]
+    environment:
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_NAME: ${DB_NAME:-budgets}
+      DB_HOSTNAME: db
+      DB_PORT: 5432
+      SECRETS_PROVIDER: docker
+    secrets:
+      - db_password
+      - encryption_key
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - budget_network
+    profiles:
+      - tools
+
+  migrate-history:
+    build:
+      context: ./migrations
+      dockerfile: Dockerfile
+    entrypoint: ["alembic", "history"]
+    environment:
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_NAME: ${DB_NAME:-budgets}
+      DB_HOSTNAME: db
+      DB_PORT: 5432
+      SECRETS_PROVIDER: docker
+    secrets:
+      - db_password
+      - encryption_key
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - budget_network
+    profiles:
+      - tools
 
   api:
     build:
-      context: ./go-server
-    volumes:
-      - ./go-server:/app
+      context: ./core
+      dockerfile: Dockerfile
+      target: production
     ports:
-      - "8080:8080"
-    env_file:
-      - .env
+      - "${API_PORT:-8080}:8080"
+    environment:
+      SERVER_PORT: 8080
+      SERVER_ENV: ${SERVER_ENV:-development}
+      DB_HOSTNAME: db
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_NAME: ${DB_NAME:-budgets}
+      DB_SSLMODE: disable
+      DB_MAX_OPEN_CONNS: ${DB_MAX_OPEN_CONNS:-25}
+      DB_MAX_IDLE_CONNS: ${DB_MAX_IDLE_CONNS:-5}
+      DB_CONN_MAX_LIFETIME_SECONDS: ${DB_CONN_MAX_LIFETIME_SECONDS:-300}
+      SECRETS_PROVIDER: docker
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    secrets:
+      - db_password
+      - encryption_key
+      - jwt_secret
+      - google_client_secret
     depends_on:
-      - migrations
+      migrations:
+        condition: service_completed_successfully
+    networks:
+      - budget_network
+
+  test:
+    build:
+      context: ./core
+      dockerfile: Dockerfile
+      target: test
+    environment:
+      DB_HOSTNAME: db
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_NAME: ${DB_NAME:-budgets}
+      SECRETS_PROVIDER: docker
+    secrets:
+      - db_password
+      - encryption_key
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - budget_network
+    profiles:
+      - test
+
+  generate-db-password:
+    image: alpine:latest
+    command: sh -c "head -c 32 /dev/urandom | base64 | tr -d '\n' > /secrets/db_password.txt && echo 'Generated db_password.txt'"
+    volumes:
+      - ./secrets:/secrets
+    profiles:
+      - setup
+
+  generate-encryption-key:
+    image: python:3.13-slim
+    command: sh -c "pip install -q cryptography && python -c \"from cryptography.fernet import Fernet; import sys; sys.stdout.write(Fernet.generate_key().decode())\" > /secrets/encryption_key.txt && echo 'Generated encryption_key.txt'"
+    volumes:
+      - ./secrets:/secrets
+    profiles:
+      - setup
+
+  generate-jwt-secret:
+    image: alpine:latest
+    command: sh -c "head -c 32 /dev/urandom | base64 | tr -d '\n' > /secrets/jwt_secret.txt && echo 'Generated jwt_secret.txt'"
+    volumes:
+      - ./secrets:/secrets
+    profiles:
+      - setup
+
+  generate-google-client-secret:
+    image: alpine:latest
+    command: sh -c "echo -n 'your-google-client-secret-here' > /secrets/google_client_secret.txt && echo 'Generated google_client_secret.txt (placeholder)'"
+    volumes:
+      - ./secrets:/secrets
+    profiles:
+      - setup
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  encryption_key:
+    file: ./secrets/encryption_key.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  google_client_secret:
+    file: ./secrets/google_client_secret.txt
 
 volumes:
   db_data:
