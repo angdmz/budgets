@@ -8,6 +8,17 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
+
+# Accept build arguments for Auth0 configuration
+ARG VITE_AUTH0_DOMAIN
+ARG VITE_AUTH0_CLIENT_ID
+ARG VITE_AUTH0_AUDIENCE
+
+# Set environment variables for Vite build
+ENV VITE_AUTH0_DOMAIN=${VITE_AUTH0_DOMAIN}
+ENV VITE_AUTH0_CLIENT_ID=${VITE_AUTH0_CLIENT_ID}
+ENV VITE_AUTH0_AUDIENCE=${VITE_AUTH0_AUDIENCE}
+
 RUN npm run build
 
 # Production stage
@@ -21,11 +32,8 @@ RUN echo 'server { \
     server_name localhost; \
     root /usr/share/nginx/html; \
     index index.html; \
-    location /admin/ { \
-        try_files $uri $uri/ /admin/index.html; \
-    } \
-    location = /admin { \
-        return 301 /admin/; \
+    location ~ ^/admin(/.*)?$ { \
+        try_files $uri /admin/index.html; \
     } \
 }' > /etc/nginx/conf.d/default.conf
 

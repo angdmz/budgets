@@ -114,8 +114,16 @@ Tests the landing page functionality:
 
 Tests routing and asset loading:
 - `/app` route is accessible
-- JavaScript and CSS assets load without 404 errors
+- **App assets (JS, CSS) load without 404 errors** 
+  - Verifies no 404 errors in browser console
+  - Uses Performance API to verify JS and CSS assets loaded
+  - Asserts at least one JS and one CSS file loaded successfully
+  - Reports asset load times for performance monitoring
+- JavaScript executes correctly
 - `/admin` route is accessible
+- **Admin assets (JS, CSS) load without 404 errors** 
+  - Same comprehensive checks as app assets
+  - Ensures both React applications load correctly
 - API health endpoint works
 - Swagger UI is accessible
 

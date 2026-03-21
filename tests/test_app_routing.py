@@ -53,6 +53,28 @@ class TestAppRouting:
             # Take screenshot
             driver.save_screenshot("/tmp/app_404_errors.png")
         
+        # Get network performance entries to verify assets loaded successfully
+        performance_entries = driver.execute_script("""
+            return performance.getEntriesByType('resource').map(entry => ({
+                name: entry.name,
+                type: entry.initiatorType,
+                status: entry.responseStatus || 'unknown',
+                duration: entry.duration
+            }));
+        """)
+        
+        # Filter for JS and CSS assets
+        js_assets = [e for e in performance_entries if e['name'].endswith('.js')]
+        css_assets = [e for e in performance_entries if e['name'].endswith('.css')]
+        
+        print(f"\nLoaded JS assets: {len(js_assets)}")
+        for asset in js_assets:
+            print(f"  - {asset['name'].split('/')[-1]}: {asset['duration']:.2f}ms")
+        
+        print(f"\nLoaded CSS assets: {len(css_assets)}")
+        for asset in css_assets:
+            print(f"  - {asset['name'].split('/')[-1]}: {asset['duration']:.2f}ms")
+        
         # Print all console logs for debugging
         print("\nAll browser console logs:")
         for log in logs:
@@ -60,6 +82,10 @@ class TestAppRouting:
         
         # Assert no 404 errors
         assert len(errors_404) == 0, f"Found {len(errors_404)} 404 errors in app"
+        
+        # Assert that at least one JS and one CSS file loaded
+        assert len(js_assets) > 0, "No JavaScript assets loaded"
+        assert len(css_assets) > 0, "No CSS assets loaded"
     
     def test_app_javascript_loads(self, driver, base_url):
         """Test that JavaScript executes correctly"""
@@ -102,6 +128,53 @@ class TestAppRouting:
         is_admin_loaded = "admin" in page_source or "budget" in page_source
         
         assert is_auth0 or is_admin_loaded, f"Admin route not loading correctly. URL: {current_url}"
+    
+    def test_admin_assets_load(self, driver, base_url):
+        """Test that admin assets (JS, CSS) load without 404 errors"""
+        admin_url = f"{base_url}/admin"
+        driver.get(admin_url)
+        
+        time.sleep(3)  # Wait for assets to load
+        
+        # Get browser console logs
+        logs = driver.get_log('browser')
+        
+        # Check for 404 errors
+        errors_404 = [log for log in logs if '404' in log.get('message', '')]
+        
+        if errors_404:
+            print("404 Errors found in admin:")
+            for error in errors_404:
+                print(f"  - {error['message']}")
+            driver.save_screenshot("/tmp/admin_404_errors.png")
+        
+        # Get network performance entries
+        performance_entries = driver.execute_script("""
+            return performance.getEntriesByType('resource').map(entry => ({
+                name: entry.name,
+                type: entry.initiatorType,
+                duration: entry.duration
+            }));
+        """)
+        
+        # Filter for JS and CSS assets
+        js_assets = [e for e in performance_entries if e['name'].endswith('.js')]
+        css_assets = [e for e in performance_entries if e['name'].endswith('.css')]
+        
+        print(f"\nAdmin loaded JS assets: {len(js_assets)}")
+        for asset in js_assets:
+            print(f"  - {asset['name'].split('/')[-1]}: {asset['duration']:.2f}ms")
+        
+        print(f"\nAdmin loaded CSS assets: {len(css_assets)}")
+        for asset in css_assets:
+            print(f"  - {asset['name'].split('/')[-1]}: {asset['duration']:.2f}ms")
+        
+        # Assert no 404 errors
+        assert len(errors_404) == 0, f"Found {len(errors_404)} 404 errors in admin"
+        
+        # Assert that at least one JS and one CSS file loaded
+        assert len(js_assets) > 0, "No JavaScript assets loaded in admin"
+        assert len(css_assets) > 0, "No CSS assets loaded in admin"
     
     def test_api_health_endpoint(self, driver, base_url):
         """Test that API health endpoint is accessible"""
