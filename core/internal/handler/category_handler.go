@@ -36,7 +36,7 @@ func NewCategoryHandler(categoryService service.CategoryService) *CategoryHandle
 // @Security BearerAuth
 // @Router /groups/{group_id}/categories [post]
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {
-	groupIDStr := c.Param("group_id")
+	groupIDStr := c.Param("id")
 	groupID, err := uuid.Parse(groupIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_group_id", Message: "Invalid UUID format"})
@@ -94,7 +94,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 // @Security BearerAuth
 // @Router /groups/{group_id}/categories [get]
 func (h *CategoryHandler) GetCategories(c *gin.Context) {
-	groupIDStr := c.Param("group_id")
+	groupIDStr := c.Param("id")
 	groupID, err := uuid.Parse(groupIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_group_id", Message: "Invalid UUID format"})

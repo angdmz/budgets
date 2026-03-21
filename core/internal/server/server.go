@@ -94,51 +94,37 @@ func (s *Server) setupRoutes() {
 		protected := api.Group("")
 		protected.Use(authMiddleware.RequireAuth())
 		{
-			groups := protected.Group("/groups")
-			{
-				groups.POST("", groupHandler.CreateGroup)
-				groups.GET("", groupHandler.GetGroups)
-				groups.GET("/:id", groupHandler.GetGroup)
-				groups.PUT("/:id", groupHandler.UpdateGroup)
-				groups.DELETE("/:id", groupHandler.DeleteGroup)
+			// Groups
+			protected.POST("/groups", groupHandler.CreateGroup)
+			protected.GET("/groups", groupHandler.GetGroups)
+			protected.POST("/groups/:id/categories", categoryHandler.CreateCategory)
+			protected.GET("/groups/:id/categories", categoryHandler.GetCategories)
+			protected.POST("/groups/:id/budgets", budgetHandler.CreateBudget)
+			protected.GET("/groups/:id/budgets", budgetHandler.GetBudgets)
+			protected.GET("/groups/:id", groupHandler.GetGroup)
+			protected.PUT("/groups/:id", groupHandler.UpdateGroup)
+			protected.DELETE("/groups/:id", groupHandler.DeleteGroup)
 
-				groups.POST("/:group_id/categories", categoryHandler.CreateCategory)
-				groups.GET("/:group_id/categories", categoryHandler.GetCategories)
+			// Categories
+			protected.PUT("/categories/:id", categoryHandler.UpdateCategory)
+			protected.DELETE("/categories/:id", categoryHandler.DeleteCategory)
 
-				groups.POST("/:group_id/budgets", budgetHandler.CreateBudget)
-				groups.GET("/:group_id/budgets", budgetHandler.GetBudgets)
-			}
+			// Budgets
+			protected.POST("/budgets/:id/expected-expenses", expenseHandler.CreateExpectedExpense)
+			protected.GET("/budgets/:id/expected-expenses", expenseHandler.GetExpectedExpenses)
+			protected.POST("/budgets/:id/actual-expenses", expenseHandler.CreateActualExpense)
+			protected.GET("/budgets/:id/actual-expenses", expenseHandler.GetActualExpenses)
+			protected.GET("/budgets/:id", budgetHandler.GetBudget)
+			protected.PUT("/budgets/:id", budgetHandler.UpdateBudget)
+			protected.DELETE("/budgets/:id", budgetHandler.DeleteBudget)
 
-			categories := protected.Group("/categories")
-			{
-				categories.PUT("/:id", categoryHandler.UpdateCategory)
-				categories.DELETE("/:id", categoryHandler.DeleteCategory)
-			}
+			// Expected Expenses
+			protected.PUT("/expected-expenses/:id", expenseHandler.UpdateExpectedExpense)
+			protected.DELETE("/expected-expenses/:id", expenseHandler.DeleteExpectedExpense)
 
-			budgets := protected.Group("/budgets")
-			{
-				budgets.GET("/:id", budgetHandler.GetBudget)
-				budgets.PUT("/:id", budgetHandler.UpdateBudget)
-				budgets.DELETE("/:id", budgetHandler.DeleteBudget)
-
-				budgets.POST("/:budget_id/expected-expenses", expenseHandler.CreateExpectedExpense)
-				budgets.GET("/:budget_id/expected-expenses", expenseHandler.GetExpectedExpenses)
-
-				budgets.POST("/:budget_id/actual-expenses", expenseHandler.CreateActualExpense)
-				budgets.GET("/:budget_id/actual-expenses", expenseHandler.GetActualExpenses)
-			}
-
-			expectedExpenses := protected.Group("/expected-expenses")
-			{
-				expectedExpenses.PUT("/:id", expenseHandler.UpdateExpectedExpense)
-				expectedExpenses.DELETE("/:id", expenseHandler.DeleteExpectedExpense)
-			}
-
-			actualExpenses := protected.Group("/actual-expenses")
-			{
-				actualExpenses.PUT("/:id", expenseHandler.UpdateActualExpense)
-				actualExpenses.DELETE("/:id", expenseHandler.DeleteActualExpense)
-			}
+			// Actual Expenses
+			protected.PUT("/actual-expenses/:id", expenseHandler.UpdateActualExpense)
+			protected.DELETE("/actual-expenses/:id", expenseHandler.DeleteActualExpense)
 		}
 	}
 }

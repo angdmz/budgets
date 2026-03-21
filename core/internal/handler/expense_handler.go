@@ -37,7 +37,7 @@ func NewExpenseHandler(expenseService service.ExpenseService) *ExpenseHandler {
 // @Security BearerAuth
 // @Router /budgets/{budget_id}/expected-expenses [post]
 func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
-	budgetIDStr := c.Param("budget_id")
+	budgetIDStr := c.Param("id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id"})
@@ -91,7 +91,7 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 // @Security BearerAuth
 // @Router /budgets/{budget_id}/expected-expenses [get]
 func (h *ExpenseHandler) GetExpectedExpenses(c *gin.Context) {
-	budgetIDStr := c.Param("budget_id")
+	budgetIDStr := c.Param("id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id"})
@@ -229,7 +229,7 @@ func (h *ExpenseHandler) DeleteExpectedExpense(c *gin.Context) {
 // @Security BearerAuth
 // @Router /budgets/{budget_id}/actual-expenses [post]
 func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
-	budgetIDStr := c.Param("budget_id")
+	budgetIDStr := c.Param("id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id"})
@@ -290,7 +290,7 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 // @Security BearerAuth
 // @Router /budgets/{budget_id}/actual-expenses [get]
 func (h *ExpenseHandler) GetActualExpenses(c *gin.Context) {
-	budgetIDStr := c.Param("budget_id")
+	budgetIDStr := c.Param("id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id"})

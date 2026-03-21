@@ -46,15 +46,27 @@ func (d DatabaseConfig) ConnectionString() string {
 }
 
 func Load(provider secrets.SecretsProvider) (*Config, error) {
-	encryptionKey, err := provider.GetSecret("ENCRYPTION_KEY")
+	encryptionKey, err := provider.GetSecret("encryption_key")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get encryption key: %w", err)
 	}
 
-	jwtSecret := getSecretOrDefault(provider, "JWT_SECRET", "default-jwt-secret-change-in-production")
-	dbPassword := getSecretOrDefault(provider, "DB_PASSWORD", "postgres")
-	googleClientID := getSecretOrDefault(provider, "GOOGLE_CLIENT_ID", "")
-	googleClientSecret := getSecretOrDefault(provider, "GOOGLE_CLIENT_SECRET", "")
+	jwtSecret, err := provider.GetSecret("jwt_secret")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get jwt secret: %w", err)
+	}
+
+	dbPassword, err := provider.GetSecret("db_password")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get db password: %w", err)
+	}
+
+	googleClientSecret, err := provider.GetSecret("google_client_secret")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get google client secret: %w", err)
+	}
+
+	googleClientID := getEnvOrDefault("GOOGLE_CLIENT_ID", "")
 
 	sslMode, err := ParseSSLMode(getEnvOrDefault("DB_SSLMODE", "disable"))
 	if err != nil {

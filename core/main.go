@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/budgets/core/internal/config"
 	"github.com/budgets/core/internal/database"
+	"github.com/budgets/core/internal/secrets"
 	"github.com/budgets/core/internal/server"
 )
 
@@ -39,7 +41,8 @@ import (
 // @scope.profile Grants access to user profile
 
 func main() {
-	cfg, err := config.Load()
+	provider := secrets.GetProvider()
+	cfg, err := config.Load(provider)
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
@@ -53,7 +56,7 @@ func main() {
 	srv := server.New(cfg, db)
 
 	httpServer := &http.Server{
-		Addr:         ":" + cfg.Server.Port,
+		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler:      srv.Router(),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
@@ -61,7 +64,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Starting server on port %s", cfg.Server.Port)
+		log.Printf("Starting server on port %d", cfg.Server.Port)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}

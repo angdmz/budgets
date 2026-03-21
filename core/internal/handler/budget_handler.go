@@ -39,7 +39,7 @@ const dateFormat = "2006-01-02"
 // @Security BearerAuth
 // @Router /groups/{group_id}/budgets [post]
 func (h *BudgetHandler) CreateBudget(c *gin.Context) {
-	groupIDStr := c.Param("group_id")
+	groupIDStr := c.Param("id")
 	groupID, err := uuid.Parse(groupIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_group_id", Message: "Invalid UUID format"})
@@ -109,7 +109,7 @@ func (h *BudgetHandler) CreateBudget(c *gin.Context) {
 // @Security BearerAuth
 // @Router /groups/{group_id}/budgets [get]
 func (h *BudgetHandler) GetBudgets(c *gin.Context) {
-	groupIDStr := c.Param("group_id")
+	groupIDStr := c.Param("id")
 	groupID, err := uuid.Parse(groupIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_group_id", Message: "Invalid UUID format"})
