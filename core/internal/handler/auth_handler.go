@@ -79,7 +79,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		ExternalProviderID: userInfo.ID,
 		Email:              userInfo.Email,
 		DisplayName:        userInfo.Name,
-		AuthProvider:       "google",
+		AuthProvider:       domain.AuthProviderGoogle,
 	}
 
 	jwtToken, err := h.authMiddleware.GenerateToken(user)
@@ -129,7 +129,7 @@ func (h *AuthHandler) getUserInfo(accessToken string) (*googleUserInfo, error) {
 // @Security BearerAuth
 // @Router /auth/me [get]
 func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return

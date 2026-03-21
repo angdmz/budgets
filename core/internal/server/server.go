@@ -6,6 +6,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/budgets/core/internal/config"
+	"github.com/budgets/core/internal/currency"
 	_ "github.com/budgets/core/docs"
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/encryption"
@@ -16,12 +17,23 @@ import (
 )
 
 type Server struct {
-	router *gin.Engine
-	config *config.Config
-	db     *database.DB
+	router        *gin.Engine
+	config        *config.Config
+	db            *database.DB
+	authenticator middleware.Authenticator
 }
 
-func New(cfg *config.Config, db *database.DB) *Server {
+// Option is a functional option for configuring the server.
+type Option func(*Server)
+
+// WithAuthenticator sets a custom authenticator (useful for testing).
+func WithAuthenticator(auth middleware.Authenticator) Option {
+	return func(s *Server) {
+		s.authenticator = auth
+	}
+}
+
+func New(cfg *config.Config, db *database.DB, opts ...Option) *Server {
 	if cfg.Server.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -32,6 +44,15 @@ func New(cfg *config.Config, db *database.DB) *Server {
 		router: router,
 		config: cfg,
 		db:     db,
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	// Default to Auth0 middleware if no authenticator was provided
+	if s.authenticator == nil {
+		s.authenticator = middleware.NewAuth0Middleware(cfg.Auth.Auth0Domain, cfg.Auth.Auth0Audience)
 	}
 
 	s.setupRoutes()
@@ -48,24 +69,35 @@ func (s *Server) setupRoutes() {
 		panic("failed to initialize encryptor: " + err.Error())
 	}
 
+	userRepo := repository.NewUserRepository()
 	groupRepo := repository.NewBudgetingGroupRepository()
 	participantRepo := repository.NewParticipantRepository()
+	userParticipantRepo := repository.NewUserParticipantRepository()
 	categoryRepo := repository.NewExpenseCategoryRepository()
 	budgetRepo := repository.NewBudgetRepository()
 	expectedExpenseRepo := repository.NewExpectedExpenseRepository()
 	actualExpenseRepo := repository.NewActualExpenseRepository()
+	prefRepo := repository.NewUserPreferenceRepository()
 
-	groupService := service.NewGroupService(s.db.Pool, groupRepo, participantRepo)
-	categoryService := service.NewCategoryService(s.db.Pool, categoryRepo, groupRepo, participantRepo)
-	budgetService := service.NewBudgetService(s.db.Pool, budgetRepo, groupRepo, participantRepo)
-	expenseService := service.NewExpenseService(s.db.Pool, encryptor, expectedExpenseRepo, actualExpenseRepo, budgetRepo, categoryRepo, participantRepo)
+	groupService := service.NewGroupService(s.db.Pool, groupRepo, participantRepo, userParticipantRepo)
+	categoryService := service.NewCategoryService(s.db.Pool, categoryRepo, groupRepo, userParticipantRepo)
+	budgetService := service.NewBudgetService(s.db.Pool, budgetRepo, groupRepo, userParticipantRepo)
+	expenseService := service.NewExpenseService(s.db.Pool, encryptor, expectedExpenseRepo, actualExpenseRepo, budgetRepo, categoryRepo, userParticipantRepo)
+	preferenceService := service.NewPreferenceService(s.db.Pool, prefRepo)
 
-	authMiddleware := middleware.NewAuth0Middleware(s.config.Auth.Auth0Domain, s.config.Auth.Auth0Audience)
+	exchangeProvider := currency.NewStubExchangeRateProvider()
+	exchangeCache := currency.NewInMemoryCache()
+	marketplace := currency.NewCurrencyMarketplace(exchangeProvider, exchangeCache)
+
+	authMiddleware := s.authenticator
+	userResolver := middleware.NewUserResolver(s.db.Pool, userRepo.GetOrCreateByProvider)
 
 	groupHandler := handler.NewGroupHandler(groupService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
 	budgetHandler := handler.NewBudgetHandler(budgetService)
 	expenseHandler := handler.NewExpenseHandler(expenseService)
+	preferenceHandler := handler.NewPreferenceHandler(preferenceService)
+	currencyHandler := handler.NewCurrencyHandler(marketplace)
 
 	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -83,6 +115,7 @@ func (s *Server) setupRoutes() {
 
 		protected := api.Group("")
 		protected.Use(authMiddleware.RequireAuth())
+		protected.Use(userResolver.ResolveUser())
 		{
 			// Groups
 			protected.POST("/groups", groupHandler.CreateGroup)
@@ -109,12 +142,22 @@ func (s *Server) setupRoutes() {
 			protected.DELETE("/budgets/:id", budgetHandler.DeleteBudget)
 
 			// Expected Expenses
+			protected.GET("/expected-expenses/:id", expenseHandler.GetExpectedExpense)
 			protected.PUT("/expected-expenses/:id", expenseHandler.UpdateExpectedExpense)
 			protected.DELETE("/expected-expenses/:id", expenseHandler.DeleteExpectedExpense)
 
 			// Actual Expenses
+			protected.GET("/actual-expenses/:id", expenseHandler.GetActualExpense)
 			protected.PUT("/actual-expenses/:id", expenseHandler.UpdateActualExpense)
 			protected.DELETE("/actual-expenses/:id", expenseHandler.DeleteActualExpense)
+
+			// User Preferences
+			protected.GET("/preferences", preferenceHandler.GetPreferences)
+			protected.PUT("/preferences", preferenceHandler.UpdatePreferences)
+
+			// Currency
+			protected.POST("/currency/convert", currencyHandler.Convert)
+			protected.GET("/currency/rates", currencyHandler.GetExchangeRates)
 		}
 	}
 }

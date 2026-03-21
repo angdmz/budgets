@@ -36,9 +36,9 @@ func (c Currency) IsValid() bool {
 type AuthProvider string
 
 const (
-	AuthProviderGoogle AuthProvider = "google"
-	AuthProviderGitHub AuthProvider = "github"
-	AuthProviderLocal  AuthProvider = "local"
+	AuthProviderGoogle AuthProvider = "GOOGLE"
+	AuthProviderGitHub AuthProvider = "GITHUB"
+	AuthProviderLocal  AuthProvider = "LOCAL"
 )
 
 type BaseModel struct {
@@ -73,9 +73,6 @@ type BudgetingGroup struct {
 // Multiple users can be associated with the same participant
 type Participant struct {
 	BaseModel
-	ExternalUserID   string `json:"-"`
-	Email            string `json:"email"`
-	DisplayName      string `json:"display_name"`
 	Name             string `json:"name"`
 	Description      string `json:"description,omitempty"`
 	BudgetingGroupID int64  `json:"-"`
@@ -88,6 +85,48 @@ type UserParticipant struct {
 	ParticipantID int64  `json:"-"`
 	Role          string `json:"role"`
 	IsPrimary     bool   `json:"is_primary"`
+}
+
+// Theme represents UI theme options
+type Theme string
+
+const (
+	ThemeLight Theme = "LIGHT"
+	ThemeDim   Theme = "DIM"
+	ThemeDark  Theme = "DARK"
+)
+
+func (t Theme) IsValid() bool {
+	switch t {
+	case ThemeLight, ThemeDim, ThemeDark:
+		return true
+	}
+	return false
+}
+
+// Language represents supported languages
+type Language string
+
+const (
+	LanguageEN Language = "EN"
+	LanguageES Language = "ES"
+)
+
+func (l Language) IsValid() bool {
+	switch l {
+	case LanguageEN, LanguageES:
+		return true
+	}
+	return false
+}
+
+// UserPreference stores per-user settings
+type UserPreference struct {
+	BaseModel
+	UserID          int64    `json:"-"`
+	Theme           Theme    `json:"theme"`
+	Language        Language `json:"language"`
+	DisplayCurrency Currency `json:"display_currency"`
 }
 
 type ExpenseCategory struct {

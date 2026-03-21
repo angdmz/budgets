@@ -13,32 +13,35 @@ import (
 )
 
 type GroupService interface {
-	Create(ctx context.Context, name, description, userID, email, displayName string) (*domain.BudgetingGroup, error)
-	GetByID(ctx context.Context, externalID uuid.UUID, userID string) (*domain.BudgetingGroup, error)
-	GetByUserID(ctx context.Context, userID string) ([]domain.BudgetingGroup, error)
-	Update(ctx context.Context, externalID uuid.UUID, name, description, userID string) (*domain.BudgetingGroup, error)
-	Delete(ctx context.Context, externalID uuid.UUID, userID string) error
+	Create(ctx context.Context, name, description string, userID int64, displayName string) (*domain.BudgetingGroup, error)
+	GetByID(ctx context.Context, externalID uuid.UUID, userID int64) (*domain.BudgetingGroup, error)
+	GetByUserID(ctx context.Context, userID int64) ([]domain.BudgetingGroup, error)
+	Update(ctx context.Context, externalID uuid.UUID, name, description string, userID int64) (*domain.BudgetingGroup, error)
+	Delete(ctx context.Context, externalID uuid.UUID, userID int64) error
 }
 
 type groupService struct {
-	pool            *pgxpool.Pool
-	groupRepo       repository.BudgetingGroupRepository
-	participantRepo repository.ParticipantRepository
+	pool                *pgxpool.Pool
+	groupRepo           repository.BudgetingGroupRepository
+	participantRepo     repository.ParticipantRepository
+	userParticipantRepo repository.UserParticipantRepository
 }
 
 func NewGroupService(
 	pool *pgxpool.Pool,
 	groupRepo repository.BudgetingGroupRepository,
 	participantRepo repository.ParticipantRepository,
+	userParticipantRepo repository.UserParticipantRepository,
 ) GroupService {
 	return &groupService{
-		pool:            pool,
-		groupRepo:       groupRepo,
-		participantRepo: participantRepo,
+		pool:                pool,
+		groupRepo:           groupRepo,
+		participantRepo:     participantRepo,
+		userParticipantRepo: userParticipantRepo,
 	}
 }
 
-func (s *groupService) Create(ctx context.Context, name, description, userID, email, displayName string) (*domain.BudgetingGroup, error) {
+func (s *groupService) Create(ctx context.Context, name, description string, userID int64, displayName string) (*domain.BudgetingGroup, error) {
 	var group *domain.BudgetingGroup
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -51,14 +54,25 @@ func (s *groupService) Create(ctx context.Context, name, description, userID, em
 			return err
 		}
 
+		// Create an individual participant for the user in this group
 		participant := &domain.Participant{
-			ExternalUserID:   userID,
-			Email:            email,
-			DisplayName:      displayName,
+			Name:             displayName,
 			BudgetingGroupID: group.ID,
 		}
 
-		return s.participantRepo.Create(ctx, tx, participant)
+		if err := s.participantRepo.Create(ctx, tx, participant); err != nil {
+			return err
+		}
+
+		// Link the user to the participant
+		up := &domain.UserParticipant{
+			UserID:        userID,
+			ParticipantID: participant.ID,
+			Role:          "owner",
+			IsPrimary:     true,
+		}
+
+		return s.userParticipantRepo.Create(ctx, tx, up)
 	})
 
 	if err != nil {
@@ -68,7 +82,7 @@ func (s *groupService) Create(ctx context.Context, name, description, userID, em
 	return group, nil
 }
 
-func (s *groupService) GetByID(ctx context.Context, externalID uuid.UUID, userID string) (*domain.BudgetingGroup, error) {
+func (s *groupService) GetByID(ctx context.Context, externalID uuid.UUID, userID int64) (*domain.BudgetingGroup, error) {
 	var group *domain.BudgetingGroup
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -78,7 +92,7 @@ func (s *groupService) GetByID(ctx context.Context, externalID uuid.UUID, userID
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, group.ID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, group.ID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -93,7 +107,7 @@ func (s *groupService) GetByID(ctx context.Context, externalID uuid.UUID, userID
 	return group, nil
 }
 
-func (s *groupService) GetByUserID(ctx context.Context, userID string) ([]domain.BudgetingGroup, error) {
+func (s *groupService) GetByUserID(ctx context.Context, userID int64) ([]domain.BudgetingGroup, error) {
 	var groups []domain.BudgetingGroup
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -109,7 +123,7 @@ func (s *groupService) GetByUserID(ctx context.Context, userID string) ([]domain
 	return groups, nil
 }
 
-func (s *groupService) Update(ctx context.Context, externalID uuid.UUID, name, description, userID string) (*domain.BudgetingGroup, error) {
+func (s *groupService) Update(ctx context.Context, externalID uuid.UUID, name, description string, userID int64) (*domain.BudgetingGroup, error) {
 	var group *domain.BudgetingGroup
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -119,7 +133,7 @@ func (s *groupService) Update(ctx context.Context, externalID uuid.UUID, name, d
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, group.ID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, group.ID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -137,14 +151,14 @@ func (s *groupService) Update(ctx context.Context, externalID uuid.UUID, name, d
 	return group, nil
 }
 
-func (s *groupService) Delete(ctx context.Context, externalID uuid.UUID, userID string) error {
+func (s *groupService) Delete(ctx context.Context, externalID uuid.UUID, userID int64) error {
 	return database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		group, err := s.groupRepo.GetByExternalID(ctx, tx, externalID)
 		if err != nil {
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, group.ID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, group.ID)
 		if err != nil {
 			return domain.ErrForbidden
 		}

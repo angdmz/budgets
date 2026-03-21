@@ -18,8 +18,8 @@ func NewParticipantRepository() ParticipantRepository {
 
 func (r *participantRepository) Create(ctx context.Context, tx pgx.Tx, participant *domain.Participant) error {
 	query := `
-		INSERT INTO participants (external_user_id, email, display_name, budgeting_group_id, external_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO participants (name, description, budgeting_group_id, external_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`
 
@@ -29,9 +29,8 @@ func (r *participantRepository) Create(ctx context.Context, tx pgx.Tx, participa
 	participant.UpdatedAt = now
 
 	return tx.QueryRow(ctx, query,
-		participant.ExternalUserID,
-		participant.Email,
-		participant.DisplayName,
+		participant.Name,
+		participant.Description,
 		participant.BudgetingGroupID,
 		participant.ExternalID,
 		participant.CreatedAt,
@@ -41,7 +40,7 @@ func (r *participantRepository) Create(ctx context.Context, tx pgx.Tx, participa
 
 func (r *participantRepository) GetByExternalID(ctx context.Context, tx pgx.Tx, externalID uuid.UUID) (*domain.Participant, error) {
 	query := `
-		SELECT id, external_id, external_user_id, email, display_name, budgeting_group_id, created_at, updated_at, revoked_at
+		SELECT id, external_id, name, description, budgeting_group_id, created_at, updated_at, revoked_at
 		FROM participants
 		WHERE external_id = $1 AND revoked_at IS NULL
 	`
@@ -50,39 +49,8 @@ func (r *participantRepository) GetByExternalID(ctx context.Context, tx pgx.Tx, 
 	err := tx.QueryRow(ctx, query, externalID).Scan(
 		&participant.ID,
 		&participant.ExternalID,
-		&participant.ExternalUserID,
-		&participant.Email,
-		&participant.DisplayName,
-		&participant.BudgetingGroupID,
-		&participant.CreatedAt,
-		&participant.UpdatedAt,
-		&participant.RevokedAt,
-	)
-
-	if err == pgx.ErrNoRows {
-		return nil, domain.ErrNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return participant, nil
-}
-
-func (r *participantRepository) GetByUserIDAndGroupID(ctx context.Context, tx pgx.Tx, userID string, groupID int64) (*domain.Participant, error) {
-	query := `
-		SELECT id, external_id, external_user_id, email, display_name, budgeting_group_id, created_at, updated_at, revoked_at
-		FROM participants
-		WHERE external_user_id = $1 AND budgeting_group_id = $2 AND revoked_at IS NULL
-	`
-
-	participant := &domain.Participant{}
-	err := tx.QueryRow(ctx, query, userID, groupID).Scan(
-		&participant.ID,
-		&participant.ExternalID,
-		&participant.ExternalUserID,
-		&participant.Email,
-		&participant.DisplayName,
+		&participant.Name,
+		&participant.Description,
 		&participant.BudgetingGroupID,
 		&participant.CreatedAt,
 		&participant.UpdatedAt,
@@ -101,7 +69,7 @@ func (r *participantRepository) GetByUserIDAndGroupID(ctx context.Context, tx pg
 
 func (r *participantRepository) GetByGroupID(ctx context.Context, tx pgx.Tx, groupID int64) ([]domain.Participant, error) {
 	query := `
-		SELECT id, external_id, external_user_id, email, display_name, budgeting_group_id, created_at, updated_at, revoked_at
+		SELECT id, external_id, name, description, budgeting_group_id, created_at, updated_at, revoked_at
 		FROM participants
 		WHERE budgeting_group_id = $1 AND revoked_at IS NULL
 	`
@@ -118,9 +86,8 @@ func (r *participantRepository) GetByGroupID(ctx context.Context, tx pgx.Tx, gro
 		if err := rows.Scan(
 			&p.ID,
 			&p.ExternalID,
-			&p.ExternalUserID,
-			&p.Email,
-			&p.DisplayName,
+			&p.Name,
+			&p.Description,
 			&p.BudgetingGroupID,
 			&p.CreatedAt,
 			&p.UpdatedAt,
@@ -137,15 +104,15 @@ func (r *participantRepository) GetByGroupID(ctx context.Context, tx pgx.Tx, gro
 func (r *participantRepository) Update(ctx context.Context, tx pgx.Tx, participant *domain.Participant) error {
 	query := `
 		UPDATE participants
-		SET email = $1, display_name = $2, updated_at = $3
+		SET name = $1, description = $2, updated_at = $3
 		WHERE id = $4 AND revoked_at IS NULL
 	`
 
 	participant.UpdatedAt = time.Now()
 
 	result, err := tx.Exec(ctx, query,
-		participant.Email,
-		participant.DisplayName,
+		participant.Name,
+		participant.Description,
 		participant.UpdatedAt,
 		participant.ID,
 	)

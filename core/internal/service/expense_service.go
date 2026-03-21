@@ -16,17 +16,17 @@ import (
 )
 
 type ExpenseService interface {
-	CreateExpected(ctx context.Context, budgetExternalID uuid.UUID, name, description string, amount decimal.Decimal, currency string, categoryExternalID *uuid.UUID, userID string) (*domain.ExpectedExpense, error)
-	GetExpectedByID(ctx context.Context, externalID uuid.UUID, userID string) (*domain.ExpectedExpense, error)
-	GetExpectedByBudgetID(ctx context.Context, budgetExternalID uuid.UUID, userID string) ([]domain.ExpectedExpense, error)
-	UpdateExpected(ctx context.Context, externalID uuid.UUID, name, description string, amount decimal.Decimal, currency string, categoryExternalID *uuid.UUID, userID string) (*domain.ExpectedExpense, error)
-	DeleteExpected(ctx context.Context, externalID uuid.UUID, userID string) error
+	CreateExpected(ctx context.Context, budgetExternalID uuid.UUID, name, description string, amount decimal.Decimal, currency string, categoryExternalID *uuid.UUID, userID int64) (*domain.ExpectedExpense, error)
+	GetExpectedByID(ctx context.Context, externalID uuid.UUID, userID int64) (*domain.ExpectedExpense, error)
+	GetExpectedByBudgetID(ctx context.Context, budgetExternalID uuid.UUID, userID int64) ([]domain.ExpectedExpense, error)
+	UpdateExpected(ctx context.Context, externalID uuid.UUID, name, description string, amount decimal.Decimal, currency string, categoryExternalID *uuid.UUID, userID int64) (*domain.ExpectedExpense, error)
+	DeleteExpected(ctx context.Context, externalID uuid.UUID, userID int64) error
 
-	CreateActual(ctx context.Context, budgetExternalID uuid.UUID, name, description string, expenseDate time.Time, amount decimal.Decimal, currency string, categoryExternalID, expectedExpenseExternalID *uuid.UUID, userID string) (*domain.ActualExpense, error)
-	GetActualByID(ctx context.Context, externalID uuid.UUID, userID string) (*domain.ActualExpense, error)
-	GetActualByBudgetID(ctx context.Context, budgetExternalID uuid.UUID, userID string) ([]domain.ActualExpense, error)
-	UpdateActual(ctx context.Context, externalID uuid.UUID, name, description string, expenseDate time.Time, amount decimal.Decimal, currency string, categoryExternalID, expectedExpenseExternalID *uuid.UUID, userID string) (*domain.ActualExpense, error)
-	DeleteActual(ctx context.Context, externalID uuid.UUID, userID string) error
+	CreateActual(ctx context.Context, budgetExternalID uuid.UUID, name, description string, expenseDate time.Time, amount decimal.Decimal, currency string, categoryExternalID, expectedExpenseExternalID *uuid.UUID, userID int64) (*domain.ActualExpense, error)
+	GetActualByID(ctx context.Context, externalID uuid.UUID, userID int64) (*domain.ActualExpense, error)
+	GetActualByBudgetID(ctx context.Context, budgetExternalID uuid.UUID, userID int64) ([]domain.ActualExpense, error)
+	UpdateActual(ctx context.Context, externalID uuid.UUID, name, description string, expenseDate time.Time, amount decimal.Decimal, currency string, categoryExternalID, expectedExpenseExternalID *uuid.UUID, userID int64) (*domain.ActualExpense, error)
+	DeleteActual(ctx context.Context, externalID uuid.UUID, userID int64) error
 }
 
 type expenseService struct {
@@ -36,7 +36,7 @@ type expenseService struct {
 	actualExpenseRepo   repository.ActualExpenseRepository
 	budgetRepo          repository.BudgetRepository
 	categoryRepo        repository.ExpenseCategoryRepository
-	participantRepo     repository.ParticipantRepository
+	userParticipantRepo repository.UserParticipantRepository
 }
 
 func NewExpenseService(
@@ -46,7 +46,7 @@ func NewExpenseService(
 	actualExpenseRepo repository.ActualExpenseRepository,
 	budgetRepo repository.BudgetRepository,
 	categoryRepo repository.ExpenseCategoryRepository,
-	participantRepo repository.ParticipantRepository,
+	userParticipantRepo repository.UserParticipantRepository,
 ) ExpenseService {
 	return &expenseService{
 		pool:                pool,
@@ -55,11 +55,11 @@ func NewExpenseService(
 		actualExpenseRepo:   actualExpenseRepo,
 		budgetRepo:          budgetRepo,
 		categoryRepo:        categoryRepo,
-		participantRepo:     participantRepo,
+		userParticipantRepo: userParticipantRepo,
 	}
 }
 
-func (s *expenseService) CreateExpected(ctx context.Context, budgetExternalID uuid.UUID, name, description string, amount decimal.Decimal, currency string, categoryExternalID *uuid.UUID, userID string) (*domain.ExpectedExpense, error) {
+func (s *expenseService) CreateExpected(ctx context.Context, budgetExternalID uuid.UUID, name, description string, amount decimal.Decimal, currency string, categoryExternalID *uuid.UUID, userID int64) (*domain.ExpectedExpense, error) {
 	var expense *domain.ExpectedExpense
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -68,7 +68,7 @@ func (s *expenseService) CreateExpected(ctx context.Context, budgetExternalID uu
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -106,7 +106,7 @@ func (s *expenseService) CreateExpected(ctx context.Context, budgetExternalID uu
 	return expense, nil
 }
 
-func (s *expenseService) GetExpectedByID(ctx context.Context, externalID uuid.UUID, userID string) (*domain.ExpectedExpense, error) {
+func (s *expenseService) GetExpectedByID(ctx context.Context, externalID uuid.UUID, userID int64) (*domain.ExpectedExpense, error) {
 	var expense *domain.ExpectedExpense
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -127,7 +127,7 @@ func (s *expenseService) GetExpectedByID(ctx context.Context, externalID uuid.UU
 			}
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -162,7 +162,7 @@ func (s *expenseService) getBudgetByInternalID(ctx context.Context, tx pgx.Tx, b
 	return budget, nil
 }
 
-func (s *expenseService) GetExpectedByBudgetID(ctx context.Context, budgetExternalID uuid.UUID, userID string) ([]domain.ExpectedExpense, error) {
+func (s *expenseService) GetExpectedByBudgetID(ctx context.Context, budgetExternalID uuid.UUID, userID int64) ([]domain.ExpectedExpense, error) {
 	var expenses []domain.ExpectedExpense
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -171,7 +171,7 @@ func (s *expenseService) GetExpectedByBudgetID(ctx context.Context, budgetExtern
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -200,7 +200,7 @@ func (s *expenseService) GetExpectedByBudgetID(ctx context.Context, budgetExtern
 	return expenses, nil
 }
 
-func (s *expenseService) UpdateExpected(ctx context.Context, externalID uuid.UUID, name, description string, amount decimal.Decimal, currency string, categoryExternalID *uuid.UUID, userID string) (*domain.ExpectedExpense, error) {
+func (s *expenseService) UpdateExpected(ctx context.Context, externalID uuid.UUID, name, description string, amount decimal.Decimal, currency string, categoryExternalID *uuid.UUID, userID int64) (*domain.ExpectedExpense, error) {
 	var expense *domain.ExpectedExpense
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -215,7 +215,7 @@ func (s *expenseService) UpdateExpected(ctx context.Context, externalID uuid.UUI
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -250,7 +250,7 @@ func (s *expenseService) UpdateExpected(ctx context.Context, externalID uuid.UUI
 	return expense, nil
 }
 
-func (s *expenseService) DeleteExpected(ctx context.Context, externalID uuid.UUID, userID string) error {
+func (s *expenseService) DeleteExpected(ctx context.Context, externalID uuid.UUID, userID int64) error {
 	return database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		expense, _, err := s.expectedExpenseRepo.GetByExternalID(ctx, tx, externalID)
 		if err != nil {
@@ -262,7 +262,7 @@ func (s *expenseService) DeleteExpected(ctx context.Context, externalID uuid.UUI
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -271,7 +271,7 @@ func (s *expenseService) DeleteExpected(ctx context.Context, externalID uuid.UUI
 	})
 }
 
-func (s *expenseService) CreateActual(ctx context.Context, budgetExternalID uuid.UUID, name, description string, expenseDate time.Time, amount decimal.Decimal, currency string, categoryExternalID, expectedExpenseExternalID *uuid.UUID, userID string) (*domain.ActualExpense, error) {
+func (s *expenseService) CreateActual(ctx context.Context, budgetExternalID uuid.UUID, name, description string, expenseDate time.Time, amount decimal.Decimal, currency string, categoryExternalID, expectedExpenseExternalID *uuid.UUID, userID int64) (*domain.ActualExpense, error) {
 	var expense *domain.ActualExpense
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -280,7 +280,7 @@ func (s *expenseService) CreateActual(ctx context.Context, budgetExternalID uuid
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -329,7 +329,7 @@ func (s *expenseService) CreateActual(ctx context.Context, budgetExternalID uuid
 	return expense, nil
 }
 
-func (s *expenseService) GetActualByID(ctx context.Context, externalID uuid.UUID, userID string) (*domain.ActualExpense, error) {
+func (s *expenseService) GetActualByID(ctx context.Context, externalID uuid.UUID, userID int64) (*domain.ActualExpense, error) {
 	var expense *domain.ActualExpense
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -345,7 +345,7 @@ func (s *expenseService) GetActualByID(ctx context.Context, externalID uuid.UUID
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -366,7 +366,7 @@ func (s *expenseService) GetActualByID(ctx context.Context, externalID uuid.UUID
 	return expense, nil
 }
 
-func (s *expenseService) GetActualByBudgetID(ctx context.Context, budgetExternalID uuid.UUID, userID string) ([]domain.ActualExpense, error) {
+func (s *expenseService) GetActualByBudgetID(ctx context.Context, budgetExternalID uuid.UUID, userID int64) ([]domain.ActualExpense, error) {
 	var expenses []domain.ActualExpense
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -375,7 +375,7 @@ func (s *expenseService) GetActualByBudgetID(ctx context.Context, budgetExternal
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -404,7 +404,7 @@ func (s *expenseService) GetActualByBudgetID(ctx context.Context, budgetExternal
 	return expenses, nil
 }
 
-func (s *expenseService) UpdateActual(ctx context.Context, externalID uuid.UUID, name, description string, expenseDate time.Time, amount decimal.Decimal, currency string, categoryExternalID, expectedExpenseExternalID *uuid.UUID, userID string) (*domain.ActualExpense, error) {
+func (s *expenseService) UpdateActual(ctx context.Context, externalID uuid.UUID, name, description string, expenseDate time.Time, amount decimal.Decimal, currency string, categoryExternalID, expectedExpenseExternalID *uuid.UUID, userID int64) (*domain.ActualExpense, error) {
 	var expense *domain.ActualExpense
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -419,7 +419,7 @@ func (s *expenseService) UpdateActual(ctx context.Context, externalID uuid.UUID,
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -465,7 +465,7 @@ func (s *expenseService) UpdateActual(ctx context.Context, externalID uuid.UUID,
 	return expense, nil
 }
 
-func (s *expenseService) DeleteActual(ctx context.Context, externalID uuid.UUID, userID string) error {
+func (s *expenseService) DeleteActual(ctx context.Context, externalID uuid.UUID, userID int64) error {
 	return database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		expense, _, err := s.actualExpenseRepo.GetByExternalID(ctx, tx, externalID)
 		if err != nil {
@@ -477,7 +477,7 @@ func (s *expenseService) DeleteActual(ctx context.Context, externalID uuid.UUID,
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, budget.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}

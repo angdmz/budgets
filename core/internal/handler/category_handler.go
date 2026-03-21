@@ -49,13 +49,13 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	category, err := h.categoryService.Create(c.Request.Context(), groupID, req.Name, req.Description, req.Color, req.Icon, user.ExternalProviderID)
+	category, err := h.categoryService.Create(c.Request.Context(), groupID, req.Name, req.Description, req.Color, req.Icon, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
@@ -101,13 +101,13 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	categories, err := h.categoryService.GetByGroupID(c.Request.Context(), groupID, user.ExternalProviderID)
+	categories, err := h.categoryService.GetByGroupID(c.Request.Context(), groupID, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
@@ -166,13 +166,13 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	category, err := h.categoryService.Update(c.Request.Context(), id, req.Name, req.Description, req.Color, req.Icon, user.ExternalProviderID)
+	category, err := h.categoryService.Update(c.Request.Context(), id, req.Name, req.Description, req.Color, req.Icon, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
@@ -218,13 +218,13 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	err = h.categoryService.Delete(c.Request.Context(), id, user.ExternalProviderID)
+	err = h.categoryService.Delete(c.Request.Context(), id, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})

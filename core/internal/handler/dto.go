@@ -141,3 +141,35 @@ type ActualExpenseResponse struct {
 type AuthCallbackResponse struct {
 	Token string `json:"token"`
 }
+
+type UpdatePreferenceRequest struct {
+	Theme           string `json:"theme" binding:"required"`
+	Language        string `json:"language" binding:"required"`
+	DisplayCurrency string `json:"display_currency" binding:"required"`
+}
+
+type PreferenceResponse struct {
+	Theme           string `json:"theme"`
+	Language        string `json:"language"`
+	DisplayCurrency string `json:"display_currency"`
+}
+
+type ConvertCurrencyRequest struct {
+	Amount       string `json:"amount" binding:"required"`
+	FromCurrency string `json:"from_currency" binding:"required"`
+	ToCurrency   string `json:"to_currency" binding:"required"`
+}
+
+type ConvertCurrencyResponse struct {
+	OriginalAmount   MoneyResponse `json:"original_amount"`
+	ConvertedAmount  MoneyResponse `json:"converted_amount"`
+	ExchangeRate     string        `json:"exchange_rate"`
+	Provider         string        `json:"provider"`
+}
+
+type ExchangeRateResponse struct {
+	FromCurrency string `json:"from_currency"`
+	ToCurrency   string `json:"to_currency"`
+	Rate         string `json:"rate"`
+	Provider     string `json:"provider"`
+}

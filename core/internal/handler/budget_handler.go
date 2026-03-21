@@ -64,13 +64,13 @@ func (h *BudgetHandler) CreateBudget(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	budget, err := h.budgetService.Create(c.Request.Context(), groupID, req.Name, req.Description, startDate, endDate, user.ExternalProviderID)
+	budget, err := h.budgetService.Create(c.Request.Context(), groupID, req.Name, req.Description, startDate, endDate, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
@@ -116,13 +116,13 @@ func (h *BudgetHandler) GetBudgets(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	budgets, err := h.budgetService.GetByGroupID(c.Request.Context(), groupID, user.ExternalProviderID)
+	budgets, err := h.budgetService.GetByGroupID(c.Request.Context(), groupID, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
@@ -173,13 +173,13 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	budget, err := h.budgetService.GetByID(c.Request.Context(), id, user.ExternalProviderID)
+	budget, err := h.budgetService.GetByID(c.Request.Context(), id, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
@@ -245,13 +245,13 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	budget, err := h.budgetService.Update(c.Request.Context(), id, req.Name, req.Description, startDate, endDate, user.ExternalProviderID)
+	budget, err := h.budgetService.Update(c.Request.Context(), id, req.Name, req.Description, startDate, endDate, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
@@ -297,13 +297,13 @@ func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	err = h.budgetService.Delete(c.Request.Context(), id, user.ExternalProviderID)
+	err = h.budgetService.Delete(c.Request.Context(), id, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})

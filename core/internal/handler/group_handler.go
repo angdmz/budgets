@@ -40,13 +40,13 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	group, err := h.groupService.Create(c.Request.Context(), req.Name, req.Description, user.ExternalProviderID, user.Email, user.DisplayName)
+	group, err := h.groupService.Create(c.Request.Context(), req.Name, req.Description, user.ID, user.DisplayName)
 	if err != nil {
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
 		return
@@ -72,13 +72,13 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 // @Security BearerAuth
 // @Router /groups [get]
 func (h *GroupHandler) GetGroups(c *gin.Context) {
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	groups, err := h.groupService.GetByUserID(c.Request.Context(), user.ExternalProviderID)
+	groups, err := h.groupService.GetByUserID(c.Request.Context(), user.ID)
 	if err != nil {
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
 		return
@@ -119,13 +119,13 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	group, err := h.groupService.GetByID(c.Request.Context(), id, user.ExternalProviderID)
+	group, err := h.groupService.GetByID(c.Request.Context(), id, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
@@ -177,13 +177,13 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	group, err := h.groupService.Update(c.Request.Context(), id, req.Name, req.Description, user.ExternalProviderID)
+	group, err := h.groupService.Update(c.Request.Context(), id, req.Name, req.Description, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
@@ -227,13 +227,13 @@ func (h *GroupHandler) DeleteGroup(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	err = h.groupService.Delete(c.Request.Context(), id, user.ExternalProviderID)
+	err = h.groupService.Delete(c.Request.Context(), id, user.ID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})

@@ -221,12 +221,20 @@ services:
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_NAME: ${DB_NAME:-budgets}
       SECRETS_PROVIDER: docker
+      INTEGRATION_TEST: "true"
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
     secrets:
       - db_password
       - encryption_key
+      - jwt_secret
+      - auth0_client_secret
     depends_on:
       db:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     networks:
       - budget_network
     profiles:

@@ -56,19 +56,62 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	expense, err := h.expenseService.CreateExpected(c.Request.Context(), budgetID, req.Name, req.Description, amount, req.Amount.Currency, req.CategoryID, user.ExternalProviderID)
+	expense, err := h.expenseService.CreateExpected(c.Request.Context(), budgetID, req.Name, req.Description, amount, req.Amount.Currency, req.CategoryID, user.ID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusCreated, ExpectedExpenseResponse{
+		ID:          expense.ExternalID,
+		Name:        expense.Name,
+		Description: expense.Description,
+		Amount:      MoneyResponse{Amount: expense.Amount.Amount.String(), Currency: string(expense.Amount.Currency)},
+		CreatedAt:   expense.CreatedAt,
+		UpdatedAt:   expense.UpdatedAt,
+	})
+}
+
+// GetExpectedExpense godoc
+// @Summary Get a specific expected expense
+// @Description Get an expected expense by ID
+// @Tags expected-expenses
+// @Produce json
+// @Param id path string true "Expected Expense ID (UUID)"
+// @Success 200 {object} ExpectedExpenseResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /expected-expenses/{id} [get]
+func (h *ExpenseHandler) GetExpectedExpense(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id"})
+		return
+	}
+
+	user := middleware.GetDBUserFromContext(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	expense, err := h.expenseService.GetExpectedByID(c.Request.Context(), id, user.ID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, ExpectedExpenseResponse{
 		ID:          expense.ExternalID,
 		Name:        expense.Name,
 		Description: expense.Description,
@@ -98,13 +141,13 @@ func (h *ExpenseHandler) GetExpectedExpenses(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	expenses, err := h.expenseService.GetExpectedByBudgetID(c.Request.Context(), budgetID, user.ExternalProviderID)
+	expenses, err := h.expenseService.GetExpectedByBudgetID(c.Request.Context(), budgetID, user.ID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -159,13 +202,13 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	expense, err := h.expenseService.UpdateExpected(c.Request.Context(), id, req.Name, req.Description, amount, req.Amount.Currency, req.CategoryID, user.ExternalProviderID)
+	expense, err := h.expenseService.UpdateExpected(c.Request.Context(), id, req.Name, req.Description, amount, req.Amount.Currency, req.CategoryID, user.ID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -200,13 +243,13 @@ func (h *ExpenseHandler) DeleteExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	if err := h.expenseService.DeleteExpected(c.Request.Context(), id, user.ExternalProviderID); err != nil {
+	if err := h.expenseService.DeleteExpected(c.Request.Context(), id, user.ID); err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -254,19 +297,63 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	expense, err := h.expenseService.CreateActual(c.Request.Context(), budgetID, req.Name, req.Description, expenseDate, amount, req.Amount.Currency, req.CategoryID, req.ExpectedExpenseID, user.ExternalProviderID)
+	expense, err := h.expenseService.CreateActual(c.Request.Context(), budgetID, req.Name, req.Description, expenseDate, amount, req.Amount.Currency, req.CategoryID, req.ExpectedExpenseID, user.ID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
 	c.JSON(http.StatusCreated, ActualExpenseResponse{
+		ID:          expense.ExternalID,
+		Name:        expense.Name,
+		Description: expense.Description,
+		ExpenseDate: expense.ExpenseDate.Format("2006-01-02"),
+		Amount:      MoneyResponse{Amount: expense.Amount.Amount.String(), Currency: string(expense.Amount.Currency)},
+		CreatedAt:   expense.CreatedAt,
+		UpdatedAt:   expense.UpdatedAt,
+	})
+}
+
+// GetActualExpense godoc
+// @Summary Get a specific actual expense
+// @Description Get an actual expense by ID
+// @Tags actual-expenses
+// @Produce json
+// @Param id path string true "Actual Expense ID (UUID)"
+// @Success 200 {object} ActualExpenseResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /actual-expenses/{id} [get]
+func (h *ExpenseHandler) GetActualExpense(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id"})
+		return
+	}
+
+	user := middleware.GetDBUserFromContext(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	expense, err := h.expenseService.GetActualByID(c.Request.Context(), id, user.ID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, ActualExpenseResponse{
 		ID:          expense.ExternalID,
 		Name:        expense.Name,
 		Description: expense.Description,
@@ -297,13 +384,13 @@ func (h *ExpenseHandler) GetActualExpenses(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	expenses, err := h.expenseService.GetActualByBudgetID(c.Request.Context(), budgetID, user.ExternalProviderID)
+	expenses, err := h.expenseService.GetActualByBudgetID(c.Request.Context(), budgetID, user.ID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -365,13 +452,13 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	expense, err := h.expenseService.UpdateActual(c.Request.Context(), id, req.Name, req.Description, expenseDate, amount, req.Amount.Currency, req.CategoryID, req.ExpectedExpenseID, user.ExternalProviderID)
+	expense, err := h.expenseService.UpdateActual(c.Request.Context(), id, req.Name, req.Description, expenseDate, amount, req.Amount.Currency, req.CategoryID, req.ExpectedExpenseID, user.ID)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -407,13 +494,13 @@ func (h *ExpenseHandler) DeleteActualExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetAuth0UserFromContext(c)
+	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
-	if err := h.expenseService.DeleteActual(c.Request.Context(), id, user.ExternalProviderID); err != nil {
+	if err := h.expenseService.DeleteActual(c.Request.Context(), id, user.ID); err != nil {
 		handleServiceError(c, err)
 		return
 	}

@@ -52,6 +52,19 @@ class AuthProvider(PyEnum):
     LOCAL = "local"
 
 
+class Theme(PyEnum):
+    """UI theme options."""
+    LIGHT = "LIGHT"
+    DIM = "DIM"
+    DARK = "DARK"
+
+
+class Language(PyEnum):
+    """Supported languages."""
+    EN = "EN"
+    ES = "ES"
+
+
 def _get_encryptor():
     """Get the encryptor instance, lazily initialized."""
     try:
@@ -361,4 +374,43 @@ class ActualExpense(BaseModelWithID):
         Index("ix_actual_expenses_category", "category_id"),
         Index("ix_actual_expenses_expected", "expected_expense_id"),
         Index("ix_actual_expenses_date", "expense_date"),
+    )
+
+
+class UserPreference(BaseModelWithID):
+    """
+    Stores per-user preferences such as theme, language, and display currency.
+    One row per user (unique constraint on user_id).
+    """
+    __tablename__ = "user_preferences"
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    theme = Column(
+        Enum(Theme),
+        nullable=False,
+        default=Theme.LIGHT,
+        server_default="LIGHT",
+    )
+    language = Column(
+        Enum(Language),
+        nullable=False,
+        default=Language.EN,
+        server_default="EN",
+    )
+    display_currency = Column(
+        Enum(Currency),
+        nullable=False,
+        default=Currency.USD,
+        server_default="USD",
+    )
+
+    user = relationship("User")
+
+    __table_args__ = (
+        Index("ix_user_preferences_user", "user_id", unique=True),
     )

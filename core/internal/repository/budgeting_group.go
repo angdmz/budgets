@@ -65,12 +65,13 @@ func (r *budgetingGroupRepository) GetByExternalID(ctx context.Context, tx pgx.T
 	return group, nil
 }
 
-func (r *budgetingGroupRepository) GetByParticipantUserID(ctx context.Context, tx pgx.Tx, userID string) ([]domain.BudgetingGroup, error) {
+func (r *budgetingGroupRepository) GetByParticipantUserID(ctx context.Context, tx pgx.Tx, userID int64) ([]domain.BudgetingGroup, error) {
 	query := `
 		SELECT bg.id, bg.external_id, bg.name, bg.description, bg.created_at, bg.updated_at, bg.revoked_at
 		FROM budgeting_groups bg
 		INNER JOIN participants p ON p.budgeting_group_id = bg.id
-		WHERE p.external_user_id = $1 AND bg.revoked_at IS NULL AND p.revoked_at IS NULL
+		INNER JOIN user_participants up ON up.participant_id = p.id
+		WHERE up.user_id = $1 AND bg.revoked_at IS NULL AND p.revoked_at IS NULL AND up.revoked_at IS NULL
 	`
 
 	rows, err := tx.Query(ctx, query, userID)

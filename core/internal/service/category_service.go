@@ -13,34 +13,34 @@ import (
 )
 
 type CategoryService interface {
-	Create(ctx context.Context, groupExternalID uuid.UUID, name, description, color, icon, userID string) (*domain.ExpenseCategory, error)
-	GetByGroupID(ctx context.Context, groupExternalID uuid.UUID, userID string) ([]domain.ExpenseCategory, error)
-	Update(ctx context.Context, externalID uuid.UUID, name, description, color, icon, userID string) (*domain.ExpenseCategory, error)
-	Delete(ctx context.Context, externalID uuid.UUID, userID string) error
+	Create(ctx context.Context, groupExternalID uuid.UUID, name, description, color, icon string, userID int64) (*domain.ExpenseCategory, error)
+	GetByGroupID(ctx context.Context, groupExternalID uuid.UUID, userID int64) ([]domain.ExpenseCategory, error)
+	Update(ctx context.Context, externalID uuid.UUID, name, description, color, icon string, userID int64) (*domain.ExpenseCategory, error)
+	Delete(ctx context.Context, externalID uuid.UUID, userID int64) error
 }
 
 type categoryService struct {
-	pool            *pgxpool.Pool
-	categoryRepo    repository.ExpenseCategoryRepository
-	groupRepo       repository.BudgetingGroupRepository
-	participantRepo repository.ParticipantRepository
+	pool                *pgxpool.Pool
+	categoryRepo        repository.ExpenseCategoryRepository
+	groupRepo           repository.BudgetingGroupRepository
+	userParticipantRepo repository.UserParticipantRepository
 }
 
 func NewCategoryService(
 	pool *pgxpool.Pool,
 	categoryRepo repository.ExpenseCategoryRepository,
 	groupRepo repository.BudgetingGroupRepository,
-	participantRepo repository.ParticipantRepository,
+	userParticipantRepo repository.UserParticipantRepository,
 ) CategoryService {
 	return &categoryService{
-		pool:            pool,
-		categoryRepo:    categoryRepo,
-		groupRepo:       groupRepo,
-		participantRepo: participantRepo,
+		pool:                pool,
+		categoryRepo:        categoryRepo,
+		groupRepo:           groupRepo,
+		userParticipantRepo: userParticipantRepo,
 	}
 }
 
-func (s *categoryService) Create(ctx context.Context, groupExternalID uuid.UUID, name, description, color, icon, userID string) (*domain.ExpenseCategory, error) {
+func (s *categoryService) Create(ctx context.Context, groupExternalID uuid.UUID, name, description, color, icon string, userID int64) (*domain.ExpenseCategory, error) {
 	var category *domain.ExpenseCategory
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -49,7 +49,7 @@ func (s *categoryService) Create(ctx context.Context, groupExternalID uuid.UUID,
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, group.ID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, group.ID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -72,7 +72,7 @@ func (s *categoryService) Create(ctx context.Context, groupExternalID uuid.UUID,
 	return category, nil
 }
 
-func (s *categoryService) GetByGroupID(ctx context.Context, groupExternalID uuid.UUID, userID string) ([]domain.ExpenseCategory, error) {
+func (s *categoryService) GetByGroupID(ctx context.Context, groupExternalID uuid.UUID, userID int64) ([]domain.ExpenseCategory, error) {
 	var categories []domain.ExpenseCategory
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -81,7 +81,7 @@ func (s *categoryService) GetByGroupID(ctx context.Context, groupExternalID uuid
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, group.ID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, group.ID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -97,7 +97,7 @@ func (s *categoryService) GetByGroupID(ctx context.Context, groupExternalID uuid
 	return categories, nil
 }
 
-func (s *categoryService) Update(ctx context.Context, externalID uuid.UUID, name, description, color, icon, userID string) (*domain.ExpenseCategory, error) {
+func (s *categoryService) Update(ctx context.Context, externalID uuid.UUID, name, description, color, icon string, userID int64) (*domain.ExpenseCategory, error) {
 	var category *domain.ExpenseCategory
 
 	err := database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
@@ -107,7 +107,7 @@ func (s *categoryService) Update(ctx context.Context, externalID uuid.UUID, name
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, category.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, category.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}
@@ -127,14 +127,14 @@ func (s *categoryService) Update(ctx context.Context, externalID uuid.UUID, name
 	return category, nil
 }
 
-func (s *categoryService) Delete(ctx context.Context, externalID uuid.UUID, userID string) error {
+func (s *categoryService) Delete(ctx context.Context, externalID uuid.UUID, userID int64) error {
 	return database.WithTransaction(ctx, s.pool, func(ctx context.Context, tx pgx.Tx) error {
 		category, err := s.categoryRepo.GetByExternalID(ctx, tx, externalID)
 		if err != nil {
 			return err
 		}
 
-		_, err = s.participantRepo.GetByUserIDAndGroupID(ctx, tx, userID, category.BudgetingGroupID)
+		_, err = s.userParticipantRepo.GetByUserIDAndGroupID(ctx, tx, userID, category.BudgetingGroupID)
 		if err != nil {
 			return domain.ErrForbidden
 		}

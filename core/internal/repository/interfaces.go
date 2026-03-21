@@ -9,10 +9,16 @@ import (
 	"github.com/budgets/core/internal/domain"
 )
 
+type UserRepository interface {
+	GetOrCreateByProvider(ctx context.Context, tx pgx.Tx, providerID string, provider domain.AuthProvider, email, displayName, avatarURL string) (*domain.User, error)
+	GetByID(ctx context.Context, tx pgx.Tx, id int64) (*domain.User, error)
+	GetByExternalID(ctx context.Context, tx pgx.Tx, externalID uuid.UUID) (*domain.User, error)
+}
+
 type BudgetingGroupRepository interface {
 	Create(ctx context.Context, tx pgx.Tx, group *domain.BudgetingGroup) error
 	GetByExternalID(ctx context.Context, tx pgx.Tx, externalID uuid.UUID) (*domain.BudgetingGroup, error)
-	GetByParticipantUserID(ctx context.Context, tx pgx.Tx, userID string) ([]domain.BudgetingGroup, error)
+	GetByParticipantUserID(ctx context.Context, tx pgx.Tx, userID int64) ([]domain.BudgetingGroup, error)
 	Update(ctx context.Context, tx pgx.Tx, group *domain.BudgetingGroup) error
 	Revoke(ctx context.Context, tx pgx.Tx, externalID uuid.UUID) error
 }
@@ -20,10 +26,20 @@ type BudgetingGroupRepository interface {
 type ParticipantRepository interface {
 	Create(ctx context.Context, tx pgx.Tx, participant *domain.Participant) error
 	GetByExternalID(ctx context.Context, tx pgx.Tx, externalID uuid.UUID) (*domain.Participant, error)
-	GetByUserIDAndGroupID(ctx context.Context, tx pgx.Tx, userID string, groupID int64) (*domain.Participant, error)
 	GetByGroupID(ctx context.Context, tx pgx.Tx, groupID int64) ([]domain.Participant, error)
 	Update(ctx context.Context, tx pgx.Tx, participant *domain.Participant) error
 	Revoke(ctx context.Context, tx pgx.Tx, externalID uuid.UUID) error
+}
+
+type UserParticipantRepository interface {
+	Create(ctx context.Context, tx pgx.Tx, up *domain.UserParticipant) error
+	GetByUserIDAndGroupID(ctx context.Context, tx pgx.Tx, userID int64, groupID int64) (*domain.UserParticipant, error)
+	GetByUserIDAndParticipantID(ctx context.Context, tx pgx.Tx, userID, participantID int64) (*domain.UserParticipant, error)
+}
+
+type UserPreferenceRepository interface {
+	GetByUserID(ctx context.Context, tx pgx.Tx, userID int64) (*domain.UserPreference, error)
+	Upsert(ctx context.Context, tx pgx.Tx, pref *domain.UserPreference) error
 }
 
 type ExpenseCategoryRepository interface {

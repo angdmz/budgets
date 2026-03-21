@@ -58,17 +58,17 @@ func SetupTestSuite(t *testing.T) *TestSuite {
 		t.Fatalf("Failed to create encryptor: %v", err)
 	}
 
-	// Create server
-	srv := server.New(cfg, db)
-
-	// Generate test auth token
+	// Create auth middleware for testing (uses simple HS256 JWT instead of Auth0 RS256)
 	testUserID := "test-user-123"
 	authMiddleware := middleware.NewAuthMiddleware(cfg.Auth.JWTSecret.Value())
+
+	// Create server with test authenticator
+	srv := server.New(cfg, db, server.WithAuthenticator(authMiddleware))
 	testUser := &domain.User{
 		ExternalProviderID: testUserID,
 		Email:              "test@example.com",
 		DisplayName:        "Test User",
-		AuthProvider:       "google",
+		AuthProvider:       domain.AuthProviderGoogle,
 	}
 	authToken, err := authMiddleware.GenerateToken(testUser)
 	if err != nil {
@@ -145,6 +145,7 @@ func (ts *TestSuite) CleanupTestData(t *testing.T) {
 		"expected_expenses",
 		"budgets",
 		"expense_categories",
+		"user_preferences",
 		"user_participants",
 		"participants",
 		"budgeting_groups",
