@@ -56,7 +56,7 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -98,7 +98,7 @@ func (h *ExpenseHandler) GetExpectedExpenses(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -159,7 +159,7 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -200,7 +200,7 @@ func (h *ExpenseHandler) DeleteExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -254,7 +254,7 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -297,7 +297,7 @@ func (h *ExpenseHandler) GetActualExpenses(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -365,7 +365,7 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -407,7 +407,7 @@ func (h *ExpenseHandler) DeleteActualExpense(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return

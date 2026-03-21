@@ -40,7 +40,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -72,7 +72,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 // @Security BearerAuth
 // @Router /groups [get]
 func (h *GroupHandler) GetGroups(c *gin.Context) {
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -119,7 +119,7 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -177,7 +177,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -227,7 +227,7 @@ func (h *GroupHandler) DeleteGroup(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return

@@ -129,7 +129,7 @@ func (h *AuthHandler) getUserInfo(accessToken string) (*googleUserInfo, error) {
 // @Security BearerAuth
 // @Router /auth/me [get]
 func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return

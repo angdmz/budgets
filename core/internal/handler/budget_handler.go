@@ -64,7 +64,7 @@ func (h *BudgetHandler) CreateBudget(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -116,7 +116,7 @@ func (h *BudgetHandler) GetBudgets(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -173,7 +173,7 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -245,7 +245,7 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -297,7 +297,7 @@ func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return

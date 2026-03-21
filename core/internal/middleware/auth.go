@@ -68,10 +68,10 @@ func (m *AuthMiddleware) validateToken(tokenString string) (*domain.User, error)
 	}
 
 	user := &domain.User{
-		ExternalProviderID: getStringClaim(claims, "sub"),
-		Email:              getStringClaim(claims, "email"),
-		DisplayName:        getStringClaim(claims, "name"),
-		AuthProvider:       domain.AuthProvider(getStringClaim(claims, "provider")),
+		ExternalProviderID: getLegacyStringClaim(claims, "sub"),
+		Email:              getLegacyStringClaim(claims, "email"),
+		DisplayName:        getLegacyStringClaim(claims, "name"),
+		AuthProvider:       domain.AuthProvider(getLegacyStringClaim(claims, "provider")),
 	}
 
 	if user.ExternalProviderID == "" {
@@ -95,7 +95,7 @@ func (m *AuthMiddleware) GenerateToken(user *domain.User) (string, error) {
 	return token.SignedString(m.jwtSecret)
 }
 
-func getStringClaim(claims jwt.MapClaims, key string) string {
+func getLegacyStringClaim(claims jwt.MapClaims, key string) string {
 	if val, ok := claims[key].(string); ok {
 		return val
 	}

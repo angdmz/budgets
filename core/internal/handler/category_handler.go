@@ -49,7 +49,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -101,7 +101,7 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -166,7 +166,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return
@@ -218,7 +218,7 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	user := middleware.GetUserFromContext(c)
+	user := middleware.GetAuth0UserFromContext(c)
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 		return

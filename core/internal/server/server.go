@@ -60,18 +60,12 @@ func (s *Server) setupRoutes() {
 	budgetService := service.NewBudgetService(s.db.Pool, budgetRepo, groupRepo, participantRepo)
 	expenseService := service.NewExpenseService(s.db.Pool, encryptor, expectedExpenseRepo, actualExpenseRepo, budgetRepo, categoryRepo, participantRepo)
 
-	authMiddleware := middleware.NewAuthMiddleware(s.config.Auth.JWTSecret.Value())
+	authMiddleware := middleware.NewAuth0Middleware(s.config.Auth.Auth0Domain, s.config.Auth.Auth0Audience)
 
 	groupHandler := handler.NewGroupHandler(groupService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
 	budgetHandler := handler.NewBudgetHandler(budgetService)
 	expenseHandler := handler.NewExpenseHandler(expenseService)
-	authHandler := handler.NewAuthHandler(
-		s.config.Auth.GoogleClientID,
-		s.config.Auth.GoogleClientSecret.Value(),
-		"http://localhost:8080/api/v1/auth/google/callback",
-		authMiddleware,
-	)
 
 	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -84,12 +78,8 @@ func (s *Server) setupRoutes() {
 
 	api := s.router.Group("/api/v1")
 	{
-		auth := api.Group("/auth")
-		{
-			auth.GET("/google/login", authHandler.GoogleLogin)
-			auth.GET("/google/callback", authHandler.GoogleCallback)
-			auth.GET("/me", authMiddleware.RequireAuth(), authHandler.GetCurrentUser)
-		}
+		// Auth0 handles authentication via frontend
+		// No backend auth routes needed - just validate JWTs
 
 		protected := api.Group("")
 		protected.Use(authMiddleware.RequireAuth())

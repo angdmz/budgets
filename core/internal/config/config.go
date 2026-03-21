@@ -32,8 +32,10 @@ type DatabaseConfig struct {
 }
 
 type AuthConfig struct {
-	GoogleClientID     string
-	GoogleClientSecret SecretString
+	Auth0Domain        string
+	Auth0Audience      string
+	Auth0ClientID      string
+	Auth0ClientSecret  SecretString
 	JWTSecret          SecretString
 	EncryptionKey      SecretString
 }
@@ -61,12 +63,25 @@ func Load(provider secrets.SecretsProvider) (*Config, error) {
 		return nil, fmt.Errorf("failed to get db password: %w", err)
 	}
 
-	googleClientSecret, err := provider.GetSecret("google_client_secret")
+	auth0ClientSecret, err := provider.GetSecret("auth0_client_secret")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get google client secret: %w", err)
+		return nil, fmt.Errorf("failed to get auth0 client secret: %w", err)
 	}
 
-	googleClientID := getEnvOrDefault("GOOGLE_CLIENT_ID", "")
+	auth0Domain := getEnvOrDefault("AUTH0_DOMAIN", "")
+	if auth0Domain == "" {
+		return nil, fmt.Errorf("AUTH0_DOMAIN environment variable is required")
+	}
+
+	auth0Audience := getEnvOrDefault("AUTH0_AUDIENCE", "")
+	if auth0Audience == "" {
+		return nil, fmt.Errorf("AUTH0_AUDIENCE environment variable is required")
+	}
+
+	auth0ClientID := getEnvOrDefault("AUTH0_CLIENT_ID", "")
+	if auth0ClientID == "" {
+		return nil, fmt.Errorf("AUTH0_CLIENT_ID environment variable is required")
+	}
 
 	sslMode, err := ParseSSLMode(getEnvOrDefault("DB_SSLMODE", "disable"))
 	if err != nil {
@@ -90,10 +105,12 @@ func Load(provider secrets.SecretsProvider) (*Config, error) {
 			ConnMaxLifetime: getEnvOrDefaultInt("DB_CONN_MAX_LIFETIME_SECONDS", 300),
 		},
 		Auth: AuthConfig{
-			GoogleClientID:     googleClientID,
-			GoogleClientSecret: NewSecretString(googleClientSecret),
-			JWTSecret:          NewSecretString(jwtSecret),
-			EncryptionKey:      NewSecretString(encryptionKey),
+			Auth0Domain:       auth0Domain,
+			Auth0Audience:     auth0Audience,
+			Auth0ClientID:     auth0ClientID,
+			Auth0ClientSecret: NewSecretString(auth0ClientSecret),
+			JWTSecret:         NewSecretString(jwtSecret),
+			EncryptionKey:     NewSecretString(encryptionKey),
 		},
 	}
 

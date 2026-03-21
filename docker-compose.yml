@@ -149,17 +149,68 @@ services:
       DB_MAX_IDLE_CONNS: ${DB_MAX_IDLE_CONNS:-5}
       DB_CONN_MAX_LIFETIME_SECONDS: ${DB_CONN_MAX_LIFETIME_SECONDS:-300}
       SECRETS_PROVIDER: docker
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
     secrets:
       - db_password
       - encryption_key
       - jwt_secret
-      - google_client_secret
+      - auth0_client_secret
     depends_on:
       migrations:
         condition: service_completed_successfully
     networks:
       - budget_network
+
+  landing:
+    build:
+      context: ./landing
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+    networks:
+      - budget_network
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    environment:
+      - VITE_AUTH0_DOMAIN=${AUTH0_DOMAIN}
+      - VITE_AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
+      - VITE_AUTH0_AUDIENCE=${AUTH0_AUDIENCE}
+      - VITE_API_URL=/api/v1
+    networks:
+      - budget_network
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    environment:
+      - VITE_AUTH0_DOMAIN=${AUTH0_DOMAIN}
+      - VITE_AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
+      - VITE_AUTH0_AUDIENCE=${AUTH0_AUDIENCE}
+      - VITE_API_URL=/api/v1
+    networks:
+      - budget_network
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "8000:80"
+    depends_on:
+      - api
+      - landing
+      - app
+      - admin
+    networks:
+      - budget_network
+    volumes:
+      - ./nginx/logs:/var/log/nginx
 
   test:
     build:
@@ -182,6 +233,23 @@ services:
       - budget_network
     profiles:
       - test
+
+  integration-tests:
+    build:
+      context: ./tests
+      dockerfile: Dockerfile
+    environment:
+      TEST_BASE_URL: http://nginx
+    depends_on:
+      - nginx
+      - api
+      - landing
+      - app
+      - admin
+    networks:
+      - budget_network
+    profiles:
+      - integration
 
   generate-db-password:
     image: alpine:latest
@@ -207,9 +275,9 @@ services:
     profiles:
       - setup
 
-  generate-google-client-secret:
+  generate-auth0-client-secret:
     image: alpine:latest
-    command: sh -c "echo -n 'your-google-client-secret-here' > /secrets/google_client_secret.txt && echo 'Generated google_client_secret.txt (placeholder)'"
+    command: sh -c "echo -n 'your-auth0-client-secret-here' > /secrets/auth0_client_secret.txt && echo 'Generated auth0_client_secret.txt (placeholder - replace with real Auth0 client secret)'"
     volumes:
       - ./secrets:/secrets
     profiles:
@@ -222,8 +290,8 @@ secrets:
     file: ./secrets/encryption_key.txt
   jwt_secret:
     file: ./secrets/jwt_secret.txt
-  google_client_secret:
-    file: ./secrets/google_client_secret.txt
+  auth0_client_secret:
+    file: ./secrets/auth0_client_secret.txt
 
 volumes:
   db_data:
