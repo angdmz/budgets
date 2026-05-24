@@ -5,9 +5,9 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
+	_ "github.com/budgets/core/docs"
 	"github.com/budgets/core/internal/config"
 	"github.com/budgets/core/internal/currency"
-	_ "github.com/budgets/core/docs"
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/encryption"
 	"github.com/budgets/core/internal/handler"
@@ -15,6 +15,29 @@ import (
 	"github.com/budgets/core/internal/repository"
 	"github.com/budgets/core/internal/service"
 )
+
+type Dependencies struct {
+	// Repositories
+	UserRepo            repository.UserRepository
+	GroupRepo           repository.BudgetingGroupRepository
+	ParticipantRepo     repository.ParticipantRepository
+	UserParticipantRepo repository.UserParticipantRepository
+	CategoryRepo        repository.ExpenseCategoryRepository
+	BudgetRepo          repository.BudgetRepository
+	ExpectedExpenseRepo repository.ExpectedExpenseRepository
+	ActualExpenseRepo   repository.ActualExpenseRepository
+	PrefRepo            repository.UserPreferenceRepository
+
+	// Services
+	GroupService      service.GroupService
+	CategoryService   service.CategoryService
+	BudgetService     service.BudgetService
+	ExpenseService    service.ExpenseService
+	PreferenceService service.PreferenceService
+
+	// Currency
+	Marketplace *currency.CurrencyMarketplace
+}
 
 type Server struct {
 	router        *gin.Engine
@@ -33,7 +56,7 @@ func WithAuthenticator(auth middleware.Authenticator) Option {
 	}
 }
 
-func New(cfg *config.Config, db *database.DB, opts ...Option) *Server {
+func New(cfg *config.Config, db *database.DB, deps *Dependencies, opts ...Option) *Server {
 	if cfg.Server.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -55,7 +78,7 @@ func New(cfg *config.Config, db *database.DB, opts ...Option) *Server {
 		s.authenticator = middleware.NewAuth0Middleware(cfg.Auth.Auth0Domain, cfg.Auth.Auth0Audience)
 	}
 
-	s.setupRoutes()
+	s.setupRoutes(deps)
 	return s
 }
 
@@ -63,12 +86,9 @@ func (s *Server) Router() *gin.Engine {
 	return s.router
 }
 
-func (s *Server) setupRoutes() {
-	encryptor, err := encryption.NewEncryptor(s.config.Auth.EncryptionKey.Value())
-	if err != nil {
-		panic("failed to initialize encryptor: " + err.Error())
-	}
-
+// BuildDependencies constructs all dependencies needed by the server.
+// This function should be called before creating a new server instance.
+func BuildDependencies(db *database.DB, encryptor *encryption.Encryptor) *Dependencies {
 	userRepo := repository.NewUserRepository()
 	groupRepo := repository.NewBudgetingGroupRepository()
 	participantRepo := repository.NewParticipantRepository()
@@ -79,25 +99,46 @@ func (s *Server) setupRoutes() {
 	actualExpenseRepo := repository.NewActualExpenseRepository()
 	prefRepo := repository.NewUserPreferenceRepository()
 
-	groupService := service.NewGroupService(s.db.Pool, groupRepo, participantRepo, userParticipantRepo)
-	categoryService := service.NewCategoryService(s.db.Pool, categoryRepo, groupRepo, userParticipantRepo)
-	budgetService := service.NewBudgetService(s.db.Pool, budgetRepo, groupRepo, userParticipantRepo)
-	expenseService := service.NewExpenseService(s.db.Pool, encryptor, expectedExpenseRepo, actualExpenseRepo, budgetRepo, categoryRepo, userParticipantRepo)
-	preferenceService := service.NewPreferenceService(s.db.Pool, prefRepo)
+	groupService := service.NewGroupService(db.Pool, groupRepo, participantRepo, userParticipantRepo)
+	categoryService := service.NewCategoryService(db.Pool, categoryRepo, groupRepo, userParticipantRepo)
+	budgetService := service.NewBudgetService(db.Pool, budgetRepo, groupRepo, userParticipantRepo)
+	expenseService := service.NewExpenseService(db.Pool, encryptor, expectedExpenseRepo, actualExpenseRepo, budgetRepo, categoryRepo, userParticipantRepo)
+	preferenceService := service.NewPreferenceService(db.Pool, prefRepo)
 
 	exchangeProvider := currency.NewStubExchangeRateProvider()
 	exchangeCache := currency.NewInMemoryCache()
 	marketplace := currency.NewCurrencyMarketplace(exchangeProvider, exchangeCache)
 
-	authMiddleware := s.authenticator
-	userResolver := middleware.NewUserResolver(s.db.Pool, userRepo.GetOrCreateByProvider)
+	return &Dependencies{
+		UserRepo:            userRepo,
+		GroupRepo:           groupRepo,
+		ParticipantRepo:     participantRepo,
+		UserParticipantRepo: userParticipantRepo,
+		CategoryRepo:        categoryRepo,
+		BudgetRepo:          budgetRepo,
+		ExpectedExpenseRepo: expectedExpenseRepo,
+		ActualExpenseRepo:   actualExpenseRepo,
+		PrefRepo:            prefRepo,
+		GroupService:        groupService,
+		CategoryService:     categoryService,
+		BudgetService:       budgetService,
+		ExpenseService:      expenseService,
+		PreferenceService:   preferenceService,
+		Marketplace:         marketplace,
+	}
+}
 
-	groupHandler := handler.NewGroupHandler(groupService)
-	categoryHandler := handler.NewCategoryHandler(categoryService)
-	budgetHandler := handler.NewBudgetHandler(budgetService)
-	expenseHandler := handler.NewExpenseHandler(expenseService)
-	preferenceHandler := handler.NewPreferenceHandler(preferenceService)
-	currencyHandler := handler.NewCurrencyHandler(marketplace)
+func (s *Server) setupRoutes(deps *Dependencies) {
+
+	authMiddleware := s.authenticator
+	userResolver := middleware.NewUserResolver(s.db.Pool, deps.UserRepo.GetOrCreateByProvider)
+
+	groupHandler := handler.NewGroupHandler(deps.GroupService)
+	categoryHandler := handler.NewCategoryHandler(deps.CategoryService)
+	budgetHandler := handler.NewBudgetHandler(deps.BudgetService)
+	expenseHandler := handler.NewExpenseHandler(deps.ExpenseService)
+	preferenceHandler := handler.NewPreferenceHandler(deps.PreferenceService)
+	currencyHandler := handler.NewCurrencyHandler(deps.Marketplace)
 
 	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

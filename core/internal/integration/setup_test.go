@@ -22,11 +22,11 @@ import (
 )
 
 type TestSuite struct {
-	Router      *gin.Engine
-	DB          *pgxpool.Pool
-	Encryptor   *encryption.Encryptor
-	AuthToken   string
-	TestUserID  string
+	Router     *gin.Engine
+	DB         *pgxpool.Pool
+	Encryptor  *encryption.Encryptor
+	AuthToken  string
+	TestUserID string
 }
 
 func SetupTestSuite(t *testing.T) *TestSuite {
@@ -58,12 +58,15 @@ func SetupTestSuite(t *testing.T) *TestSuite {
 		t.Fatalf("Failed to create encryptor: %v", err)
 	}
 
+	// Build dependencies
+	deps := server.BuildDependencies(db, enc)
+
 	// Create auth middleware for testing (uses simple HS256 JWT instead of Auth0 RS256)
 	testUserID := "test-user-123"
 	authMiddleware := middleware.NewAuthMiddleware(cfg.Auth.JWTSecret.Value())
 
 	// Create server with test authenticator
-	srv := server.New(cfg, db, server.WithAuthenticator(authMiddleware))
+	srv := server.New(cfg, db, deps, server.WithAuthenticator(authMiddleware))
 	testUser := &domain.User{
 		ExternalProviderID: testUserID,
 		Email:              "test@example.com",

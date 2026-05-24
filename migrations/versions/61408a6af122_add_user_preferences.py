@@ -19,33 +19,32 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enum types
-    theme_enum = sa.Enum('LIGHT', 'DIM', 'DARK', name='theme')
-    theme_enum.create(op.get_bind(), checkfirst=True)
+    # Create enum types via raw SQL with IF NOT EXISTS safety
+    conn = op.get_bind()
+    conn.execute(sa.text("DO $$ BEGIN CREATE TYPE theme AS ENUM ('LIGHT', 'DIM', 'DARK'); EXCEPTION WHEN duplicate_object THEN null; END $$;"))
+    conn.execute(sa.text("DO $$ BEGIN CREATE TYPE language AS ENUM ('EN', 'ES'); EXCEPTION WHEN duplicate_object THEN null; END $$;"))
+    conn.execute(sa.text("DO $$ BEGIN CREATE TYPE currency AS ENUM ('USD', 'EUR', 'GBP', 'ARS', 'BRL', 'MXN', 'CLP', 'COP', 'PEN', 'UYU'); EXCEPTION WHEN duplicate_object THEN null; END $$;"))
 
-    language_enum = sa.Enum('EN', 'ES', name='language')
-    language_enum.create(op.get_bind(), checkfirst=True)
-
-    # currency enum already exists from initial schema
-
-    op.create_table(
-        'user_preferences',
-        sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column('external_id', sa.dialects.postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True),
-        sa.Column('theme', theme_enum, nullable=False, server_default='LIGHT'),
-        sa.Column('language', language_enum, nullable=False, server_default='EN'),
-        sa.Column('display_currency', sa.Enum('USD', 'EUR', 'GBP', 'ARS', 'BRL', 'MXN', 'CLP', 'COP', 'PEN', 'UYU', name='currency', create_type=False), nullable=False, server_default='USD'),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
-        sa.PrimaryKeyConstraint('id'),
-    )
+    # Create table using raw column types to avoid SQLAlchemy re-creating enums
+    op.execute("""
+        CREATE TABLE user_preferences (
+            id SERIAL PRIMARY KEY,
+            external_id UUID NOT NULL DEFAULT gen_random_uuid(),
+            user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            theme theme NOT NULL DEFAULT 'LIGHT',
+            language language NOT NULL DEFAULT 'EN',
+            display_currency currency NOT NULL DEFAULT 'USD',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            revoked_at TIMESTAMPTZ
+        );
+    """)
     op.create_index('ix_user_preferences_user', 'user_preferences', ['user_id'], unique=True)
 
 
 def downgrade() -> None:
     op.drop_index('ix_user_preferences_user', table_name='user_preferences')
     op.drop_table('user_preferences')
+    sa.Enum(name='currency').drop(op.get_bind(), checkfirst=True)
     sa.Enum(name='language').drop(op.get_bind(), checkfirst=True)
     sa.Enum(name='theme').drop(op.get_bind(), checkfirst=True)

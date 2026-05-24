@@ -12,6 +12,7 @@ import (
 
 	"github.com/budgets/core/internal/config"
 	"github.com/budgets/core/internal/database"
+	"github.com/budgets/core/internal/encryption"
 	"github.com/budgets/core/internal/secrets"
 	"github.com/budgets/core/internal/server"
 )
@@ -53,14 +54,20 @@ func main() {
 	}
 	defer db.Close()
 
-	srv := server.New(cfg, db)
+	encryptor, err := encryption.NewEncryptor(cfg.Auth.EncryptionKey.Value())
+	if err != nil {
+		log.Fatalf("Failed to initialize encryptor: %v", err)
+	}
+
+	deps := server.BuildDependencies(db, encryptor)
+	srv := server.New(cfg, db, deps)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler:      srv.Router(),
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  time.Duration(cfg.Server.ReadTimeoutSeconds) * time.Second,
+		WriteTimeout: time.Duration(cfg.Server.WriteTimeoutSeconds) * time.Second,
+		IdleTimeout:  time.Duration(cfg.Server.IdleTimeoutSeconds) * time.Second,
 	}
 
 	go func() {
@@ -76,7 +83,7 @@ func main() {
 
 	log.Println("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Server.ShutdownTimeoutSeconds)*time.Second)
 	defer cancel()
 
 	if err := httpServer.Shutdown(ctx); err != nil {

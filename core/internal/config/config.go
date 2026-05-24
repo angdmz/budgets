@@ -15,8 +15,12 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port int
-	Env  Environment
+	Port                   int
+	Env                    Environment
+	ReadTimeoutSeconds     int
+	WriteTimeoutSeconds    int
+	IdleTimeoutSeconds     int
+	ShutdownTimeoutSeconds int
 }
 
 type DatabaseConfig struct {
@@ -32,12 +36,12 @@ type DatabaseConfig struct {
 }
 
 type AuthConfig struct {
-	Auth0Domain        string
-	Auth0Audience      string
-	Auth0ClientID      string
-	Auth0ClientSecret  SecretString
-	JWTSecret          SecretString
-	EncryptionKey      SecretString
+	Auth0Domain       string
+	Auth0Audience     string
+	Auth0ClientID     string
+	Auth0ClientSecret SecretString
+	JWTSecret         SecretString
+	EncryptionKey     SecretString
 }
 
 func (d DatabaseConfig) ConnectionString() string {
@@ -90,8 +94,12 @@ func Load(provider secrets.SecretsProvider) (*Config, error) {
 
 	cfg := &Config{
 		Server: ServerConfig{
-			Port: getEnvOrDefaultInt("SERVER_PORT", 8080),
-			Env:  ParseEnvironment(getEnvOrDefault("SERVER_ENV", "development")),
+			Port:                   getEnvOrDefaultInt("SERVER_PORT", 8080),
+			Env:                    ParseEnvironment(getEnvOrDefault("SERVER_ENV", "development")),
+			ReadTimeoutSeconds:     getEnvOrDefaultInt("SERVER_READ_TIMEOUT_SECONDS", 15),
+			WriteTimeoutSeconds:    getEnvOrDefaultInt("SERVER_WRITE_TIMEOUT_SECONDS", 15),
+			IdleTimeoutSeconds:     getEnvOrDefaultInt("SERVER_IDLE_TIMEOUT_SECONDS", 60),
+			ShutdownTimeoutSeconds: getEnvOrDefaultInt("SERVER_SHUTDOWN_TIMEOUT_SECONDS", 30),
 		},
 		Database: DatabaseConfig{
 			Host:            getEnvOrDefault("DB_HOSTNAME", "localhost"),
