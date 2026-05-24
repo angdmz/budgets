@@ -62,29 +62,6 @@ services:
     profiles:
       - tools
 
-  migrate-upgrade:
-    build:
-      context: ./migrations
-      dockerfile: Dockerfile
-    entrypoint: ["alembic", "upgrade"]
-    command: ["head"]
-    environment:
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_NAME: ${DB_NAME:-budgets}
-      DB_HOSTNAME: db
-      DB_PORT: 5432
-      SECRETS_PROVIDER: docker
-    secrets:
-      - db_password
-      - encryption_key
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - budget_network
-    profiles:
-      - tools
-
   migrate-downgrade:
     build:
       context: ./migrations
