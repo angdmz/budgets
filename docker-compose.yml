@@ -289,6 +289,15 @@ services:
     profiles:
       - setup
 
+  go-mod-tidy:
+    image: golang:1.22-alpine
+    working_dir: /app
+    command: sh -c "go mod tidy && cat go.sum"
+    volumes:
+      - ./core:/app
+    profiles:
+      - tools
+
 secrets:
   db_password:
     file: ./secrets/db_password.txt

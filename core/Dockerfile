@@ -7,11 +7,11 @@ WORKDIR /app
 
 RUN apk add --no-cache git
 
-COPY go.mod ./
+COPY go.mod go.sum ./
+
+RUN go mod download
 
 COPY . .
-
-RUN go mod tidy
 
 # =============================================================================
 # Test stage - for running tests
