@@ -78,4 +78,6 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Nginx logs
-nginx/logs/
+nginx/logs/access.log
+nginx/logs/error.log
+
