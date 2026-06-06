@@ -1,23 +1,25 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/middleware"
-	"github.com/budgets/core/internal/service"
 )
 
 type CategoryHandler struct {
-	categoryService service.CategoryService
+	pool *pgxpool.Pool
 }
 
-func NewCategoryHandler(categoryService service.CategoryService) *CategoryHandler {
-	return &CategoryHandler{categoryService: categoryService}
+func NewCategoryHandler(pool *pgxpool.Pool) *CategoryHandler {
+	return &CategoryHandler{pool: pool}
 }
 
 // CreateCategory godoc
@@ -55,7 +57,35 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	category, err := h.categoryService.Create(c.Request.Context(), groupID, req.Name, req.Description, req.Color, req.Icon, user.ID)
+	var response CategoryResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
+			return err
+		}
+
+		persistibleCategory, err := domain.NewPersistibleCategory(req.Name, req.Description, req.Color, req.Icon, groupID)
+		if err != nil {
+			return err
+		}
+
+		persistedCategory, err := persistibleCategory.PersistTo(ctx, p)
+		if err != nil {
+			return err
+		}
+
+		response = CategoryResponse{
+			ID:          persistedCategory.ExternalID(),
+			Name:        persistedCategory.Name(),
+			Description: persistedCategory.Description(),
+			Color:       persistedCategory.Color(),
+			Icon:        persistedCategory.Icon(),
+			CreatedAt:   persistedCategory.CreatedAt(),
+			UpdatedAt:   persistedCategory.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
@@ -69,15 +99,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, CategoryResponse{
-		ID:          category.ExternalID,
-		Name:        category.Name,
-		Description: category.Description,
-		Color:       category.Color,
-		Icon:        category.Icon,
-		CreatedAt:   category.CreatedAt,
-		UpdatedAt:   category.UpdatedAt,
-	})
+	c.JSON(http.StatusCreated, response)
 }
 
 // GetCategories godoc
@@ -107,7 +129,33 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 		return
 	}
 
-	categories, err := h.categoryService.GetByGroupID(c.Request.Context(), groupID, user.ID)
+	var response []CategoryResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
+			return err
+		}
+
+		categories, err := domain.PersistedCategoriesForGroup(ctx, groupID, p)
+		if err != nil {
+			return err
+		}
+
+		response = make([]CategoryResponse, len(categories))
+		for i, cat := range categories {
+			response[i] = CategoryResponse{
+				ID:          cat.ExternalID(),
+				Name:        cat.Name(),
+				Description: cat.Description(),
+				Color:       cat.Color(),
+				Icon:        cat.Icon(),
+				CreatedAt:   cat.CreatedAt(),
+				UpdatedAt:   cat.UpdatedAt(),
+			}
+		}
+		return nil
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
@@ -119,19 +167,6 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
 		return
-	}
-
-	response := make([]CategoryResponse, len(categories))
-	for i, cat := range categories {
-		response[i] = CategoryResponse{
-			ID:          cat.ExternalID,
-			Name:        cat.Name,
-			Description: cat.Description,
-			Color:       cat.Color,
-			Icon:        cat.Icon,
-			CreatedAt:   cat.CreatedAt,
-			UpdatedAt:   cat.UpdatedAt,
-		}
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -172,7 +207,39 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	category, err := h.categoryService.Update(c.Request.Context(), id, req.Name, req.Description, req.Color, req.Icon, user.ID)
+	var response CategoryResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeCategoryAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		category, err := domain.PersistedCategoryFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		category.UpdateName(req.Name)
+		category.UpdateDescription(req.Description)
+		category.UpdateColor(req.Color)
+		category.UpdateIcon(req.Icon)
+
+		if err := category.UpdateIn(ctx, p); err != nil {
+			return err
+		}
+
+		response = CategoryResponse{
+			ID:          category.ExternalID(),
+			Name:        category.Name(),
+			Description: category.Description(),
+			Color:       category.Color(),
+			Icon:        category.Icon(),
+			CreatedAt:   category.CreatedAt(),
+			UpdatedAt:   category.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
@@ -186,15 +253,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, CategoryResponse{
-		ID:          category.ExternalID,
-		Name:        category.Name,
-		Description: category.Description,
-		Color:       category.Color,
-		Icon:        category.Icon,
-		CreatedAt:   category.CreatedAt,
-		UpdatedAt:   category.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // DeleteCategory godoc
@@ -224,7 +283,20 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	err = h.categoryService.Delete(c.Request.Context(), id, user.ID)
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeCategoryAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		category, err := domain.PersistedCategoryFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		return category.DeleteFrom(ctx, p)
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})

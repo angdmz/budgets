@@ -246,6 +246,8 @@ services:
       dockerfile: Dockerfile
     environment:
       TEST_BASE_URL: http://nginx
+      AUTH0_TEST_EMAIL: ${AUTH0_TEST_EMAIL:-}
+      AUTH0_TEST_PASSWORD: ${AUTH0_TEST_PASSWORD:-}
     depends_on:
       - nginx
       - api

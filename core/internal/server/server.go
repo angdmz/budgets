@@ -70,19 +70,7 @@ func (s *Server) setupRoutes() {
 	}
 
 	userRepo := repository.NewUserRepository()
-	groupRepo := repository.NewBudgetingGroupRepository()
-	participantRepo := repository.NewParticipantRepository()
-	userParticipantRepo := repository.NewUserParticipantRepository()
-	categoryRepo := repository.NewExpenseCategoryRepository()
-	budgetRepo := repository.NewBudgetRepository()
-	expectedExpenseRepo := repository.NewExpectedExpenseRepository()
-	actualExpenseRepo := repository.NewActualExpenseRepository()
 	prefRepo := repository.NewUserPreferenceRepository()
-
-	groupService := service.NewGroupService(s.db.Pool, groupRepo, participantRepo, userParticipantRepo)
-	categoryService := service.NewCategoryService(s.db.Pool, categoryRepo, groupRepo, userParticipantRepo)
-	budgetService := service.NewBudgetService(s.db.Pool, budgetRepo, groupRepo, userParticipantRepo)
-	expenseService := service.NewExpenseService(s.db.Pool, encryptor, expectedExpenseRepo, actualExpenseRepo, budgetRepo, categoryRepo, userParticipantRepo)
 	preferenceService := service.NewPreferenceService(s.db.Pool, prefRepo)
 
 	exchangeProvider := currency.NewStubExchangeRateProvider()
@@ -92,10 +80,10 @@ func (s *Server) setupRoutes() {
 	authMiddleware := s.authenticator
 	userResolver := middleware.NewUserResolver(s.db.Pool, userRepo.GetOrCreateByProvider)
 
-	groupHandler := handler.NewGroupHandler(groupService)
-	categoryHandler := handler.NewCategoryHandler(categoryService)
-	budgetHandler := handler.NewBudgetHandler(budgetService)
-	expenseHandler := handler.NewExpenseHandler(expenseService)
+	groupHandler := handler.NewGroupHandler(s.db.Pool)
+	categoryHandler := handler.NewCategoryHandler(s.db.Pool)
+	budgetHandler := handler.NewBudgetHandler(s.db.Pool)
+	expenseHandler := handler.NewExpenseHandler(s.db.Pool, encryptor)
 	preferenceHandler := handler.NewPreferenceHandler(preferenceService)
 	currencyHandler := handler.NewCurrencyHandler(marketplace)
 

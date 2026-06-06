@@ -19,23 +19,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enum types
-    theme_enum = sa.Enum('LIGHT', 'DIM', 'DARK', name='theme')
-    theme_enum.create(op.get_bind(), checkfirst=True)
+    # Pre-create enum types idempotently before the table creation so that
+    # op.create_table() does not attempt a second CREATE TYPE for each column.
+    sa.Enum('LIGHT', 'DIM', 'DARK', name='theme').create(op.get_bind(), checkfirst=True)
+    sa.Enum('EN', 'ES', name='language').create(op.get_bind(), checkfirst=True)
+    sa.Enum('USD', 'EUR', 'GBP', 'ARS', 'BRL', 'MXN', 'CLP', 'COP', 'PEN', 'UYU', name='currency').create(op.get_bind(), checkfirst=True)
 
-    language_enum = sa.Enum('EN', 'ES', name='language')
-    language_enum.create(op.get_bind(), checkfirst=True)
-
-    # currency enum already exists from initial schema
-
+    # Use the PostgreSQL-specific ENUM type with create_type=False so that
+    # SQLAlchemy's before_create event does NOT issue another CREATE TYPE.
+    pg = sa.dialects.postgresql
     op.create_table(
         'user_preferences',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column('external_id', sa.dialects.postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('external_id', pg.UUID(as_uuid=True), nullable=False),
         sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True),
-        sa.Column('theme', theme_enum, nullable=False, server_default='LIGHT'),
-        sa.Column('language', language_enum, nullable=False, server_default='EN'),
-        sa.Column('display_currency', sa.Enum('USD', 'EUR', 'GBP', 'ARS', 'BRL', 'MXN', 'CLP', 'COP', 'PEN', 'UYU', name='currency', create_type=False), nullable=False, server_default='USD'),
+        sa.Column('theme', pg.ENUM('LIGHT', 'DIM', 'DARK', name='theme', create_type=False), nullable=False, server_default='LIGHT'),
+        sa.Column('language', pg.ENUM('EN', 'ES', name='language', create_type=False), nullable=False, server_default='EN'),
+        sa.Column('display_currency', pg.ENUM('USD', 'EUR', 'GBP', 'ARS', 'BRL', 'MXN', 'CLP', 'COP', 'PEN', 'UYU', name='currency', create_type=False), nullable=False, server_default='USD'),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
