@@ -1,25 +1,29 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 
+	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
+	"github.com/budgets/core/internal/encryption"
 	"github.com/budgets/core/internal/middleware"
-	"github.com/budgets/core/internal/service"
 )
 
 type ExpenseHandler struct {
-	expenseService service.ExpenseService
+	pool      *pgxpool.Pool
+	encryptor *encryption.Encryptor
 }
 
-func NewExpenseHandler(expenseService service.ExpenseService) *ExpenseHandler {
-	return &ExpenseHandler{expenseService: expenseService}
+func NewExpenseHandler(pool *pgxpool.Pool, encryptor *encryption.Encryptor) *ExpenseHandler {
+	return &ExpenseHandler{pool: pool, encryptor: encryptor}
 }
 
 // CreateExpectedExpense godoc
@@ -62,20 +66,51 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	expense, err := h.expenseService.CreateExpected(c.Request.Context(), budgetID, req.Name, req.Description, amount, req.Amount.Currency, req.CategoryID, user.ID)
+	var response ExpectedExpenseResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeBudgetAccess(ctx, p, budgetID); err != nil {
+			return err
+		}
+
+		money := encryption.NewMoney(amount, req.Amount.Currency)
+		encryptedAmount, err := h.encryptor.EncryptMoney(money)
+		if err != nil {
+			return err
+		}
+
+		persistibleExpense, err := domain.NewPersistibleExpectedExpense(req.Name, req.Description, encryptedAmount, budgetID, req.CategoryID)
+		if err != nil {
+			return err
+		}
+
+		persistedExpense, err := persistibleExpense.PersistTo(ctx, p)
+		if err != nil {
+			return err
+		}
+
+		decryptedMoney, err := h.encryptor.DecryptMoney(persistedExpense.EncryptedAmount())
+		if err != nil {
+			return err
+		}
+
+		response = ExpectedExpenseResponse{
+			ID:          persistedExpense.ExternalID(),
+			Name:        persistedExpense.Name(),
+			Description: persistedExpense.Description(),
+			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CreatedAt:   persistedExpense.CreatedAt(),
+			UpdatedAt:   persistedExpense.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, ExpectedExpenseResponse{
-		ID:          expense.ExternalID,
-		Name:        expense.Name,
-		Description: expense.Description,
-		Amount:      MoneyResponse{Amount: expense.Amount.Amount.String(), Currency: string(expense.Amount.Currency)},
-		CreatedAt:   expense.CreatedAt,
-		UpdatedAt:   expense.UpdatedAt,
-	})
+	c.JSON(http.StatusCreated, response)
 }
 
 // GetExpectedExpense godoc
@@ -105,20 +140,40 @@ func (h *ExpenseHandler) GetExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	expense, err := h.expenseService.GetExpectedByID(c.Request.Context(), id, user.ID)
+	var response ExpectedExpenseResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		expense, err := domain.PersistedExpectedExpenseFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		decryptedMoney, err := h.encryptor.DecryptMoney(expense.EncryptedAmount())
+		if err != nil {
+			return err
+		}
+
+		response = ExpectedExpenseResponse{
+			ID:          expense.ExternalID(),
+			Name:        expense.Name(),
+			Description: expense.Description(),
+			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CreatedAt:   expense.CreatedAt(),
+			UpdatedAt:   expense.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, ExpectedExpenseResponse{
-		ID:          expense.ExternalID,
-		Name:        expense.Name,
-		Description: expense.Description,
-		Amount:      MoneyResponse{Amount: expense.Amount.Amount.String(), Currency: string(expense.Amount.Currency)},
-		CreatedAt:   expense.CreatedAt,
-		UpdatedAt:   expense.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // GetExpectedExpenses godoc
@@ -147,22 +202,40 @@ func (h *ExpenseHandler) GetExpectedExpenses(c *gin.Context) {
 		return
 	}
 
-	expenses, err := h.expenseService.GetExpectedByBudgetID(c.Request.Context(), budgetID, user.ID)
+	var response []ExpectedExpenseResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeBudgetAccess(ctx, p, budgetID); err != nil {
+			return err
+		}
+
+		expenses, err := domain.PersistedExpectedExpensesForBudget(ctx, budgetID, p)
+		if err != nil {
+			return err
+		}
+
+		response = make([]ExpectedExpenseResponse, len(expenses))
+		for i, e := range expenses {
+			decryptedMoney, err := h.encryptor.DecryptMoney(e.EncryptedAmount())
+			if err != nil {
+				return err
+			}
+
+			response[i] = ExpectedExpenseResponse{
+				ID:          e.ExternalID(),
+				Name:        e.Name(),
+				Description: e.Description(),
+				Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+				CreatedAt:   e.CreatedAt(),
+				UpdatedAt:   e.UpdatedAt(),
+			}
+		}
+		return nil
+	})
+
 	if err != nil {
 		handleServiceError(c, err)
 		return
-	}
-
-	response := make([]ExpectedExpenseResponse, len(expenses))
-	for i, e := range expenses {
-		response[i] = ExpectedExpenseResponse{
-			ID:          e.ExternalID,
-			Name:        e.Name,
-			Description: e.Description,
-			Amount:      MoneyResponse{Amount: e.Amount.Amount.String(), Currency: string(e.Amount.Currency)},
-			CreatedAt:   e.CreatedAt,
-			UpdatedAt:   e.UpdatedAt,
-		}
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -208,20 +281,54 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	expense, err := h.expenseService.UpdateExpected(c.Request.Context(), id, req.Name, req.Description, amount, req.Amount.Currency, req.CategoryID, user.ID)
+	var response ExpectedExpenseResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		expense, err := domain.PersistedExpectedExpenseFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		money := encryption.NewMoney(amount, req.Amount.Currency)
+		encryptedAmount, err := h.encryptor.EncryptMoney(money)
+		if err != nil {
+			return err
+		}
+
+		expense.UpdateName(req.Name)
+		expense.UpdateDescription(req.Description)
+		expense.UpdateEncryptedAmount(encryptedAmount)
+
+		if err := expense.UpdateIn(ctx, p); err != nil {
+			return err
+		}
+
+		decryptedMoney, err := h.encryptor.DecryptMoney(expense.EncryptedAmount())
+		if err != nil {
+			return err
+		}
+
+		response = ExpectedExpenseResponse{
+			ID:          expense.ExternalID(),
+			Name:        expense.Name(),
+			Description: expense.Description(),
+			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CreatedAt:   expense.CreatedAt(),
+			UpdatedAt:   expense.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, ExpectedExpenseResponse{
-		ID:          expense.ExternalID,
-		Name:        expense.Name,
-		Description: expense.Description,
-		Amount:      MoneyResponse{Amount: expense.Amount.Amount.String(), Currency: string(expense.Amount.Currency)},
-		CreatedAt:   expense.CreatedAt,
-		UpdatedAt:   expense.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // DeleteExpectedExpense godoc
@@ -249,7 +356,21 @@ func (h *ExpenseHandler) DeleteExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	if err := h.expenseService.DeleteExpected(c.Request.Context(), id, user.ID); err != nil {
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		expense, err := domain.PersistedExpectedExpenseFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		return expense.DeleteFrom(ctx, p)
+	})
+
+	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
@@ -303,21 +424,52 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 		return
 	}
 
-	expense, err := h.expenseService.CreateActual(c.Request.Context(), budgetID, req.Name, req.Description, expenseDate, amount, req.Amount.Currency, req.CategoryID, req.ExpectedExpenseID, user.ID)
+	var response ActualExpenseResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeBudgetAccess(ctx, p, budgetID); err != nil {
+			return err
+		}
+
+		money := encryption.NewMoney(amount, req.Amount.Currency)
+		encryptedAmount, err := h.encryptor.EncryptMoney(money)
+		if err != nil {
+			return err
+		}
+
+		persistibleExpense, err := domain.NewPersistibleActualExpense(req.Name, req.Description, expenseDate, encryptedAmount, budgetID, req.CategoryID, req.ExpectedExpenseID)
+		if err != nil {
+			return err
+		}
+
+		persistedExpense, err := persistibleExpense.PersistTo(ctx, p)
+		if err != nil {
+			return err
+		}
+
+		decryptedMoney, err := h.encryptor.DecryptMoney(persistedExpense.EncryptedAmount())
+		if err != nil {
+			return err
+		}
+
+		response = ActualExpenseResponse{
+			ID:          persistedExpense.ExternalID(),
+			Name:        persistedExpense.Name(),
+			Description: persistedExpense.Description(),
+			ExpenseDate: persistedExpense.ExpenseDate().Format("2006-01-02"),
+			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CreatedAt:   persistedExpense.CreatedAt(),
+			UpdatedAt:   persistedExpense.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, ActualExpenseResponse{
-		ID:          expense.ExternalID,
-		Name:        expense.Name,
-		Description: expense.Description,
-		ExpenseDate: expense.ExpenseDate.Format("2006-01-02"),
-		Amount:      MoneyResponse{Amount: expense.Amount.Amount.String(), Currency: string(expense.Amount.Currency)},
-		CreatedAt:   expense.CreatedAt,
-		UpdatedAt:   expense.UpdatedAt,
-	})
+	c.JSON(http.StatusCreated, response)
 }
 
 // GetActualExpense godoc
@@ -347,21 +499,41 @@ func (h *ExpenseHandler) GetActualExpense(c *gin.Context) {
 		return
 	}
 
-	expense, err := h.expenseService.GetActualByID(c.Request.Context(), id, user.ID)
+	var response ActualExpenseResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		expense, err := domain.PersistedActualExpenseFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		decryptedMoney, err := h.encryptor.DecryptMoney(expense.EncryptedAmount())
+		if err != nil {
+			return err
+		}
+
+		response = ActualExpenseResponse{
+			ID:          expense.ExternalID(),
+			Name:        expense.Name(),
+			Description: expense.Description(),
+			ExpenseDate: expense.ExpenseDate().Format("2006-01-02"),
+			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CreatedAt:   expense.CreatedAt(),
+			UpdatedAt:   expense.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, ActualExpenseResponse{
-		ID:          expense.ExternalID,
-		Name:        expense.Name,
-		Description: expense.Description,
-		ExpenseDate: expense.ExpenseDate.Format("2006-01-02"),
-		Amount:      MoneyResponse{Amount: expense.Amount.Amount.String(), Currency: string(expense.Amount.Currency)},
-		CreatedAt:   expense.CreatedAt,
-		UpdatedAt:   expense.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // GetActualExpenses godoc
@@ -390,23 +562,41 @@ func (h *ExpenseHandler) GetActualExpenses(c *gin.Context) {
 		return
 	}
 
-	expenses, err := h.expenseService.GetActualByBudgetID(c.Request.Context(), budgetID, user.ID)
+	var response []ActualExpenseResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeBudgetAccess(ctx, p, budgetID); err != nil {
+			return err
+		}
+
+		expenses, err := domain.PersistedActualExpensesForBudget(ctx, budgetID, p)
+		if err != nil {
+			return err
+		}
+
+		response = make([]ActualExpenseResponse, len(expenses))
+		for i, e := range expenses {
+			decryptedMoney, err := h.encryptor.DecryptMoney(e.EncryptedAmount())
+			if err != nil {
+				return err
+			}
+
+			response[i] = ActualExpenseResponse{
+				ID:          e.ExternalID(),
+				Name:        e.Name(),
+				Description: e.Description(),
+				ExpenseDate: e.ExpenseDate().Format("2006-01-02"),
+				Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+				CreatedAt:   e.CreatedAt(),
+				UpdatedAt:   e.UpdatedAt(),
+			}
+		}
+		return nil
+	})
+
 	if err != nil {
 		handleServiceError(c, err)
 		return
-	}
-
-	response := make([]ActualExpenseResponse, len(expenses))
-	for i, e := range expenses {
-		response[i] = ActualExpenseResponse{
-			ID:          e.ExternalID,
-			Name:        e.Name,
-			Description: e.Description,
-			ExpenseDate: e.ExpenseDate.Format("2006-01-02"),
-			Amount:      MoneyResponse{Amount: e.Amount.Amount.String(), Currency: string(e.Amount.Currency)},
-			CreatedAt:   e.CreatedAt,
-			UpdatedAt:   e.UpdatedAt,
-		}
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -458,21 +648,56 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 		return
 	}
 
-	expense, err := h.expenseService.UpdateActual(c.Request.Context(), id, req.Name, req.Description, expenseDate, amount, req.Amount.Currency, req.CategoryID, req.ExpectedExpenseID, user.ID)
+	var response ActualExpenseResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		expense, err := domain.PersistedActualExpenseFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		money := encryption.NewMoney(amount, req.Amount.Currency)
+		encryptedAmount, err := h.encryptor.EncryptMoney(money)
+		if err != nil {
+			return err
+		}
+
+		expense.UpdateName(req.Name)
+		expense.UpdateDescription(req.Description)
+		expense.UpdateExpenseDate(expenseDate)
+		expense.UpdateEncryptedAmount(encryptedAmount)
+
+		if err := expense.UpdateIn(ctx, p); err != nil {
+			return err
+		}
+
+		decryptedMoney, err := h.encryptor.DecryptMoney(expense.EncryptedAmount())
+		if err != nil {
+			return err
+		}
+
+		response = ActualExpenseResponse{
+			ID:          expense.ExternalID(),
+			Name:        expense.Name(),
+			Description: expense.Description(),
+			ExpenseDate: expense.ExpenseDate().Format("2006-01-02"),
+			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CreatedAt:   expense.CreatedAt(),
+			UpdatedAt:   expense.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, ActualExpenseResponse{
-		ID:          expense.ExternalID,
-		Name:        expense.Name,
-		Description: expense.Description,
-		ExpenseDate: expense.ExpenseDate.Format("2006-01-02"),
-		Amount:      MoneyResponse{Amount: expense.Amount.Amount.String(), Currency: string(expense.Amount.Currency)},
-		CreatedAt:   expense.CreatedAt,
-		UpdatedAt:   expense.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // DeleteActualExpense godoc
@@ -500,7 +725,21 @@ func (h *ExpenseHandler) DeleteActualExpense(c *gin.Context) {
 		return
 	}
 
-	if err := h.expenseService.DeleteActual(c.Request.Context(), id, user.ID); err != nil {
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		expense, err := domain.PersistedActualExpenseFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		return expense.DeleteFrom(ctx, p)
+	})
+
+	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
