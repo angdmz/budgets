@@ -59,7 +59,7 @@ func SetupTestSuite(t *testing.T) *TestSuite {
 	}
 
 	// Build dependencies
-	deps := server.BuildDependencies(db, enc)
+	deps := server.BuildDependencies(db.Pool, enc)
 
 	// Create auth middleware for testing (uses simple HS256 JWT instead of Auth0 RS256)
 	testUserID := "test-user-123"

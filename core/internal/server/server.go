@@ -14,12 +14,50 @@ import (
 	"github.com/budgets/core/internal/middleware"
 	"github.com/budgets/core/internal/repository"
 	"github.com/budgets/core/internal/service"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// Dependencies holds all external dependencies needed by the server.
+type Dependencies struct {
+	Encryptor         *encryption.Encryptor
+	GroupHandler      *handler.GroupHandler
+	CategoryHandler   *handler.CategoryHandler
+	BudgetHandler     *handler.BudgetHandler
+	ExpenseHandler    *handler.ExpenseHandler
+	PreferenceHandler *handler.PreferenceHandler
+	CurrencyHandler   *handler.CurrencyHandler
+	UserResolver      middleware.UserResolver
+}
+
+// BuildDependencies creates the Dependencies struct with all handlers and middleware.
+func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor) Dependencies {
+	userRepo := repository.NewUserRepository()
+	prefRepo := repository.NewUserPreferenceRepository()
+	preferenceService := service.NewPreferenceService(pool, prefRepo)
+
+	exchangeProvider := currency.NewStubExchangeRateProvider()
+	exchangeCache := currency.NewInMemoryCache()
+	marketplace := currency.NewCurrencyMarketplace(exchangeProvider, exchangeCache)
+
+	userResolver := middleware.NewUserResolver(pool, userRepo.GetOrCreateByProvider)
+
+	return Dependencies{
+		Encryptor:         enc,
+		GroupHandler:      handler.NewGroupHandler(pool),
+		CategoryHandler:   handler.NewCategoryHandler(pool),
+		BudgetHandler:     handler.NewBudgetHandler(pool),
+		ExpenseHandler:    handler.NewExpenseHandler(pool, enc),
+		PreferenceHandler: handler.NewPreferenceHandler(preferenceService),
+		CurrencyHandler:   handler.NewCurrencyHandler(marketplace),
+		UserResolver:      userResolver,
+	}
+}
 
 type Server struct {
 	router        *gin.Engine
 	config        *config.Config
 	db            *database.DB
+	deps          Dependencies
 	authenticator middleware.Authenticator
 }
 
@@ -33,7 +71,7 @@ func WithAuthenticator(auth middleware.Authenticator) Option {
 	}
 }
 
-func New(cfg *config.Config, db *database.DB, opts ...Option) *Server {
+func New(cfg *config.Config, db *database.DB, deps Dependencies, opts ...Option) *Server {
 	if cfg.Server.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -44,6 +82,7 @@ func New(cfg *config.Config, db *database.DB, opts ...Option) *Server {
 		router: router,
 		config: cfg,
 		db:     db,
+		deps:   deps,
 	}
 
 	for _, opt := range opts {
@@ -64,28 +103,13 @@ func (s *Server) Router() *gin.Engine {
 }
 
 func (s *Server) setupRoutes() {
-	encryptor, err := encryption.NewEncryptor(s.config.Auth.EncryptionKey.Value())
-	if err != nil {
-		panic("failed to initialize encryptor: " + err.Error())
-	}
-
-	userRepo := repository.NewUserRepository()
-	prefRepo := repository.NewUserPreferenceRepository()
-	preferenceService := service.NewPreferenceService(s.db.Pool, prefRepo)
-
-	exchangeProvider := currency.NewStubExchangeRateProvider()
-	exchangeCache := currency.NewInMemoryCache()
-	marketplace := currency.NewCurrencyMarketplace(exchangeProvider, exchangeCache)
-
-	authMiddleware := s.authenticator
-	userResolver := middleware.NewUserResolver(s.db.Pool, userRepo.GetOrCreateByProvider)
-
-	groupHandler := handler.NewGroupHandler(s.db.Pool)
-	categoryHandler := handler.NewCategoryHandler(s.db.Pool)
-	budgetHandler := handler.NewBudgetHandler(s.db.Pool)
-	expenseHandler := handler.NewExpenseHandler(s.db.Pool, encryptor)
-	preferenceHandler := handler.NewPreferenceHandler(preferenceService)
-	currencyHandler := handler.NewCurrencyHandler(marketplace)
+	groupHandler := s.deps.GroupHandler
+	categoryHandler := s.deps.CategoryHandler
+	budgetHandler := s.deps.BudgetHandler
+	expenseHandler := s.deps.ExpenseHandler
+	preferenceHandler := s.deps.PreferenceHandler
+	currencyHandler := s.deps.CurrencyHandler
+	userResolver := s.deps.UserResolver
 
 	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
@@ -102,7 +126,7 @@ func (s *Server) setupRoutes() {
 		// No backend auth routes needed - just validate JWTs
 
 		protected := api.Group("")
-		protected.Use(authMiddleware.RequireAuth())
+		protected.Use(s.authenticator.RequireAuth())
 		protected.Use(userResolver.ResolveUser())
 		{
 			// Groups
