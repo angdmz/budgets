@@ -1,23 +1,25 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/middleware"
-	"github.com/budgets/core/internal/service"
 )
 
 type GroupHandler struct {
-	groupService service.GroupService
+	pool *pgxpool.Pool
 }
 
-func NewGroupHandler(groupService service.GroupService) *GroupHandler {
-	return &GroupHandler{groupService: groupService}
+func NewGroupHandler(pool *pgxpool.Pool) *GroupHandler {
+	return &GroupHandler{pool: pool}
 }
 
 // CreateGroup godoc
@@ -46,19 +48,37 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 		return
 	}
 
-	group, err := h.groupService.Create(c.Request.Context(), req.Name, req.Description, user.ID, user.DisplayName)
+	var response GroupResponse
+	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		persistibleGroup, err := domain.NewPersistibleGroup(req.Name, req.Description)
+		if err != nil {
+			return err
+		}
+
+		participant := persistibleGroup.AddParticipant(user.DisplayName, "")
+		participant.AddUser(user.ID, "owner", true)
+
+		persistedGroup, err := persistibleGroup.PersistTo(ctx, p)
+		if err != nil {
+			return err
+		}
+
+		response = GroupResponse{
+			ID:          persistedGroup.ExternalID(),
+			Name:        persistedGroup.Name(),
+			Description: persistedGroup.Description(),
+			CreatedAt:   persistedGroup.CreatedAt(),
+			UpdatedAt:   persistedGroup.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, GroupResponse{
-		ID:          group.ExternalID,
-		Name:        group.Name,
-		Description: group.Description,
-		CreatedAt:   group.CreatedAt,
-		UpdatedAt:   group.UpdatedAt,
-	})
+	c.JSON(http.StatusCreated, response)
 }
 
 // GetGroups godoc
@@ -78,21 +98,29 @@ func (h *GroupHandler) GetGroups(c *gin.Context) {
 		return
 	}
 
-	groups, err := h.groupService.GetByUserID(c.Request.Context(), user.ID)
+	var response []GroupResponse
+	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		groups, err := domain.PersistedGroupsForUser(ctx, user.ID, p)
+		if err != nil {
+			return err
+		}
+
+		response = make([]GroupResponse, len(groups))
+		for i, g := range groups {
+			response[i] = GroupResponse{
+				ID:          g.ExternalID(),
+				Name:        g.Name(),
+				Description: g.Description(),
+				CreatedAt:   g.CreatedAt(),
+				UpdatedAt:   g.UpdatedAt(),
+			}
+		}
+		return nil
+	})
+
 	if err != nil {
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
 		return
-	}
-
-	response := make([]GroupResponse, len(groups))
-	for i, g := range groups {
-		response[i] = GroupResponse{
-			ID:          g.ExternalID,
-			Name:        g.Name,
-			Description: g.Description,
-			CreatedAt:   g.CreatedAt,
-			UpdatedAt:   g.UpdatedAt,
-		}
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -125,7 +153,28 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 		return
 	}
 
-	group, err := h.groupService.GetByID(c.Request.Context(), id, user.ID)
+	var response GroupResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeGroupAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		group, err := domain.PersistedGroupFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		response = GroupResponse{
+			ID:          group.ExternalID(),
+			Name:        group.Name(),
+			Description: group.Description(),
+			CreatedAt:   group.CreatedAt(),
+			UpdatedAt:   group.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
@@ -139,13 +188,7 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, GroupResponse{
-		ID:          group.ExternalID,
-		Name:        group.Name,
-		Description: group.Description,
-		CreatedAt:   group.CreatedAt,
-		UpdatedAt:   group.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // UpdateGroup godoc
@@ -183,7 +226,35 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	group, err := h.groupService.Update(c.Request.Context(), id, req.Name, req.Description, user.ID)
+	var response GroupResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeGroupAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		group, err := domain.PersistedGroupFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		group.UpdateName(req.Name)
+		group.UpdateDescription(req.Description)
+
+		if err := group.UpdateIn(ctx, p); err != nil {
+			return err
+		}
+
+		response = GroupResponse{
+			ID:          group.ExternalID(),
+			Name:        group.Name(),
+			Description: group.Description(),
+			CreatedAt:   group.CreatedAt(),
+			UpdatedAt:   group.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
@@ -197,13 +268,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, GroupResponse{
-		ID:          group.ExternalID,
-		Name:        group.Name,
-		Description: group.Description,
-		CreatedAt:   group.CreatedAt,
-		UpdatedAt:   group.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // DeleteGroup godoc
@@ -233,7 +298,20 @@ func (h *GroupHandler) DeleteGroup(c *gin.Context) {
 		return
 	}
 
-	err = h.groupService.Delete(c.Request.Context(), id, user.ID)
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeGroupAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		group, err := domain.PersistedGroupFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		return group.DeleteFrom(ctx, p)
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})

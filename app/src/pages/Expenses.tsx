@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../lib/api';
-import type { ActualExpense, Budget, CreateActualExpenseRequest } from '../lib/types';
+import type { ActualExpense, Budget, Group, CreateActualExpenseRequest } from '../lib/types';
 
 export default function Expenses() {
   const { getAccessTokenSilently } = useAuth0();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedBudgetId, setSelectedBudgetId] = useState('');
   const [formData, setFormData] = useState<CreateActualExpenseRequest>({
     name: '',
@@ -16,13 +17,24 @@ export default function Expenses() {
     expense_date: new Date().toISOString().split('T')[0],
   });
 
-  const { data: budgets } = useQuery({
-    queryKey: ['budgets'],
+  const { data: groups } = useQuery({
+    queryKey: ['groups'],
     queryFn: async () => {
       const api = await createApiClient(getAccessTokenSilently);
-      const response = await api.get<Budget[]>('/budgets');
+      const response = await api.get<Group[]>('/groups');
       return response.data;
     },
+  });
+
+  const { data: budgets } = useQuery({
+    queryKey: ['budgets', selectedGroupId],
+    queryFn: async () => {
+      if (!selectedGroupId) return [];
+      const api = await createApiClient(getAccessTokenSilently);
+      const response = await api.get<Budget[]>(`/groups/${selectedGroupId}/budgets`);
+      return response.data;
+    },
+    enabled: !!selectedGroupId,
   });
 
   const { data: expenses } = useQuery({
@@ -76,18 +88,34 @@ export default function Expenses() {
         </div>
       </div>
 
-      <div className="mt-6">
-        <label className="block text-sm font-medium text-gray-700">Select Budget</label>
-        <select
-          value={selectedBudgetId}
-          onChange={(e) => setSelectedBudgetId(e.target.value)}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-        >
-          <option value="">Select a budget...</option>
-          {budgets?.map((budget) => (
-            <option key={budget.id} value={budget.id}>{budget.name}</option>
-          ))}
-        </select>
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Select Group</label>
+          <select
+            value={selectedGroupId}
+            onChange={(e) => { setSelectedGroupId(e.target.value); setSelectedBudgetId(''); }}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+          >
+            <option value="">Select a group...</option>
+            {groups?.map((group) => (
+              <option key={group.id} value={group.id}>{group.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Select Budget</label>
+          <select
+            value={selectedBudgetId}
+            onChange={(e) => setSelectedBudgetId(e.target.value)}
+            disabled={!selectedGroupId}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm disabled:opacity-50"
+          >
+            <option value="">Select a budget...</option>
+            {budgets?.map((budget) => (
+              <option key={budget.id} value={budget.id}>{budget.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {selectedBudgetId && (

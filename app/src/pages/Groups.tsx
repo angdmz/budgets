@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../lib/api';
-import type { Group, CreateGroupRequest } from '../lib/types';
+import type { Budget, Group, CreateGroupRequest } from '../lib/types';
 
 export default function Groups() {
   const { getAccessTokenSilently } = useAuth0();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState('');
   const [formData, setFormData] = useState<CreateGroupRequest>({ name: '', description: '' });
 
   const { data: groups, isLoading } = useQuery({
@@ -17,6 +18,17 @@ export default function Groups() {
       const response = await api.get<Group[]>('/groups');
       return response.data;
     },
+  });
+
+  const { data: budgets, isLoading: isBudgetsLoading } = useQuery({
+    queryKey: ['budgets', selectedGroupId],
+    queryFn: async () => {
+      if (!selectedGroupId) return [];
+      const api = await createApiClient(getAccessTokenSilently);
+      const response = await api.get<Budget[]>(`/groups/${selectedGroupId}/budgets`);
+      return response.data;
+    },
+    enabled: !!selectedGroupId,
   });
 
   const createMutation = useMutation({
@@ -117,6 +129,59 @@ export default function Groups() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-gray-900">Budgets</h2>
+        <p className="mt-1 text-sm text-gray-700">Select a group to view its budgets</p>
+        <div className="mt-3">
+          <label className="block text-sm font-medium text-gray-700">Select Group</label>
+          <select
+            value={selectedGroupId}
+            onChange={(e) => setSelectedGroupId(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+          >
+            <option value="">Select a group...</option>
+            {groups?.map((group) => (
+              <option key={group.id} value={group.id}>{group.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {selectedGroupId && (
+          <div className="mt-6 flow-root">
+            {isBudgetsLoading ? (
+              <div className="text-center py-6 text-sm text-gray-500">Loading budgets...</div>
+            ) : budgets && budgets.length > 0 ? (
+              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-300">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Period</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {budgets.map((budget) => (
+                      <tr key={budget.id}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          {budget.name}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {new Date(budget.start_date).toLocaleDateString()} - {new Date(budget.end_date).toLocaleDateString()}
+                        </td>
+                        <td className="px-3 py-4 text-sm text-gray-500">{budget.description || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-sm text-gray-500">No budgets found for this group.</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Create Modal */}

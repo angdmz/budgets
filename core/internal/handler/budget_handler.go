@@ -1,24 +1,26 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/middleware"
-	"github.com/budgets/core/internal/service"
 )
 
 type BudgetHandler struct {
-	budgetService service.BudgetService
+	pool *pgxpool.Pool
 }
 
-func NewBudgetHandler(budgetService service.BudgetService) *BudgetHandler {
-	return &BudgetHandler{budgetService: budgetService}
+func NewBudgetHandler(pool *pgxpool.Pool) *BudgetHandler {
+	return &BudgetHandler{pool: pool}
 }
 
 const dateFormat = "2006-01-02"
@@ -70,7 +72,35 @@ func (h *BudgetHandler) CreateBudget(c *gin.Context) {
 		return
 	}
 
-	budget, err := h.budgetService.Create(c.Request.Context(), groupID, req.Name, req.Description, startDate, endDate, user.ID)
+	var response BudgetResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
+			return err
+		}
+
+		persistibleBudget, err := domain.NewPersistibleBudget(req.Name, req.Description, startDate, endDate, groupID)
+		if err != nil {
+			return err
+		}
+
+		persistedBudget, err := persistibleBudget.PersistTo(ctx, p)
+		if err != nil {
+			return err
+		}
+
+		response = BudgetResponse{
+			ID:          persistedBudget.ExternalID(),
+			Name:        persistedBudget.Name(),
+			Description: persistedBudget.Description(),
+			StartDate:   persistedBudget.StartDate().Format(dateFormat),
+			EndDate:     persistedBudget.EndDate().Format(dateFormat),
+			CreatedAt:   persistedBudget.CreatedAt(),
+			UpdatedAt:   persistedBudget.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
@@ -84,15 +114,7 @@ func (h *BudgetHandler) CreateBudget(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, BudgetResponse{
-		ID:          budget.ExternalID,
-		Name:        budget.Name,
-		Description: budget.Description,
-		StartDate:   budget.StartDate.Format(dateFormat),
-		EndDate:     budget.EndDate.Format(dateFormat),
-		CreatedAt:   budget.CreatedAt,
-		UpdatedAt:   budget.UpdatedAt,
-	})
+	c.JSON(http.StatusCreated, response)
 }
 
 // GetBudgets godoc
@@ -122,7 +144,33 @@ func (h *BudgetHandler) GetBudgets(c *gin.Context) {
 		return
 	}
 
-	budgets, err := h.budgetService.GetByGroupID(c.Request.Context(), groupID, user.ID)
+	var response []BudgetResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
+			return err
+		}
+
+		budgets, err := domain.PersistedBudgetsForGroup(ctx, groupID, p)
+		if err != nil {
+			return err
+		}
+
+		response = make([]BudgetResponse, len(budgets))
+		for i, b := range budgets {
+			response[i] = BudgetResponse{
+				ID:          b.ExternalID(),
+				Name:        b.Name(),
+				Description: b.Description(),
+				StartDate:   b.StartDate().Format(dateFormat),
+				EndDate:     b.EndDate().Format(dateFormat),
+				CreatedAt:   b.CreatedAt(),
+				UpdatedAt:   b.UpdatedAt(),
+			}
+		}
+		return nil
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
@@ -134,19 +182,6 @@ func (h *BudgetHandler) GetBudgets(c *gin.Context) {
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
 		return
-	}
-
-	response := make([]BudgetResponse, len(budgets))
-	for i, b := range budgets {
-		response[i] = BudgetResponse{
-			ID:          b.ExternalID,
-			Name:        b.Name,
-			Description: b.Description,
-			StartDate:   b.StartDate.Format(dateFormat),
-			EndDate:     b.EndDate.Format(dateFormat),
-			CreatedAt:   b.CreatedAt,
-			UpdatedAt:   b.UpdatedAt,
-		}
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -179,7 +214,30 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 		return
 	}
 
-	budget, err := h.budgetService.GetByID(c.Request.Context(), id, user.ID)
+	var response BudgetResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeBudgetAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		budget, err := domain.PersistedBudgetFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		response = BudgetResponse{
+			ID:          budget.ExternalID(),
+			Name:        budget.Name(),
+			Description: budget.Description(),
+			StartDate:   budget.StartDate().Format(dateFormat),
+			EndDate:     budget.EndDate().Format(dateFormat),
+			CreatedAt:   budget.CreatedAt(),
+			UpdatedAt:   budget.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
@@ -193,15 +251,7 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, BudgetResponse{
-		ID:          budget.ExternalID,
-		Name:        budget.Name,
-		Description: budget.Description,
-		StartDate:   budget.StartDate.Format(dateFormat),
-		EndDate:     budget.EndDate.Format(dateFormat),
-		CreatedAt:   budget.CreatedAt,
-		UpdatedAt:   budget.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // UpdateBudget godoc
@@ -251,7 +301,40 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 		return
 	}
 
-	budget, err := h.budgetService.Update(c.Request.Context(), id, req.Name, req.Description, startDate, endDate, user.ID)
+	var response BudgetResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeBudgetAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		budget, err := domain.PersistedBudgetFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		budget.UpdateName(req.Name)
+		budget.UpdateDescription(req.Description)
+		if err := budget.UpdateDates(startDate, endDate); err != nil {
+			return err
+		}
+
+		if err := budget.UpdateIn(ctx, p); err != nil {
+			return err
+		}
+
+		response = BudgetResponse{
+			ID:          budget.ExternalID(),
+			Name:        budget.Name(),
+			Description: budget.Description(),
+			StartDate:   budget.StartDate().Format(dateFormat),
+			EndDate:     budget.EndDate().Format(dateFormat),
+			CreatedAt:   budget.CreatedAt(),
+			UpdatedAt:   budget.UpdatedAt(),
+		}
+		return nil
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
@@ -265,15 +348,7 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, BudgetResponse{
-		ID:          budget.ExternalID,
-		Name:        budget.Name,
-		Description: budget.Description,
-		StartDate:   budget.StartDate.Format(dateFormat),
-		EndDate:     budget.EndDate.Format(dateFormat),
-		CreatedAt:   budget.CreatedAt,
-		UpdatedAt:   budget.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, response)
 }
 
 // DeleteBudget godoc
@@ -303,7 +378,20 @@ func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
 		return
 	}
 
-	err = h.budgetService.Delete(c.Request.Context(), id, user.ID)
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeBudgetAccess(ctx, p, id); err != nil {
+			return err
+		}
+
+		budget, err := domain.PersistedBudgetFromPersistence(ctx, id, p)
+		if err != nil {
+			return err
+		}
+
+		return budget.DeleteFrom(ctx, p)
+	})
+
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})

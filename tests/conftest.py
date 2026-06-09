@@ -31,6 +31,8 @@ def driver():
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--disable-software-rasterizer")
+    base = os.getenv("TEST_BASE_URL", "http://localhost:8000")
+    chrome_options.add_argument(f"--unsafely-treat-insecure-origin-as-secure={base}")
     
     # Use Chromium binary (for Docker compatibility)
     chrome_options.binary_location = "/usr/bin/chromium"
