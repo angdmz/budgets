@@ -46,17 +46,17 @@ class TestBudgetWorkflow:
             email_field.clear()
             email_field.send_keys(credentials["email"])
 
-            # Some Auth0 tenants show password on the same screen; others require
-            # clicking "Continue" first to reveal the password field.
-            try:
-                pwd_field = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
-            except NoSuchElementException:
-                driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
-                pwd_field = self._wait(driver).until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, "input[type='password']")
-                    )
+            # Auth0 Universal Login may use identifier-first flow where the
+            # password field only becomes visible/interactive after submitting
+            # the email.  Always click Continue first, then wait for the
+            # password field to be *visible* (not just present in the DOM).
+            driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+
+            pwd_field = self._wait(driver).until(
+                EC.visibility_of_element_located(
+                    (By.CSS_SELECTOR, "input[type='password']")
                 )
+            )
 
             pwd_field.clear()
             pwd_field.send_keys(credentials["password"])
@@ -73,17 +73,27 @@ class TestBudgetWorkflow:
                     f"Current URL: {driver.current_url}\n"
                     f"Page text snippet: {page_text}"
                 )
-            time.sleep(2)
+            time.sleep(3)
 
-        # Confirm the authenticated app layout is present by waiting for a
-        # nav link that only appears inside ProtectedRoute (e.g. "Groups").
-        # This distinguishes the real app shell from the landing page, which
-        # also contains the text "Budget Manager".
-        self._wait(driver).until(
-            EC.presence_of_element_located(
-                (By.XPATH, "//nav//a[normalize-space()='Groups']")
+        # After the Auth0 callback, the SPA exchanges the authorization code
+        # for tokens (network round-trip to Auth0) and then re-renders the
+        # authenticated layout.  This can take several seconds, so use a
+        # generous timeout.
+        try:
+            WebDriverWait(driver, 30).until(
+                EC.presence_of_element_located(
+                    (By.XPATH, "//nav//a[normalize-space()='Groups']")
+                )
             )
-        )
+        except TimeoutException:
+            driver.save_screenshot("/tmp/wf_post_login_timeout.png")
+            page_text = driver.find_element(By.TAG_NAME, "body").text[:500]
+            pytest.fail(
+                f"Authenticated app layout did not appear after login.\n"
+                f"Current URL: {driver.current_url}\n"
+                f"Page title: {driver.title}\n"
+                f"Page text snippet: {page_text}"
+            )
         driver.save_screenshot("/tmp/wf_01_logged_in.png")
         print("\n  ✓ Logged in")
 
@@ -157,11 +167,6 @@ class TestBudgetWorkflow:
         5. Add an expense to the budget
         6. Verify the budget is visible in the Groups tab budget viewer
         """
-        if not auth0_test_user.get("email") or not auth0_test_user.get("password"):
-            pytest.skip(
-                "AUTH0_TEST_EMAIL / AUTH0_TEST_PASSWORD not configured — "
-                "skipping authenticated workflow test"
-            )
         ts = str(int(time.time()))
         group_name    = f"Test Group {ts}"
         budget_name   = f"Test Budget {ts}"

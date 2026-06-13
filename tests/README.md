@@ -247,8 +247,8 @@ Current test coverage:
 - ✅ Asset loading verification
 - ✅ API health checks
 - ✅ Swagger UI accessibility
-- ⚠️ Auth0 login flow (requires test credentials)
-- ⚠️ CRUD operations (requires authentication)
+- ⚠️ Auth0 login flow (requires Auth0 M2M credentials for dynamic user creation)
+- ⚠️ CRUD operations (requires Auth0 M2M credentials for dynamic user creation)
 
 ## Adding New Tests
 

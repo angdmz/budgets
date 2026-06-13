@@ -1,27 +1,37 @@
+import os
 from pathlib import Path
-from pydantic_settings import BaseSettings
 
 SECRETS_DIR = Path("/run/secrets")
 
-class Settings(BaseSettings):
-    base_url: str = "http://localhost:8000"
-    screenshots_dir: str = "/tests/screenshots"
-    secrets_provider: str = "env"
 
-    class Config:
-        env_prefix = "INTEGRATION_TESTS_"
-        extra = "ignore"
+class Settings:
+    """Integration test settings, read from environment variables and Docker secrets."""
 
-    @property
-    def auth0_email(self) -> str:
-        import os
-        return os.getenv("INTEGRATION_TESTS_AUTH0_EMAIL", "")
+    def __init__(self):
+        self.base_url: str = os.getenv("TEST_BASE_URL", "http://localhost:8000")
+        self.screenshots_dir: str = os.getenv("SCREENSHOTS_DIR", "/tests/screenshots")
+        self.secrets_provider: str = os.getenv("SECRETS_PROVIDER", "env")
 
     @property
-    def auth0_password(self) -> str:
+    def auth0_domain(self) -> str:
+        return os.getenv("AUTH0_DOMAIN", "")
+
+    @property
+    def auth0_mgmt_client_id(self) -> str:
+        return os.getenv("AUTH0_MGMT_CLIENT_ID", "")
+
+    @property
+    def auth0_mgmt_client_secret(self) -> str:
         if self.secrets_provider == "docker":
-            return (SECRETS_DIR / "integration_tests_auth0_password").read_text().strip()
-        import os
-        return os.getenv("INTEGRATION_TESTS_AUTH0_PASSWORD", "")
+            try:
+                return (SECRETS_DIR / "auth0_mgmt_client_secret").read_text().strip()
+            except FileNotFoundError:
+                return ""
+        return os.getenv("AUTH0_MGMT_CLIENT_SECRET", "")
+
+    @property
+    def auth0_db_connection(self) -> str:
+        return os.getenv("AUTH0_DB_CONNECTION", "Username-Password-Authentication")
+
 
 settings = Settings()

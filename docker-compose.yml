@@ -223,8 +223,12 @@ services:
       dockerfile: Dockerfile
     environment:
       TEST_BASE_URL: http://nginx
-      AUTH0_TEST_EMAIL: ${AUTH0_TEST_EMAIL:-}
-      AUTH0_TEST_PASSWORD: ${AUTH0_TEST_PASSWORD:-}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_MGMT_CLIENT_ID: ${AUTH0_MGMT_CLIENT_ID}
+      AUTH0_DB_CONNECTION: ${AUTH0_DB_CONNECTION:-Username-Password-Authentication}
+      SECRETS_PROVIDER: docker
+    secrets:
+      - auth0_mgmt_client_secret
     depends_on:
       - nginx
       - api
@@ -268,6 +272,14 @@ services:
     profiles:
       - setup
 
+  generate-auth0-mgmt-client-secret:
+    image: alpine:latest
+    command: sh -c "echo -n 'your-auth0-mgmt-client-secret-here' > /secrets/auth0_mgmt_client_secret.txt && echo 'Generated auth0_mgmt_client_secret.txt (placeholder - replace with real Auth0 M2M client secret)'"
+    volumes:
+      - ./secrets:/secrets
+    profiles:
+      - setup
+
   go-mod-tidy:
     image: golang:1.22-alpine
     working_dir: /app
@@ -286,6 +298,8 @@ secrets:
     file: ./secrets/jwt_secret.txt
   auth0_client_secret:
     file: ./secrets/auth0_client_secret.txt
+  auth0_mgmt_client_secret:
+    file: ./secrets/auth0_mgmt_client_secret.txt
 
 volumes:
   db_data:

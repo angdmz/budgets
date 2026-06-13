@@ -36,6 +36,13 @@ echo -n "your-auth0-client-secret" > auth0_client_secret.txt
 
 **Note**: This is optional for the backend but recommended. The frontend uses Auth0 public client (SPA) which doesn't require a client secret.
 
+### `auth0_mgmt_client_secret.txt`
+Auth0 Management API (Machine-to-Machine) client secret for integration tests. This is used to dynamically create and delete test users. Get this from your Auth0 dashboard (create a M2M app authorized for the Management API with `create:users` and `delete:users` scopes).
+
+```bash
+echo -n "your-auth0-m2m-client-secret" > auth0_mgmt_client_secret.txt
+```
+
 ## Security Notes
 
 - **Never commit these files to version control** - they are ignored by `.gitignore`
