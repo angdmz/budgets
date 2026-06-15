@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 
@@ -49,6 +50,7 @@ func (ur *userResolver) ResolveUser() gin.HandlerFunc {
 		// Resolve (get-or-create) the DB user within a transaction
 		tx, err := ur.pool.Begin(c.Request.Context())
 		if err != nil {
+			log.Printf("[ERROR] user_resolver: failed to begin transaction: %v", err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "db_error"})
 			return
 		}
@@ -59,13 +61,17 @@ func (ur *userResolver) ResolveUser() gin.HandlerFunc {
 			provider = domain.AuthProviderGoogle
 		}
 
+		log.Printf("[DEBUG] user_resolver: resolving user providerID=%s provider=%s email=%s displayName=%s",
+			authUser.ExternalProviderID, provider, authUser.Email, authUser.DisplayName)
 		dbUser, err := ur.resolveFunc(c.Request.Context(), tx, authUser.ExternalProviderID, provider, authUser.Email, authUser.DisplayName, authUser.AvatarURL)
 		if err != nil {
+			log.Printf("[ERROR] user_resolver: user resolution failed: %v", err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "user_resolution_failed"})
 			return
 		}
 
 		if err := tx.Commit(c.Request.Context()); err != nil {
+			log.Printf("[ERROR] user_resolver: failed to commit transaction: %v", err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "db_commit_failed"})
 			return
 		}

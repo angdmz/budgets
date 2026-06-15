@@ -82,7 +82,7 @@ class TestBudgetWorkflow:
         try:
             WebDriverWait(driver, 30).until(
                 EC.presence_of_element_located(
-                    (By.XPATH, "//nav//a[normalize-space()='Groups']")
+                    (By.XPATH, "//nav//a[contains(normalize-space(),'Groups')]")
                 )
             )
         except TimeoutException:
@@ -100,7 +100,9 @@ class TestBudgetWorkflow:
     def _nav(self, driver, link_text):
         """Click a top-nav link by its visible text and wait for the page to settle."""
         self._wait(driver).until(
-            EC.element_to_be_clickable((By.LINK_TEXT, link_text))
+            EC.element_to_be_clickable(
+                (By.XPATH, f"//nav//a[contains(normalize-space(),'{link_text}')]")
+            )
         ).click()
         time.sleep(1)
 
@@ -124,6 +126,23 @@ class TestBudgetWorkflow:
         ).click()
         self._wait(driver).until(
             EC.invisibility_of_element_located((By.CSS_SELECTOR, ".fixed.inset-0"))
+        )
+
+    def _set_react_input(self, driver, element, value):
+        """Set a React-controlled text/number input by dispatching native events.
+
+        Mirrors _set_react_date: uses the native value setter so that React's
+        internal fiber state is updated, then dispatches synthetic-compatible
+        events to trigger the onChange handler.
+        """
+        driver.execute_script(
+            "var setter = Object.getOwnPropertyDescriptor("
+            "  window.HTMLInputElement.prototype, 'value').set;"
+            "setter.call(arguments[0], arguments[1]);"
+            "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
+            "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
+            element,
+            value,
         )
 
     def _set_react_date(self, driver, element, date_str):
@@ -187,8 +206,7 @@ class TestBudgetWorkflow:
         self._open_modal(driver, "Add Group")
         modal = driver.find_element(By.CSS_SELECTOR, ".fixed.inset-0")
         name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
-        name_input.clear()
-        name_input.send_keys(group_name)
+        self._set_react_input(driver, name_input, group_name)
         driver.save_screenshot("/tmp/wf_02_group_modal.png")
         self._submit_modal(driver)
 
@@ -215,8 +233,7 @@ class TestBudgetWorkflow:
         modal = driver.find_element(By.CSS_SELECTOR, ".fixed.inset-0")
 
         name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
-        name_input.clear()
-        name_input.send_keys(budget_name)
+        self._set_react_input(driver, name_input, budget_name)
 
         date_inputs = modal.find_elements(By.CSS_SELECTOR, "input[type='date']")
         self._set_react_date(driver, date_inputs[0], "2025-01-01")
@@ -247,8 +264,7 @@ class TestBudgetWorkflow:
         self._open_modal(driver, "Add Category")
         modal = driver.find_element(By.CSS_SELECTOR, ".fixed.inset-0")
         name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
-        name_input.clear()
-        name_input.send_keys(category_name)
+        self._set_react_input(driver, name_input, category_name)
         driver.save_screenshot("/tmp/wf_04_category_modal.png")
         self._submit_modal(driver)
 
@@ -288,12 +304,10 @@ class TestBudgetWorkflow:
         modal = driver.find_element(By.CSS_SELECTOR, ".fixed.inset-0")
 
         name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
-        name_input.clear()
-        name_input.send_keys(expense_name)
+        self._set_react_input(driver, name_input, expense_name)
 
         amount_input = modal.find_element(By.CSS_SELECTOR, "input[type='number']")
-        amount_input.clear()
-        amount_input.send_keys("42.50")
+        self._set_react_input(driver, amount_input, "42.50")
 
         date_input = modal.find_element(By.CSS_SELECTOR, "input[type='date']")
         self._set_react_date(driver, date_input, "2025-06-15")

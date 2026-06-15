@@ -20,11 +20,21 @@ func (r *userRepository) GetOrCreateByProvider(ctx context.Context, tx pgx.Tx, p
 	// Try to find existing user by provider
 	user, err := r.getByProviderID(ctx, tx, provider, providerID)
 	if err == nil {
-		// Update profile info if changed
-		if user.Email != email || user.DisplayName != displayName || user.AvatarURL != avatarURL {
+		// Update profile info if changed, but never overwrite with empty values
+		updated := false
+		if email != "" && user.Email != email {
 			user.Email = email
+			updated = true
+		}
+		if displayName != "" && user.DisplayName != displayName {
 			user.DisplayName = displayName
+			updated = true
+		}
+		if avatarURL != "" && user.AvatarURL != avatarURL {
 			user.AvatarURL = avatarURL
+			updated = true
+		}
+		if updated {
 			user.UpdatedAt = time.Now()
 			if updateErr := r.update(ctx, tx, user); updateErr != nil {
 				return nil, updateErr
@@ -47,16 +57,23 @@ func (r *userRepository) GetOrCreateByProvider(ctx context.Context, tx pgx.Tx, p
 	user.CreatedAt = now
 	user.UpdatedAt = now
 
+	var emailArg *string
+	if user.Email != "" {
+		emailArg = &user.Email
+	}
+
 	query := `
 		INSERT INTO users (external_provider_id, auth_provider, email, display_name, avatar_url, external_id, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		ON CONFLICT (auth_provider, external_provider_id) DO UPDATE
+			SET updated_at = EXCLUDED.updated_at
 		RETURNING id
 	`
 
 	err = tx.QueryRow(ctx, query,
 		user.ExternalProviderID,
 		string(user.AuthProvider),
-		user.Email,
+		emailArg,
 		user.DisplayName,
 		user.AvatarURL,
 		user.ExternalID,
@@ -95,10 +112,10 @@ func (r *userRepository) getByProviderID(ctx context.Context, tx pgx.Tx, provide
 	query := `
 		SELECT id, external_id, external_provider_id, auth_provider, email, display_name, avatar_url, created_at, updated_at, revoked_at
 		FROM users
-		WHERE auth_provider = $1 AND external_provider_id = $2 AND revoked_at IS NULL
+		WHERE external_provider_id = $1 AND revoked_at IS NULL
 	`
 
-	return r.scanUser(tx.QueryRow(ctx, query, string(provider), providerID))
+	return r.scanUser(tx.QueryRow(ctx, query, providerID))
 }
 
 func (r *userRepository) update(ctx context.Context, tx pgx.Tx, user *domain.User) error {
@@ -121,18 +138,22 @@ func (r *userRepository) update(ctx context.Context, tx pgx.Tx, user *domain.Use
 func (r *userRepository) scanUser(row pgx.Row) (*domain.User, error) {
 	user := &domain.User{}
 	var authProvider string
+	var email *string
 	err := row.Scan(
 		&user.ID,
 		&user.ExternalID,
 		&user.ExternalProviderID,
 		&authProvider,
-		&user.Email,
+		&email,
 		&user.DisplayName,
 		&user.AvatarURL,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 		&user.RevokedAt,
 	)
+	if email != nil {
+		user.Email = *email
+	}
 
 	if err == pgx.ErrNoRows {
 		return nil, domain.ErrNotFound
