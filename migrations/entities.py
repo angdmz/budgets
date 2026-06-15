@@ -141,7 +141,7 @@ class User(BaseModelWithID):
 
     external_provider_id = Column(String(255), nullable=False, index=True)
     auth_provider = Column(Enum(AuthProvider), nullable=False, default=AuthProvider.GOOGLE)
-    email = Column(String(255), nullable=False, unique=True, index=True)
+    email = Column(String(255), nullable=True, unique=True, index=True)
     display_name = Column(String(255), nullable=True)
     avatar_url = Column(String(1024), nullable=True)
 

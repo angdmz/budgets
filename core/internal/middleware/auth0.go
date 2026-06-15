@@ -21,9 +21,10 @@ const (
 
 // Auth0Middleware handles Auth0 JWT validation
 type Auth0Middleware struct {
-	domain    string
-	audience  string
-	jwksCache *jwksCache
+	domain     string
+	audience   string
+	jwksCache  *jwksCache
+	strategies map[domain.AuthProvider]LoginStrategy
 }
 
 // JWKS represents the JSON Web Key Set
@@ -80,11 +81,16 @@ func (c *jwksCache) set(keys []JSONWebKey) {
 }
 
 // NewAuth0Middleware creates a new Auth0 middleware
-func NewAuth0Middleware(domain, audience string) *Auth0Middleware {
+func NewAuth0Middleware(auth0Domain, audience string) *Auth0Middleware {
 	return &Auth0Middleware{
-		domain:    domain,
+		domain:    auth0Domain,
 		audience:  audience,
 		jwksCache: newJWKSCache(1 * time.Hour),
+		strategies: map[domain.AuthProvider]LoginStrategy{
+			domain.AuthProviderGoogle: &SSOLoginStrategy{provider: domain.AuthProviderGoogle},
+			domain.AuthProviderGitHub: &SSOLoginStrategy{provider: domain.AuthProviderGitHub},
+			domain.AuthProviderLocal:  &UsernamePasswordLoginStrategy{},
+		},
 	}
 }
 
@@ -163,16 +169,17 @@ func (m *Auth0Middleware) validateToken(ctx context.Context, tokenString string)
 		return nil, fmt.Errorf("token expired")
 	}
 
-	// Extract user information
-	user := &domain.User{
-		ExternalProviderID: getStringClaim(claims, "sub"),
-		Email:              getStringClaim(claims, "email"),
-		DisplayName:        getStringClaim(claims, "name"),
-		AuthProvider:       domain.AuthProviderGoogle, // Default to Google, can be extended
+	sub := getStringClaim(claims, "sub")
+	provider := detectAuthProvider(sub)
+
+	strategy, ok := m.strategies[provider]
+	if !ok {
+		return nil, fmt.Errorf("unsupported auth provider: %s", provider)
 	}
 
-	if user.ExternalProviderID == "" {
-		return nil, fmt.Errorf("missing user ID in token")
+	user, err := strategy.ExtractUser(claims)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract user from token: %w", err)
 	}
 
 	return user, nil
@@ -255,6 +262,20 @@ func (m *Auth0Middleware) parsePublicKey(key *JSONWebKey) (interface{}, error) {
 
 	cert := "-----BEGIN CERTIFICATE-----\n" + key.X5c[0] + "\n-----END CERTIFICATE-----"
 	return jwt.ParseRSAPublicKeyFromPEM([]byte(cert))
+}
+
+// detectAuthProvider determines the auth provider from the Auth0 sub claim prefix.
+func detectAuthProvider(sub string) domain.AuthProvider {
+	switch {
+	case strings.HasPrefix(sub, "google-oauth2|"):
+		return domain.AuthProviderGoogle
+	case strings.HasPrefix(sub, "github|"):
+		return domain.AuthProviderGitHub
+	case strings.HasPrefix(sub, "auth0|"):
+		return domain.AuthProviderLocal
+	default:
+		return domain.AuthProviderLocal
+	}
 }
 
 func getStringClaim(claims jwt.MapClaims, key string) string {

@@ -30,6 +30,23 @@ class Settings:
         return os.getenv("AUTH0_MGMT_CLIENT_SECRET", "")
 
     @property
+    def auth0_client_id(self) -> str:
+        return os.getenv("AUTH0_CLIENT_ID", "")
+
+    @property
+    def auth0_client_secret(self) -> str:
+        if self.secrets_provider == "docker":
+            try:
+                return (SECRETS_DIR / "auth0_client_secret").read_text().strip()
+            except FileNotFoundError:
+                return ""
+        return os.getenv("AUTH0_CLIENT_SECRET", "")
+
+    @property
+    def auth0_audience(self) -> str:
+        return os.getenv("AUTH0_AUDIENCE", "https://api.budget.local")
+
+    @property
     def auth0_db_connection(self) -> str:
         return os.getenv("AUTH0_DB_CONNECTION", "Username-Password-Authentication")
 
