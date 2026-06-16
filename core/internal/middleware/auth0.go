@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -112,6 +113,7 @@ func (m *Auth0Middleware) RequireAuth() gin.HandlerFunc {
 		tokenString := parts[1]
 		user, err := m.validateToken(c.Request.Context(), tokenString)
 		if err != nil {
+			log.Printf("[AUTH] token rejected for %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid_token", "message": err.Error()})
 			return
 		}

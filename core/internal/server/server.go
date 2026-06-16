@@ -19,14 +19,15 @@ import (
 
 // Dependencies holds all external dependencies needed by the server.
 type Dependencies struct {
-	Encryptor         *encryption.Encryptor
-	GroupHandler      *handler.GroupHandler
-	CategoryHandler   *handler.CategoryHandler
-	BudgetHandler     *handler.BudgetHandler
-	ExpenseHandler    *handler.ExpenseHandler
-	PreferenceHandler *handler.PreferenceHandler
-	CurrencyHandler   *handler.CurrencyHandler
-	UserResolver      middleware.UserResolver
+	Encryptor          *encryption.Encryptor
+	GroupHandler       *handler.GroupHandler
+	CategoryHandler    *handler.CategoryHandler
+	BudgetHandler      *handler.BudgetHandler
+	ExpenseHandler     *handler.ExpenseHandler
+	PreferenceHandler  *handler.PreferenceHandler
+	CurrencyHandler    *handler.CurrencyHandler
+	InvitationHandler  *handler.InvitationHandler
+	UserResolver       middleware.UserResolver
 }
 
 // BuildDependencies creates the Dependencies struct with all handlers and middleware.
@@ -42,14 +43,15 @@ func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor) Dependenci
 	userResolver := middleware.NewUserResolver(pool, userRepo.GetOrCreateByProvider)
 
 	return Dependencies{
-		Encryptor:         enc,
-		GroupHandler:      handler.NewGroupHandler(pool),
-		CategoryHandler:   handler.NewCategoryHandler(pool),
-		BudgetHandler:     handler.NewBudgetHandler(pool),
-		ExpenseHandler:    handler.NewExpenseHandler(pool, enc),
-		PreferenceHandler: handler.NewPreferenceHandler(preferenceService),
-		CurrencyHandler:   handler.NewCurrencyHandler(marketplace),
-		UserResolver:      userResolver,
+		Encryptor:          enc,
+		GroupHandler:       handler.NewGroupHandler(pool),
+		CategoryHandler:    handler.NewCategoryHandler(pool),
+		BudgetHandler:      handler.NewBudgetHandler(pool),
+		ExpenseHandler:     handler.NewExpenseHandler(pool, enc),
+		PreferenceHandler:  handler.NewPreferenceHandler(preferenceService),
+		CurrencyHandler:    handler.NewCurrencyHandler(marketplace),
+		InvitationHandler:  handler.NewInvitationHandler(pool),
+		UserResolver:       userResolver,
 	}
 }
 
@@ -109,6 +111,7 @@ func (s *Server) setupRoutes() {
 	expenseHandler := s.deps.ExpenseHandler
 	preferenceHandler := s.deps.PreferenceHandler
 	currencyHandler := s.deps.CurrencyHandler
+	invitationHandler := s.deps.InvitationHandler
 	userResolver := s.deps.UserResolver
 
 	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -124,6 +127,11 @@ func (s *Server) setupRoutes() {
 	{
 		// Auth0 handles authentication via frontend
 		// No backend auth routes needed - just validate JWTs
+
+		public := api.Group("")
+		{
+			public.GET("/invitations/token/:token", invitationHandler.GetInvitationByToken)
+		}
 
 		protected := api.Group("")
 		protected.Use(s.authenticator.RequireAuth())
@@ -170,6 +178,12 @@ func (s *Server) setupRoutes() {
 			// Currency
 			protected.POST("/currency/convert", currencyHandler.Convert)
 			protected.GET("/currency/rates", currencyHandler.GetExchangeRates)
+
+			// Invitations
+			protected.POST("/groups/:id/invitations", invitationHandler.CreateInvitation)
+			protected.GET("/groups/:id/invitations", invitationHandler.ListInvitations)
+			protected.DELETE("/invitations/:id", invitationHandler.RevokeInvitation)
+			protected.POST("/invitations/token/:token/accept", invitationHandler.AcceptInvitation)
 		}
 	}
 }

@@ -173,3 +173,28 @@ type ExchangeRateResponse struct {
 	Rate         string `json:"rate"`
 	Provider     string `json:"provider"`
 }
+
+type CreateInvitationRequest struct {
+	Role string `json:"role"`
+}
+
+type InvitationResponse struct {
+	ID          uuid.UUID  `json:"id"`
+	Token       string     `json:"token"`
+	GroupID     uuid.UUID  `json:"group_id,omitempty"`
+	GroupName   string     `json:"group_name"`
+	InviterName string     `json:"inviter_name"`
+	Status      string     `json:"status"`
+	Role        string     `json:"role"`
+	ExpiresAt   time.Time  `json:"expires_at"`
+	AcceptedAt  *time.Time `json:"accepted_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+type InvitationDetailResponse struct {
+	GroupName   string    `json:"group_name"`
+	InviterName string    `json:"inviter_name"`
+	Status      string    `json:"status"`
+	Role        string    `json:"role"`
+	ExpiresAt   time.Time `json:"expires_at"`
+}

@@ -187,6 +187,12 @@ def auth0_test_user():
     except Exception as exc:
         print(f"\n  ✗ Failed to delete Auth0 test user {user_id}: {exc}")
 
+@pytest.fixture(scope="session")
+def credentials(auth0_test_user):
+    """Alias for auth0_test_user, providing login credentials to tests."""
+    return auth0_test_user
+
+
 @pytest.fixture(scope="function")
 def driver():
     """Create a Chrome WebDriver instance"""

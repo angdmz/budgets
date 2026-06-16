@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../lib/api';
-import type { Budget, Group, CreateGroupRequest } from '../lib/types';
+import type { Budget, Group, CreateGroupRequest, Invitation } from '../lib/types';
 
 export default function Groups() {
   const { getAccessTokenSilently } = useAuth0();
@@ -10,6 +10,9 @@ export default function Groups() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [formData, setFormData] = useState<CreateGroupRequest>({ name: '', description: '' });
+  const [inviteModalGroupId, setInviteModalGroupId] = useState<string | null>(null);
+  const [createdInviteLink, setCreatedInviteLink] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   const { data: groups, isLoading } = useQuery({
     queryKey: ['groups'],
@@ -42,6 +45,60 @@ export default function Groups() {
       setFormData({ name: '', description: '' });
     },
   });
+
+  const { data: invitations, refetch: refetchInvitations } = useQuery({
+    queryKey: ['invitations', inviteModalGroupId],
+    queryFn: async () => {
+      if (!inviteModalGroupId) return [];
+      const api = await createApiClient(getAccessTokenSilently);
+      const response = await api.get<Invitation[]>(`/groups/${inviteModalGroupId}/invitations`);
+      return response.data;
+    },
+    enabled: !!inviteModalGroupId,
+  });
+
+  const createInvitationMutation = useMutation({
+    mutationFn: async (groupId: string) => {
+      const api = await createApiClient(getAccessTokenSilently);
+      return api.post<Invitation>(`/groups/${groupId}/invitations`, { role: 'member' });
+    },
+    onSuccess: (response) => {
+      const token = response.data.token;
+      const link = `${window.location.origin}/app/invite/${token}`;
+      setCreatedInviteLink(link);
+      refetchInvitations();
+    },
+  });
+
+  const revokeInvitationMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      const api = await createApiClient(getAccessTokenSilently);
+      return api.delete(`/invitations/${invitationId}`);
+    },
+    onSuccess: () => {
+      refetchInvitations();
+    },
+  });
+
+  const handleCopyLink = () => {
+    if (createdInviteLink) {
+      navigator.clipboard.writeText(createdInviteLink);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    }
+  };
+
+  const openInviteModal = (groupId: string) => {
+    setInviteModalGroupId(groupId);
+    setCreatedInviteLink(null);
+    setCopySuccess(false);
+  };
+
+  const closeInviteModal = () => {
+    setInviteModalGroupId(null);
+    setCreatedInviteLink(null);
+    setCopySuccess(false);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -116,6 +173,12 @@ export default function Groups() {
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                         <button
+                          onClick={() => openInviteModal(group.id)}
+                          className="text-primary-600 hover:text-primary-900 mr-4"
+                        >
+                          Invite
+                        </button>
+                        <button
                           onClick={() => deleteMutation.mutate(group.id)}
                           className="text-red-600 hover:text-red-900"
                         >
@@ -183,6 +246,87 @@ export default function Groups() {
           </div>
         )}
       </div>
+
+      {/* Invite Modal */}
+      {inviteModalGroupId && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
+            <h2 className="text-lg font-semibold mb-1">Invite to Group</h2>
+            <p className="text-sm text-gray-600 mb-4">Generate a link to invite someone to join this group.</p>
+
+            {!createdInviteLink ? (
+              <button
+                onClick={() => createInvitationMutation.mutate(inviteModalGroupId)}
+                disabled={createInvitationMutation.isPending}
+                className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
+              >
+                {createInvitationMutation.isPending ? 'Generating...' : 'Generate Invite Link'}
+              </button>
+            ) : (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Share this link (expires in 7 days):</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={createdInviteLink}
+                    className="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                  />
+                  <button
+                    onClick={handleCopyLink}
+                    className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
+                  >
+                    {copySuccess ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {invitations && invitations.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Existing Invitations</h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {invitations.map((inv) => (
+                    <div key={inv.id} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${
+                          inv.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          inv.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {inv.status}
+                        </span>
+                        <span className="text-gray-600 capitalize">{inv.role}</span>
+                        <span className="text-gray-400 text-xs">
+                          expires {new Date(inv.expires_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {inv.status === 'pending' && (
+                        <button
+                          onClick={() => revokeInvitationMutation.mutate(inv.id)}
+                          disabled={revokeInvitationMutation.isPending}
+                          className="text-red-600 hover:text-red-900 text-xs font-medium disabled:opacity-50"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={closeInviteModal}
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Modal */}
       {isModalOpen && (

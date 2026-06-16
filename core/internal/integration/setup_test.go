@@ -22,11 +22,12 @@ import (
 )
 
 type TestSuite struct {
-	Router     *gin.Engine
-	DB         *pgxpool.Pool
-	Encryptor  *encryption.Encryptor
-	AuthToken  string
-	TestUserID string
+	Router         *gin.Engine
+	DB             *pgxpool.Pool
+	Encryptor      *encryption.Encryptor
+	AuthToken      string
+	TestUserID     string
+	AuthMiddleware *middleware.AuthMiddleware
 }
 
 func SetupTestSuite(t *testing.T) *TestSuite {
@@ -79,11 +80,12 @@ func SetupTestSuite(t *testing.T) *TestSuite {
 	}
 
 	return &TestSuite{
-		Router:     srv.Router(),
-		DB:         db.Pool,
-		Encryptor:  enc,
-		AuthToken:  authToken,
-		TestUserID: testUserID,
+		Router:         srv.Router(),
+		DB:             db.Pool,
+		Encryptor:      enc,
+		AuthToken:      authToken,
+		TestUserID:     testUserID,
+		AuthMiddleware: authMiddleware,
 	}
 }
 
@@ -138,6 +140,22 @@ func (ts *TestSuite) Delete(path string) *httptest.ResponseRecorder {
 	return ts.DoRequest(http.MethodDelete, path, nil, ts.AuthHeader())
 }
 
+func (ts *TestSuite) CreateSecondUser() (string, error) {
+	secondUser := &domain.User{
+		ExternalProviderID: "test-user-456",
+		Email:              "test2@example.com",
+		DisplayName:        "Test User 2",
+		AuthProvider:       domain.AuthProviderGoogle,
+	}
+	return ts.AuthMiddleware.GenerateToken(secondUser)
+}
+
+func (ts *TestSuite) DoRequestAs(method, path string, body interface{}, token string) *httptest.ResponseRecorder {
+	header := http.Header{}
+	header.Set("Authorization", "Bearer "+token)
+	return ts.DoRequest(method, path, body, header)
+}
+
 func (ts *TestSuite) CleanupTestData(t *testing.T) {
 	t.Helper()
 	ctx := context.Background()
@@ -149,6 +167,7 @@ func (ts *TestSuite) CleanupTestData(t *testing.T) {
 		"budgets",
 		"expense_categories",
 		"user_preferences",
+		"group_invitations",
 		"user_participants",
 		"participants",
 		"budgeting_groups",

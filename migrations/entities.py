@@ -65,6 +65,14 @@ class Language(PyEnum):
     ES = "ES"
 
 
+class InvitationStatus(str, PyEnum):
+    """Group invitation status values."""
+    pending = "pending"
+    accepted = "accepted"
+    revoked = "revoked"
+    expired = "expired"
+
+
 def _get_encryptor():
     """Get the encryptor instance, lazily initialized."""
     try:
@@ -413,4 +421,48 @@ class UserPreference(BaseModelWithID):
 
     __table_args__ = (
         Index("ix_user_preferences_user", "user_id", unique=True),
+    )
+
+
+class GroupInvitation(BaseModelWithID):
+    """
+    Represents a link-based invitation to join a budgeting group.
+    Contains a secure token for single-use invitation acceptance.
+    """
+    __tablename__ = "group_invitations"
+
+    budgeting_group_id = Column(
+        Integer,
+        ForeignKey("budgeting_groups.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    inviter_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    accepted_by_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    token = Column(String(128), nullable=False, unique=True, index=True)
+    status = Column(
+        Enum(InvitationStatus),
+        nullable=False,
+        default=InvitationStatus.pending,
+        server_default="pending",
+    )
+    role = Column(String(50), nullable=False, default="member", server_default="member")
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    accepted_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    budgeting_group = relationship("BudgetingGroup")
+    inviter_user = relationship("User", foreign_keys=[inviter_user_id])
+    accepted_by_user = relationship("User", foreign_keys=[accepted_by_user_id])
+
+    __table_args__ = (
+        Index("ix_group_invitations_token", "token", unique=True),
+        Index("ix_group_invitations_group", "budgeting_group_id"),
+        Index("ix_group_invitations_status", "status"),
     )
