@@ -30,6 +30,8 @@ function Auth0ProviderWithNavigate({ children }: { children: React.ReactNode }) 
         audience: auth0Audience,
         scope: 'openid profile email',
       }}
+      useRefreshTokens={true}
+      cacheLocation="localstorage"
       onRedirectCallback={(appState) => {
         navigate(appState?.returnTo || '/', { replace: true });
       }}
