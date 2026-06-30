@@ -18,6 +18,7 @@ COPY . .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV TEST_BASE_URL=http://nginx
+ENV INTEGRATION_TESTS_SCREENSHOTS_DIR=/tests/screenshots
 
 # Run tests
 CMD ["pytest", "-v", "-s"]

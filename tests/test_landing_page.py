@@ -6,7 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 class TestLandingPage:
     """Test suite for the landing page"""
     
-    def test_landing_page_loads(self, driver, base_url):
+    def test_landing_page_loads(self, driver, base_url, screenshots_dir):
         """Test that the landing page loads successfully"""
         driver.get(base_url)
         
@@ -19,7 +19,7 @@ class TestLandingPage:
         assert "Budget Manager" in driver.title or "Budget" in driver.page_source
         
         # Take screenshot for debugging
-        driver.save_screenshot("/tmp/landing_page.png")
+        driver.save_screenshot(f"{screenshots_dir}/landing_page.png")
         print(f"Landing page URL: {driver.current_url}")
         print(f"Page source length: {len(driver.page_source)}")
     
@@ -41,7 +41,7 @@ class TestLandingPage:
             "multi-user", "group-based", "real-time", "secure", "encrypted"
         ])
     
-    def test_navigation_links_exist(self, driver, base_url):
+    def test_navigation_links_exist(self, driver, base_url, screenshots_dir):
         """Test that navigation links are present"""
         driver.get(base_url)
         
@@ -56,5 +56,5 @@ class TestLandingPage:
                 print(f"Link found: {link.get_attribute('href')} - {link.text}")
         except Exception as e:
             print(f"Error finding links: {e}")
-            driver.save_screenshot("/tmp/landing_page_error.png")
+            driver.save_screenshot(f"{screenshots_dir}/landing_page_error.png")
             raise

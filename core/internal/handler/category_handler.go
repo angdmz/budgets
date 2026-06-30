@@ -53,7 +53,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -88,11 +88,11 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found", Message: "Group not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -125,7 +125,7 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -158,11 +158,11 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found", Message: "Group not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -203,7 +203,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -242,11 +242,11 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Category not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -279,7 +279,7 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -299,11 +299,11 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Category not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)

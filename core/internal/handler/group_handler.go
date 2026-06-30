@@ -44,7 +44,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -94,7 +94,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 func (h *GroupHandler) GetGroups(c *gin.Context) {
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -149,7 +149,7 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -177,11 +177,11 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Group not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to access this group"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -222,7 +222,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -257,11 +257,11 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Group not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to access this group"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -294,7 +294,7 @@ func (h *GroupHandler) DeleteGroup(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -314,11 +314,11 @@ func (h *GroupHandler) DeleteGroup(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Group not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to access this group"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)

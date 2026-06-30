@@ -59,7 +59,7 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "missing_code"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "missing_code", Message: "Authorization code is missing"})
 		return
 	}
 
@@ -131,7 +131,7 @@ func (h *AuthHandler) getUserInfo(accessToken string) (*googleUserInfo, error) {
 func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 	c.JSON(http.StatusOK, user)

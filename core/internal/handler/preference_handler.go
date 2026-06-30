@@ -30,7 +30,7 @@ func NewPreferenceHandler(preferenceService service.PreferenceService) *Preferen
 func (h *PreferenceHandler) GetPreferences(c *gin.Context) {
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -68,7 +68,7 @@ func (h *PreferenceHandler) UpdatePreferences(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 

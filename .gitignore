@@ -81,3 +81,6 @@ lerna-debug.log*
 nginx/logs/access.log
 nginx/logs/error.log
 
+# Integration test screenshots
+tests/screenshots/
+
