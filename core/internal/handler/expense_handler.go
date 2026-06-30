@@ -44,7 +44,7 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 	budgetIDStr := c.Param("id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id", Message: "Invalid UUID format"})
 		return
 	}
 
@@ -56,13 +56,13 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 
 	amount, err := decimal.NewFromString(req.Amount.Amount)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount", Message: "Invalid amount format"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -130,13 +130,13 @@ func (h *ExpenseHandler) GetExpectedExpense(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id", Message: "Invalid UUID format"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -192,13 +192,13 @@ func (h *ExpenseHandler) GetExpectedExpenses(c *gin.Context) {
 	budgetIDStr := c.Param("id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id", Message: "Invalid UUID format"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -259,7 +259,7 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id", Message: "Invalid UUID format"})
 		return
 	}
 
@@ -271,13 +271,13 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 
 	amount, err := decimal.NewFromString(req.Amount.Amount)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount", Message: "Invalid amount format"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -346,13 +346,13 @@ func (h *ExpenseHandler) DeleteExpectedExpense(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id", Message: "Invalid UUID format"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -396,7 +396,7 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 	budgetIDStr := c.Param("id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id", Message: "Invalid UUID format"})
 		return
 	}
 
@@ -408,19 +408,19 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 
 	amount, err := decimal.NewFromString(req.Amount.Amount)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount", Message: "Invalid amount format"})
 		return
 	}
 
 	expenseDate, err := time.Parse("2006-01-02", req.ExpenseDate)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_expense_date"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_expense_date", Message: "Date must be in YYYY-MM-DD format"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -489,13 +489,13 @@ func (h *ExpenseHandler) GetActualExpense(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id", Message: "Invalid UUID format"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -552,13 +552,13 @@ func (h *ExpenseHandler) GetActualExpenses(c *gin.Context) {
 	budgetIDStr := c.Param("id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id", Message: "Invalid UUID format"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -620,7 +620,7 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id", Message: "Invalid UUID format"})
 		return
 	}
 
@@ -632,19 +632,19 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 
 	amount, err := decimal.NewFromString(req.Amount.Amount)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount", Message: "Invalid amount format"})
 		return
 	}
 
 	expenseDate, err := time.Parse("2006-01-02", req.ExpenseDate)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_expense_date"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_expense_date", Message: "Date must be in YYYY-MM-DD format"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -715,13 +715,13 @@ func (h *ExpenseHandler) DeleteActualExpense(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id", Message: "Invalid UUID format"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -749,11 +749,11 @@ func (h *ExpenseHandler) DeleteActualExpense(c *gin.Context) {
 
 func handleServiceError(c *gin.Context, err error) {
 	if errors.Is(err, domain.ErrNotFound) {
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+		c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Resource not found"})
 		return
 	}
 	if errors.Is(err, domain.ErrForbidden) {
-		c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+		c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
 		return
 	}
 	SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)

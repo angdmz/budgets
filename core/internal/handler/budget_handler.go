@@ -68,7 +68,7 @@ func (h *BudgetHandler) CreateBudget(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -103,11 +103,11 @@ func (h *BudgetHandler) CreateBudget(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found", Message: "Group not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -140,7 +140,7 @@ func (h *BudgetHandler) GetBudgets(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -173,11 +173,11 @@ func (h *BudgetHandler) GetBudgets(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found", Message: "Group not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -210,7 +210,7 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -240,11 +240,11 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Budget not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -297,7 +297,7 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -337,11 +337,11 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Budget not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -374,7 +374,7 @@ func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -394,11 +394,11 @@ func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Budget not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)

@@ -37,7 +37,7 @@ func (h *InvitationHandler) CreateInvitation(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -85,11 +85,11 @@ func (h *InvitationHandler) CreateInvitation(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found", Message: "Group not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to manage invitations for this group"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -109,7 +109,7 @@ func (h *InvitationHandler) ListInvitations(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -155,11 +155,11 @@ func (h *InvitationHandler) ListInvitations(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "group_not_found", Message: "Group not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to manage invitations for this group"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -179,7 +179,7 @@ func (h *InvitationHandler) RevokeInvitation(c *gin.Context) {
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -210,11 +210,11 @@ func (h *InvitationHandler) RevokeInvitation(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Invitation not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrForbidden) {
-			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to manage invitations for this group"})
 			return
 		}
 		if errors.Is(err, domain.ErrConflict) {
@@ -231,7 +231,7 @@ func (h *InvitationHandler) RevokeInvitation(c *gin.Context) {
 func (h *InvitationHandler) GetInvitationByToken(c *gin.Context) {
 	token := c.Param("token")
 	if token == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_token"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_token", Message: "Invitation token is required"})
 		return
 	}
 
@@ -258,11 +258,11 @@ func (h *InvitationHandler) GetInvitationByToken(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Invitation not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrGone) {
-			c.JSON(http.StatusGone, ErrorResponse{Error: "invitation_expired_or_revoked"})
+			c.JSON(http.StatusGone, ErrorResponse{Error: "invitation_expired_or_revoked", Message: "This invitation has expired or been revoked"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
@@ -275,13 +275,13 @@ func (h *InvitationHandler) GetInvitationByToken(c *gin.Context) {
 func (h *InvitationHandler) AcceptInvitation(c *gin.Context) {
 	token := c.Param("token")
 	if token == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_token"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_token", Message: "Invitation token is required"})
 		return
 	}
 
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -296,7 +296,7 @@ func (h *InvitationHandler) AcceptInvitation(c *gin.Context) {
 
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
-			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found"})
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "not_found", Message: "Invitation not found"})
 			return
 		}
 		if errors.Is(err, domain.ErrConflict) {
@@ -304,7 +304,7 @@ func (h *InvitationHandler) AcceptInvitation(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, domain.ErrGone) {
-			c.JSON(http.StatusGone, ErrorResponse{Error: "invitation_expired"})
+			c.JSON(http.StatusGone, ErrorResponse{Error: "invitation_expired", Message: "This invitation has expired"})
 			return
 		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)

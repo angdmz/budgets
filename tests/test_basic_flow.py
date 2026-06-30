@@ -7,7 +7,7 @@ import time
 class TestBasicFlow:
     """Test suite for basic user flow (without Auth0 login)"""
     
-    def test_full_navigation_flow(self, driver, base_url):
+    def test_full_navigation_flow(self, driver, base_url, screenshots_dir):
         """Test navigating through the main pages"""
         # Start at landing page
         driver.get(base_url)
@@ -16,7 +16,7 @@ class TestBasicFlow:
         print(f"Step 1: Landing page loaded")
         print(f"  URL: {driver.current_url}")
         print(f"  Title: {driver.title}")
-        driver.save_screenshot("/tmp/flow_1_landing.png")
+        driver.save_screenshot(f"{screenshots_dir}/flow_1_landing.png")
         
         # Try to navigate to /app
         app_url = f"{base_url}/app"
@@ -26,7 +26,7 @@ class TestBasicFlow:
         print(f"\nStep 2: Navigated to /app")
         print(f"  URL: {driver.current_url}")
         print(f"  Title: {driver.title}")
-        driver.save_screenshot("/tmp/flow_2_app.png")
+        driver.save_screenshot(f"{screenshots_dir}/flow_2_app.png")
         
         # Check console for errors
         logs = driver.get_log('browser')
@@ -45,7 +45,7 @@ class TestBasicFlow:
         print(f"\nStep 3: Navigated to /admin")
         print(f"  URL: {driver.current_url}")
         print(f"  Title: {driver.title}")
-        driver.save_screenshot("/tmp/flow_3_admin.png")
+        driver.save_screenshot(f"{screenshots_dir}/flow_3_admin.png")
         
         # Try API health check
         health_url = f"{base_url}/health"
@@ -55,7 +55,7 @@ class TestBasicFlow:
         print(f"\nStep 4: API health check")
         print(f"  URL: {driver.current_url}")
         print(f"  Response: {driver.page_source[:200]}")
-        driver.save_screenshot("/tmp/flow_4_health.png")
+        driver.save_screenshot(f"{screenshots_dir}/flow_4_health.png")
         
         # Try Swagger
         swagger_url = f"{base_url}/swagger/index.html"
@@ -65,7 +65,7 @@ class TestBasicFlow:
         print(f"\nStep 5: Swagger UI")
         print(f"  URL: {driver.current_url}")
         print(f"  Title: {driver.title}")
-        driver.save_screenshot("/tmp/flow_5_swagger.png")
+        driver.save_screenshot(f"{screenshots_dir}/flow_5_swagger.png")
         
         # Return to landing
         driver.get(base_url)
@@ -73,7 +73,7 @@ class TestBasicFlow:
         
         print(f"\nStep 6: Back to landing")
         print(f"  URL: {driver.current_url}")
-        driver.save_screenshot("/tmp/flow_6_landing_return.png")
+        driver.save_screenshot(f"{screenshots_dir}/flow_6_landing_return.png")
         
         # All navigation should work without errors
         assert True, "Navigation flow completed"

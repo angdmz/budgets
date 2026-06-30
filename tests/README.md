@@ -213,12 +213,14 @@ Tests the complete group invitation system:
 
 ### Screenshots
 
-Tests automatically save screenshots to `/tmp/`:
+Tests automatically save screenshots to a configurable directory (default: `/tests/screenshots` inside the container, mapped to `./tests/screenshots` on the host via the Docker volume defined in `docker-compose.yml`):
 - `landing_page.png` - Landing page
 - `app_route.png` - Main app page
 - `admin_route.png` - Admin page
 - `swagger_page.png` - Swagger UI
 - `flow_*.png` - Navigation flow screenshots
+
+The directory is controlled by `INTEGRATION_TESTS_SCREENSHOTS_DIR` (set in `.env`).
 
 ### Console Logs
 
@@ -233,8 +235,8 @@ Tests capture and display:
 ### View Screenshots
 
 ```bash
-open /tmp/landing_page.png
-open /tmp/app_route.png
+open tests/screenshots/landing_page.png
+open tests/screenshots/app_route.png
 ```
 
 ### Run Single Test with Visible Browser
@@ -347,7 +349,7 @@ def test_new_feature(driver, base_url):
     assert element.text == "Expected Text"
     
     # Screenshot
-    driver.save_screenshot("/tmp/new_feature.png")
+    driver.save_screenshot(f"{screenshots_dir}/new_feature.png")
 ```
 
 ## Troubleshooting

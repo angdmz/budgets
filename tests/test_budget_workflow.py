@@ -18,11 +18,11 @@ class TestBudgetWorkflow:
     def _wait(self, driver):
         return WebDriverWait(driver, self.TIMEOUT)
 
-    def _login(self, driver, base_url, credentials):
+    def _login(self, driver, base_url, credentials, screenshots_dir):
         """Navigate to /app and complete Auth0 Universal Login if redirected."""
         driver.get(f"{base_url}/app")
         time.sleep(2)
-        driver.save_screenshot("/tmp/wf_01_pre_login.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_01_pre_login.png")
 
         if "auth0.com" in driver.current_url or "auth0" in driver.page_source.lower():
             # Auth0 returns 403 when redirect_uri is not registered in the tenant.
@@ -36,7 +36,7 @@ class TestBudgetWorkflow:
                     )
                 )
             except TimeoutException:
-                driver.save_screenshot("/tmp/wf_auth0_error.png")
+                driver.save_screenshot(f"{screenshots_dir}/wf_auth0_error.png")
                 pytest.skip(
                     "Auth0 login form did not appear — the redirect_uri "
                     f"'{driver.current_url.split('redirect_uri=')[0]}' may not be "
@@ -66,7 +66,7 @@ class TestBudgetWorkflow:
             try:
                 self._wait(driver).until(lambda d: "auth0.com" not in d.current_url)
             except TimeoutException:
-                driver.save_screenshot("/tmp/wf_login_stuck.png")
+                driver.save_screenshot(f"{screenshots_dir}/wf_login_stuck.png")
                 page_text = driver.find_element(By.TAG_NAME, "body").text[:400]
                 pytest.fail(
                     f"Browser did not leave auth0.com after submitting credentials.\n"
@@ -86,7 +86,7 @@ class TestBudgetWorkflow:
                 )
             )
         except TimeoutException:
-            driver.save_screenshot("/tmp/wf_post_login_timeout.png")
+            driver.save_screenshot(f"{screenshots_dir}/wf_post_login_timeout.png")
             page_text = driver.find_element(By.TAG_NAME, "body").text[:500]
             pytest.fail(
                 f"Authenticated app layout did not appear after login.\n"
@@ -94,7 +94,7 @@ class TestBudgetWorkflow:
                 f"Page title: {driver.title}\n"
                 f"Page text snippet: {page_text}"
             )
-        driver.save_screenshot("/tmp/wf_01_logged_in.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_01_logged_in.png")
         print("\n  ✓ Logged in")
 
     def _nav(self, driver, link_text):
@@ -176,7 +176,7 @@ class TestBudgetWorkflow:
 
     @pytest.mark.integration
     def test_create_group_budget_category_expense_and_view(
-        self, driver, base_url, auth0_test_user
+        self, driver, base_url, auth0_test_user, screenshots_dir
     ):
         """Full workflow:
         1. Log in via Auth0
@@ -193,7 +193,7 @@ class TestBudgetWorkflow:
         expense_name  = f"Test Expense {ts}"
 
         # ── 1. Login ───────────────────────────────────────────────────────────
-        self._login(driver, base_url, auth0_test_user)
+        self._login(driver, base_url, auth0_test_user, screenshots_dir)
 
         # ── 2. Create group ────────────────────────────────────────────────────
         self._nav(driver, "Groups")
@@ -207,7 +207,7 @@ class TestBudgetWorkflow:
         modal = driver.find_element(By.CSS_SELECTOR, ".fixed.inset-0")
         name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
         self._set_react_input(driver, name_input, group_name)
-        driver.save_screenshot("/tmp/wf_02_group_modal.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_02_group_modal.png")
         self._submit_modal(driver)
 
         # Group name must appear in the groups table
@@ -216,7 +216,7 @@ class TestBudgetWorkflow:
                 (By.XPATH, f"//td[normalize-space()='{group_name}']")
             )
         )
-        driver.save_screenshot("/tmp/wf_02_group_created.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_02_group_created.png")
         print(f"  ✓ Group created: {group_name}")
 
         # ── 3. Create budget ───────────────────────────────────────────────────
@@ -239,7 +239,7 @@ class TestBudgetWorkflow:
         self._set_react_date(driver, date_inputs[0], "2025-01-01")
         self._set_react_date(driver, date_inputs[1], "2025-12-31")
 
-        driver.save_screenshot("/tmp/wf_03_budget_modal.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_03_budget_modal.png")
         self._submit_modal(driver)
 
         # Budget name must appear in the budgets table
@@ -248,7 +248,7 @@ class TestBudgetWorkflow:
                 (By.XPATH, f"//td[normalize-space()='{budget_name}']")
             )
         )
-        driver.save_screenshot("/tmp/wf_03_budget_created.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_03_budget_created.png")
         print(f"  ✓ Budget created: {budget_name}")
 
         # ── 4. Create category ─────────────────────────────────────────────────
@@ -265,7 +265,7 @@ class TestBudgetWorkflow:
         modal = driver.find_element(By.CSS_SELECTOR, ".fixed.inset-0")
         name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
         self._set_react_input(driver, name_input, category_name)
-        driver.save_screenshot("/tmp/wf_04_category_modal.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_04_category_modal.png")
         self._submit_modal(driver)
 
         # Category name must appear as a card heading
@@ -274,7 +274,7 @@ class TestBudgetWorkflow:
                 (By.XPATH, f"//h3[normalize-space()='{category_name}']")
             )
         )
-        driver.save_screenshot("/tmp/wf_04_category_created.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_04_category_created.png")
         print(f"  ✓ Category created: {category_name}")
 
         # ── 5. Add expense ─────────────────────────────────────────────────────
@@ -312,7 +312,7 @@ class TestBudgetWorkflow:
         date_input = modal.find_element(By.CSS_SELECTOR, "input[type='date']")
         self._set_react_date(driver, date_input, "2025-06-15")
 
-        driver.save_screenshot("/tmp/wf_05_expense_modal.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_05_expense_modal.png")
         self._submit_modal(driver)
 
         # Expense name must appear in the expenses table
@@ -321,7 +321,7 @@ class TestBudgetWorkflow:
                 (By.XPATH, f"//td[normalize-space()='{expense_name}']")
             )
         )
-        driver.save_screenshot("/tmp/wf_05_expense_created.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_05_expense_created.png")
         print(f"  ✓ Expense created: {expense_name}")
 
         # ── 6. View budget in Groups tab ───────────────────────────────────────
@@ -348,6 +348,6 @@ class TestBudgetWorkflow:
                 (By.XPATH, f"//td[normalize-space()='{budget_name}']")
             )
         )
-        driver.save_screenshot("/tmp/wf_06_budget_visible_in_groups.png")
+        driver.save_screenshot(f"{screenshots_dir}/wf_06_budget_visible_in_groups.png")
         print(f"  ✓ Budget visible in Groups tab: {budget_name}")
         print("\n✅ Full workflow test passed!")

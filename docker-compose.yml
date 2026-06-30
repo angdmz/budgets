@@ -221,17 +221,13 @@ services:
     build:
       context: ./tests
       dockerfile: Dockerfile
-    environment:
-      TEST_BASE_URL: http://nginx
-      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
-      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
-      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
-      AUTH0_MGMT_CLIENT_ID: ${AUTH0_MGMT_CLIENT_ID}
-      AUTH0_DB_CONNECTION: ${AUTH0_DB_CONNECTION:-Username-Password-Authentication}
-      SECRETS_PROVIDER: docker
+    env_file: .env
+    volumes:
+      - ${INTEGRATION_TESTS_SCREENSHOTS_HOST_DIR:-./tests/screenshots}:/tests/screenshots
     secrets:
+      - integration_tests_auth0_email
+      - integration_tests_auth0_password
       - auth0_mgmt_client_secret
-      - auth0_client_secret
     depends_on:
       - nginx
       - api
@@ -283,6 +279,14 @@ services:
     profiles:
       - setup
 
+  generate-integration-test-secrets:
+    image: alpine:latest
+    command: sh -c "echo -n 'test@example.com' > /secrets/integration_tests_auth0_email.txt && echo -n 'changeme' > /secrets/integration_tests_auth0_password.txt && echo 'Generated integration test secrets (placeholders - replace with real values)'"
+    volumes:
+      - ./secrets:/secrets
+    profiles:
+      - setup
+
   go-mod-tidy:
     image: golang:1.22-alpine
     working_dir: /app
@@ -303,6 +307,10 @@ secrets:
     file: ./secrets/auth0_client_secret.txt
   auth0_mgmt_client_secret:
     file: ./secrets/auth0_mgmt_client_secret.txt
+  integration_tests_auth0_email:
+    file: ./secrets/integration_tests_auth0_email.txt
+  integration_tests_auth0_password:
+    file: ./secrets/integration_tests_auth0_password.txt
 
 volumes:
   db_data:

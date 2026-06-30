@@ -6,10 +6,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 import os
-from dotenv import load_dotenv
 from settings import settings
-
-load_dotenv()
 
 
 def _get_mgmt_token(domain: str, client_id: str, client_secret: str) -> str:
@@ -140,7 +137,7 @@ def _delete_auth0_user(domain: str, token: str, user_id: str) -> None:
 @pytest.fixture(scope="session")
 def base_url():
     """Base URL for the application"""
-    return os.getenv("TEST_BASE_URL", "http://localhost:8000")
+    return settings.base_url
 
 
 @pytest.fixture(scope="session")
@@ -149,15 +146,6 @@ def auth0_mgmt_token():
     domain = settings.auth0_domain
     client_id = settings.auth0_mgmt_client_id
     client_secret = settings.auth0_mgmt_client_secret
-    connection = settings.auth0_db_connection
-
-    print("\n  ─── Auth0 Integration Test Configuration ───")
-    print(f"  AUTH0_DOMAIN:             {'✓ ' + domain if domain else '✗ MISSING'}")
-    print(f"  AUTH0_MGMT_CLIENT_ID:     {'✓ ' + client_id if client_id else '✗ MISSING'}")
-    print(f"  AUTH0_MGMT_CLIENT_SECRET: {'✓ (set, length=' + str(len(client_secret)) + ')' if client_secret else '✗ MISSING'}")
-    print(f"  AUTH0_DB_CONNECTION:      {connection}")
-    print(f"  SECRETS_PROVIDER:         {settings.secrets_provider}")
-    print("  ─────────────────────────────────────────────")
 
     if not domain or not client_id or not client_secret:
         missing = []
@@ -196,6 +184,13 @@ def auth0_test_user(auth0_mgmt_token):
         print(f"\n  ✓ Deleted Auth0 test user 1: {email} ({user_id})")
     except Exception as exc:
         print(f"\n  ✗ Failed to delete Auth0 test user {user_id}: {exc}")
+
+
+@pytest.fixture(scope="session")
+def screenshots_dir():
+    """Screenshots output directory"""
+    os.makedirs(settings.screenshots_dir, exist_ok=True)
+    return settings.screenshots_dir
 
 
 @pytest.fixture(scope="session")
