@@ -1,8 +1,9 @@
 import { useAuth0 } from '@auth0/auth0-react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 export default function ProtectedRoute() {
   const { isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -16,7 +17,9 @@ export default function ProtectedRoute() {
   }
 
   if (!isAuthenticated) {
-    loginWithRedirect();
+    loginWithRedirect({
+      appState: { returnTo: location.pathname },
+    });
     return null;
   }
 

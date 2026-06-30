@@ -26,13 +26,14 @@ func (s *SSOLoginStrategy) ExtractUser(claims jwt.MapClaims) (*domain.User, erro
 		return nil, fmt.Errorf("missing sub claim")
 	}
 	email := getStringClaim(claims, "email")
-	if email == "" {
-		return nil, fmt.Errorf("missing email claim for SSO login")
+	displayName := getStringClaim(claims, "name")
+	if displayName == "" {
+		displayName = email
 	}
 	return &domain.User{
 		ExternalProviderID: sub,
 		Email:              email,
-		DisplayName:        getStringClaim(claims, "name"),
+		DisplayName:        displayName,
 		AvatarURL:          getStringClaim(claims, "picture"),
 		AuthProvider:       s.provider,
 	}, nil

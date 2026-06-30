@@ -1,4 +1,5 @@
 import uuid
+import time
 import pytest
 import requests
 from selenium import webdriver
@@ -143,8 +144,8 @@ def base_url():
 
 
 @pytest.fixture(scope="session")
-def auth0_test_user():
-    """Create a temporary Auth0 user for the test session and delete it on teardown."""
+def auth0_mgmt_token():
+    """Get Auth0 Management API token (shared across all test user fixtures)."""
     domain = settings.auth0_domain
     client_id = settings.auth0_mgmt_client_id
     client_secret = settings.auth0_mgmt_client_secret
@@ -172,20 +173,71 @@ def auth0_test_user():
         )
 
     token = _get_mgmt_token(domain, client_id, client_secret)
+    return token
+
+
+@pytest.fixture(scope="session")
+def auth0_test_user(auth0_mgmt_token):
+    """Create a temporary Auth0 user for the test session and delete it on teardown."""
+    domain = settings.auth0_domain
+    connection = settings.auth0_db_connection
+    token = auth0_mgmt_token
 
     email = f"test-{uuid.uuid4().hex[:8]}@integration-tests.local"
     password = f"T3st!{uuid.uuid4().hex}"
 
     user_id = _create_auth0_user(domain, token, connection, email, password)
-    print(f"\n  ✓ Created Auth0 test user: {email} ({user_id})")
+    print(f"\n  ✓ Created Auth0 test user 1: {email} ({user_id})")
 
     yield {"email": email, "password": password}
 
     try:
         _delete_auth0_user(domain, token, user_id)
-        print(f"\n  ✓ Deleted Auth0 test user: {email} ({user_id})")
+        print(f"\n  ✓ Deleted Auth0 test user 1: {email} ({user_id})")
     except Exception as exc:
         print(f"\n  ✗ Failed to delete Auth0 test user {user_id}: {exc}")
+
+
+@pytest.fixture(scope="session")
+def second_auth0_test_user(auth0_mgmt_token):
+    """Create a second temporary Auth0 user for invitation acceptance tests."""
+    domain = settings.auth0_domain
+    connection = settings.auth0_db_connection
+    token = auth0_mgmt_token
+
+    email = f"test-{uuid.uuid4().hex[:8]}@integration-tests.local"
+    password = f"T3st!{uuid.uuid4().hex}"
+
+    user_id = _create_auth0_user(domain, token, connection, email, password)
+    print(f"\n  ✓ Created Auth0 test user 2: {email} ({user_id})")
+
+    yield {"email": email, "password": password}
+
+    try:
+        _delete_auth0_user(domain, token, user_id)
+        print(f"\n  ✓ Deleted Auth0 test user 2: {email} ({user_id})")
+    except Exception as exc:
+        print(f"\n  ✗ Failed to delete Auth0 test user {user_id}: {exc}")
+
+
+@pytest.fixture(scope="session")
+def credentials(auth0_test_user):
+    """Alias for auth0_test_user, providing login credentials to tests."""
+    return auth0_test_user
+
+
+def logout_user(driver, base_url):
+    """Clear local auth state (localStorage + sessionStorage) for the current driver.
+
+    Note: does NOT clear the Auth0 SSO cookie (auth0.com domain).
+    For tests that need a different user, create a fresh WebDriver via
+    TestInvitationWorkflow._make_driver() so each user has its own cookie jar.
+    """
+    driver.get(base_url)
+    driver.execute_script("window.localStorage.clear();")
+    driver.execute_script("window.sessionStorage.clear();")
+    time.sleep(1)
+
 
 @pytest.fixture(scope="function")
 def driver():

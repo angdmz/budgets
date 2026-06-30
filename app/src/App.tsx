@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -7,6 +7,7 @@ import Groups from './pages/Groups';
 import Budgets from './pages/Budgets';
 import Categories from './pages/Categories';
 import Expenses from './pages/Expenses';
+import AcceptInvitation from './pages/AcceptInvitation';
 
 function App() {
   const { isLoading } = useAuth0();
@@ -23,20 +24,19 @@ function App() {
   }
 
   return (
-    <BrowserRouter basename="/app">
-      <Routes>
-        <Route element={<ProtectedRoute />}>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/groups" element={<Groups />} />
-            <Route path="/budgets" element={<Budgets />} />
-            <Route path="/categories" element={<Categories />} />
-            <Route path="/expenses" element={<Expenses />} />
-          </Route>
+    <Routes>
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/groups" element={<Groups />} />
+          <Route path="/budgets" element={<Budgets />} />
+          <Route path="/categories" element={<Categories />} />
+          <Route path="/expenses" element={<Expenses />} />
         </Route>
-      </Routes>
-    </BrowserRouter>
+      </Route>
+      <Route path="/invite/:token" element={<AcceptInvitation />} />
+    </Routes>
   );
 }
 

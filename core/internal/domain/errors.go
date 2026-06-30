@@ -7,6 +7,7 @@ var (
 	ErrUnauthorized      = errors.New("unauthorized")
 	ErrForbidden         = errors.New("access forbidden")
 	ErrConflict          = errors.New("resource conflict")
+	ErrGone              = errors.New("resource no longer available")
 	ErrValidation        = errors.New("validation error")
 	ErrInternalServer    = errors.New("internal server error")
 	ErrInvalidCredentials = errors.New("invalid credentials")

@@ -6,6 +6,51 @@ Selenium-based integration tests to verify the basic flow and functionality of t
 
 - Docker and Docker Compose
 - System running on http://localhost:8000
+- **For authenticated tests:** Auth0 tenant with Machine-to-Machine (M2M) application configured
+
+## Auth0 Configuration (Required for Invitation & Budget Tests)
+
+The invitation and budget workflow tests dynamically create and delete Auth0 users via the Management API. This requires:
+
+### 1. Create a Machine-to-Machine Application
+
+1. Go to Auth0 Dashboard → Applications → Applications
+2. Click "Create Application"
+3. Name: "Integration Tests M2M"
+4. Type: **Machine to Machine Applications**
+5. API: **Auth0 Management API**
+
+### 2. Authorize Required Scopes
+
+After creating the M2M app:
+1. Go to APIs → Auth0 Management API → Machine to Machine Applications
+2. Find your M2M app and expand it
+3. Enable these scopes:
+   - `create:users` - Create test users
+   - `delete:users` - Clean up test users after tests
+
+### 3. Configure Environment Variables
+
+Create or update `secrets/auth0_mgmt_client_secret.txt`:
+```bash
+echo "your-m2m-client-secret" > secrets/auth0_mgmt_client_secret.txt
+```
+
+Set environment variables in `.env` or docker-compose:
+```bash
+AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_AUDIENCE=https://api.your-domain.com  # Your API identifier
+AUTH0_CLIENT_ID=your-frontend-client-id     # Regular application client
+AUTH0_MGMT_CLIENT_ID=your-m2m-client-id     # M2M app client ID
+AUTH0_DB_CONNECTION=Username-Password-Authentication  # Database connection name
+```
+
+### 4. Verify Database Connection
+
+Ensure you have a Database connection configured:
+1. Go to Auth0 Dashboard → Authentication → Database
+2. Verify connection name matches `AUTH0_DB_CONNECTION` (default: `Username-Password-Authentication`)
+3. Check password policy allows generated passwords (tests use format: `T3st!<random>`)
 
 ## Quick Start (Recommended)
 
@@ -80,6 +125,12 @@ pytest test_app_routing.py -v
 
 # Basic flow tests
 pytest test_basic_flow.py -v
+
+# Budget workflow tests (requires Auth0)
+pytest test_budget_workflow.py -v
+
+# Invitation workflow tests (requires Auth0)
+pytest test_invitation_workflow.py -v
 ```
 
 ### Run with HTML Report
@@ -134,6 +185,29 @@ Tests the complete navigation flow:
 - Network request monitoring
 - Page load time measurements
 - Console error detection
+
+### 4. Budget Workflow Tests (`test_budget_workflow.py`)
+
+**Requires Auth0 configuration**
+
+Tests budget creation and management:
+- Group creation
+- Budget creation within groups
+- Category management
+- Expense tracking
+- Multi-user budget access
+
+### 5. Invitation Workflow Tests (`test_invitation_workflow.py`)
+
+**Requires Auth0 configuration**
+
+Tests the complete group invitation system:
+- **Owner creates invitation** - Group owner generates invite link
+- **Second user accepts invitation** - Different user accepts and joins group
+- **Access control verification** - Invited user can access group budgets
+- **Revocation flow** - Revoked invitations are rejected properly
+
+**Important:** These tests dynamically create TWO Auth0 test users per session to properly test the invitation flow.
 
 ## Test Output
 
@@ -247,8 +321,13 @@ Current test coverage:
 - ✅ Asset loading verification
 - ✅ API health checks
 - ✅ Swagger UI accessibility
-- ⚠️ Auth0 login flow (requires Auth0 M2M credentials for dynamic user creation)
-- ⚠️ CRUD operations (requires Auth0 M2M credentials for dynamic user creation)
+- ✅ Auth0 login flow (with M2M credentials)
+- ✅ Budget CRUD operations (with M2M credentials)
+- ✅ **Group invitation flow** (with M2M credentials)
+  - Invitation creation
+  - Multi-user acceptance
+  - Access control verification
+  - Revocation handling
 
 ## Adding New Tests
 

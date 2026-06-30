@@ -866,6 +866,7 @@ func (e *PersistedActualExpense) DeleteFrom(ctx context.Context, p Persister) er
 
 type SecurityGuard interface {
 	AuthorizeGroupAccess(ctx context.Context, p Persister, groupExternalID uuid.UUID) error
+	AuthorizeGroupOwnership(ctx context.Context, p Persister, groupExternalID uuid.UUID) error
 	AuthorizeBudgetAccess(ctx context.Context, p Persister, budgetExternalID uuid.UUID) error
 	AuthorizeCategoryAccess(ctx context.Context, p Persister, categoryExternalID uuid.UUID) error
 	AuthorizeExpenseAccess(ctx context.Context, p Persister, expenseExternalID uuid.UUID) error
@@ -897,6 +898,29 @@ func (s *securityGuard) AuthorizeGroupAccess(ctx context.Context, p Persister, g
 		return err
 	}
 	if !exists {
+		return ErrForbidden
+	}
+	return nil
+}
+
+func (s *securityGuard) AuthorizeGroupOwnership(ctx context.Context, p Persister, groupExternalID uuid.UUID) error {
+	var isOwner bool
+	err := p.QueryRow(
+		ctx,
+		[]any{&isOwner},
+		`SELECT EXISTS(
+			SELECT 1 FROM user_participants up
+			JOIN participants pt ON up.participant_id = pt.id
+			JOIN budgeting_groups bg ON pt.budgeting_group_id = bg.id
+			WHERE up.user_id = $1 AND bg.external_id = $2 AND up.role = 'owner'
+			AND up.revoked_at IS NULL AND pt.revoked_at IS NULL AND bg.revoked_at IS NULL
+		)`,
+		s.userID, groupExternalID,
+	)
+	if err != nil {
+		return err
+	}
+	if !isOwner {
 		return ErrForbidden
 	}
 	return nil

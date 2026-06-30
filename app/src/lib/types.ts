@@ -87,3 +87,28 @@ export interface CreateExpectedExpenseRequest {
   amount: Money;
   category_id: string;
 }
+
+export interface Invitation {
+  id: string;
+  token: string;
+  group_id?: string;
+  group_name: string;
+  inviter_name: string;
+  status: string;
+  role: string;
+  expires_at: string;
+  accepted_at?: string;
+  created_at: string;
+}
+
+export interface InvitationDetail {
+  group_name: string;
+  inviter_name: string;
+  status: string;
+  role: string;
+  expires_at: string;
+}
+
+export interface CreateInvitationRequest {
+  role?: string;
+}
