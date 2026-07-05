@@ -112,3 +112,23 @@ export interface InvitationDetail {
 export interface CreateInvitationRequest {
   role?: string;
 }
+
+export interface UpdateCategoryRequest {
+  name: string;
+  description: string;
+  color: string;
+}
+
+export interface UpdateBudgetRequest {
+  name: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+}
+
+export interface UpdateActualExpenseRequest {
+  name: string;
+  description: string;
+  amount: Money;
+  expense_date: string;
+}

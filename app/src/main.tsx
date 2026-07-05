@@ -28,7 +28,7 @@ function Auth0ProviderWithNavigate({ children }: { children: React.ReactNode }) 
       authorizationParams={{
         redirect_uri: window.location.origin + '/app',
         audience: auth0Audience,
-        scope: 'openid profile email',
+        scope: 'openid profile email offline_access',
       }}
       useRefreshTokens={true}
       cacheLocation="localstorage"

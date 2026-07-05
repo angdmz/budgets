@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../lib/api';
-import type { Category, Group, CreateCategoryRequest } from '../lib/types';
+import type { Category, Group, CreateCategoryRequest, UpdateCategoryRequest } from '../lib/types';
 
 export default function Categories() {
   const { getAccessTokenSilently } = useAuth0();
@@ -10,6 +10,8 @@ export default function Categories() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [formData, setFormData] = useState<CreateCategoryRequest>({ name: '', description: '', color: '#0ea5e9' });
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
 
   const { data: groups } = useQuery({
     queryKey: ['groups'],
@@ -43,9 +45,53 @@ export default function Categories() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateCategoryRequest }) => {
+      const api = await createApiClient(getAccessTokenSilently);
+      return api.put(`/categories/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setEditingCategory(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const api = await createApiClient(getAccessTokenSilently);
+      return api.delete(`/categories/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setDeletingCategory(null);
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate(formData);
+  };
+
+  const handleEdit = (category: Category) => {
+    setEditingCategory(category);
+  };
+
+  const handleUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingCategory) {
+      const updateData: UpdateCategoryRequest = {
+        name: editingCategory.name,
+        description: editingCategory.description,
+        color: editingCategory.color,
+      };
+      updateMutation.mutate({ id: editingCategory.id, data: updateData });
+    }
+  };
+
+  const handleDelete = () => {
+    if (deletingCategory) {
+      deleteMutation.mutate(deletingCategory.id);
+    }
   };
 
   return (
@@ -84,8 +130,26 @@ export default function Categories() {
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {categories?.map((category) => (
             <div key={category.id} className="bg-white shadow rounded-lg p-4 border-l-4" style={{ borderColor: category.color || '#0ea5e9' }}>
-              <h3 className="text-lg font-medium text-gray-900">{category.name}</h3>
-              <p className="mt-1 text-sm text-gray-500">{category.description || 'No description'}</p>
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <h3 className="text-lg font-medium text-gray-900">{category.name}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{category.description || 'No description'}</p>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleEdit(category)}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setDeletingCategory(category)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -126,6 +190,71 @@ export default function Categories() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {editingCategory && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Edit Category</h2>
+            <form onSubmit={handleUpdate}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingCategory.name}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Color</label>
+                  <input
+                    type="color"
+                    value={editingCategory.color}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, color: e.target.value })}
+                    className="mt-1 block w-full h-10 rounded-md border-gray-300 shadow-sm"
+                  />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button type="button" onClick={() => setEditingCategory(null)} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button type="submit" className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">
+                  Update
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {deletingCategory && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Delete Category</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Are you sure you want to delete <strong>{deletingCategory.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setDeletingCategory(null)}
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

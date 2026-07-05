@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../lib/api';
-import type { ActualExpense, Budget, Group, CreateActualExpenseRequest } from '../lib/types';
+import type { ActualExpense, Budget, Group, CreateActualExpenseRequest, UpdateActualExpenseRequest } from '../lib/types';
 
 export default function Expenses() {
   const { getAccessTokenSilently } = useAuth0();
@@ -16,6 +16,8 @@ export default function Expenses() {
     amount: { amount: '', currency: 'USD' },
     expense_date: new Date().toISOString().split('T')[0],
   });
+  const [editingExpense, setEditingExpense] = useState<ActualExpense | null>(null);
+  const [deletingExpense, setDeletingExpense] = useState<ActualExpense | null>(null);
 
   const { data: groups } = useQuery({
     queryKey: ['groups'],
@@ -65,9 +67,54 @@ export default function Expenses() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateActualExpenseRequest }) => {
+      const api = await createApiClient(getAccessTokenSilently);
+      return api.put(`/actual-expenses/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['actual-expenses'] });
+      setEditingExpense(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const api = await createApiClient(getAccessTokenSilently);
+      return api.delete(`/actual-expenses/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['actual-expenses'] });
+      setDeletingExpense(null);
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate(formData);
+  };
+
+  const handleEdit = (expense: ActualExpense) => {
+    setEditingExpense(expense);
+  };
+
+  const handleUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingExpense) {
+      const updateData: UpdateActualExpenseRequest = {
+        name: editingExpense.name,
+        description: editingExpense.description,
+        amount: editingExpense.amount,
+        expense_date: editingExpense.expense_date,
+      };
+      updateMutation.mutate({ id: editingExpense.id, data: updateData });
+    }
+  };
+
+  const handleDelete = () => {
+    if (deletingExpense) {
+      deleteMutation.mutate(deletingExpense.id);
+    }
   };
 
   return (
@@ -128,6 +175,9 @@ export default function Expenses() {
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount</th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
+                  <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
@@ -143,6 +193,20 @@ export default function Expenses() {
                       ${parseFloat(expense.amount.amount).toFixed(2)} {expense.amount.currency}
                     </td>
                     <td className="px-3 py-4 text-sm text-gray-500">{expense.description || '-'}</td>
+                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                      <button
+                        onClick={() => handleEdit(expense)}
+                        className="text-blue-600 hover:text-blue-900 mr-4"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setDeletingExpense(expense)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -198,6 +262,83 @@ export default function Expenses() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {editingExpense && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Edit Expense</h2>
+            <form onSubmit={handleUpdate}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingExpense.name}
+                    onChange={(e) => setEditingExpense({ ...editingExpense, name: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Amount</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={editingExpense.amount.amount}
+                    onChange={(e) => setEditingExpense({ ...editingExpense, amount: { ...editingExpense.amount, amount: e.target.value } })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={editingExpense.expense_date}
+                    onChange={(e) => setEditingExpense({ ...editingExpense, expense_date: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button type="button" onClick={() => setEditingExpense(null)} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button type="submit" className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">
+                  Update
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {deletingExpense && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Delete Expense</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Are you sure you want to delete <strong>{deletingExpense.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setDeletingExpense(null)}
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
