@@ -115,13 +115,15 @@ func TestSSOLoginStrategy_ExtractUser(t *testing.T) {
 		assert.Equal(t, domain.AuthProviderGoogle, user.AuthProvider)
 	})
 
-	t.Run("fails_without_email", func(t *testing.T) {
+	t.Run("allows_missing_email", func(t *testing.T) {
 		strategy := &SSOLoginStrategy{provider: domain.AuthProviderGoogle}
 		claims := jwt.MapClaims{
 			"sub": "google-oauth2|12345",
 		}
-		_, err := strategy.ExtractUser(claims)
-		require.Error(t, err)
+		user, err := strategy.ExtractUser(claims)
+		require.NoError(t, err)
+		assert.Equal(t, "", user.Email)
+		assert.Equal(t, "", user.DisplayName)
 	})
 
 	t.Run("fails_without_sub", func(t *testing.T) {
