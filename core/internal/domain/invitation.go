@@ -84,20 +84,20 @@ func (i *PersistibleInvitation) PersistTo(ctx context.Context, p Persister) (*Pe
 }
 
 type PersistedInvitation struct {
-	id                int64
-	externalID        uuid.UUID
-	groupID           int64
-	groupName         string
-	inviterUserID     int64
-	inviterName       string
-	acceptedByUserID  *int64
-	token             string
-	status            string
-	role              string
-	expiresAt         time.Time
-	acceptedAt        *time.Time
-	createdAt         time.Time
-	updatedAt         time.Time
+	id               int64
+	externalID       uuid.UUID
+	groupID          int64
+	groupName        string
+	inviterUserID    int64
+	inviterName      string
+	acceptedByUserID *int64
+	token            string
+	status           string
+	role             string
+	expiresAt        time.Time
+	acceptedAt       *time.Time
+	createdAt        time.Time
+	updatedAt        time.Time
 }
 
 func PersistedInvitationByToken(ctx context.Context, token string, p Persister) (*PersistedInvitation, error) {
@@ -293,7 +293,7 @@ func (i *PersistedInvitation) IsExpired() bool {
 	return time.Now().After(i.expiresAt)
 }
 
-func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, p Persister) error {
+func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, displayName string, p Persister) error {
 	if i.status == InvitationStatusRevoked {
 		return fmt.Errorf("%w: invitation has been revoked", ErrGone)
 	}
@@ -336,7 +336,7 @@ func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, p Persis
 		`INSERT INTO participants (name, description, budgeting_group_id)
 		VALUES ($1, $2, $3)
 		RETURNING id, external_id, created_at, updated_at`,
-		"New Member", "", i.groupID,
+		displayName, "", i.groupID,
 	)
 	if err != nil {
 		return err

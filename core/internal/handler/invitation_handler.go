@@ -291,7 +291,7 @@ func (h *InvitationHandler) AcceptInvitation(c *gin.Context) {
 			return err
 		}
 
-		return invitation.Accept(ctx, user.ID, p)
+		return invitation.Accept(ctx, user.ID, user.DisplayName, p)
 	})
 
 	if err != nil {

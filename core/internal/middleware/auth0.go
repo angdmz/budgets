@@ -22,10 +22,11 @@ const (
 
 // Auth0Middleware handles Auth0 JWT validation
 type Auth0Middleware struct {
-	domain     string
-	audience   string
-	jwksCache  *jwksCache
-	strategies map[domain.AuthProvider]LoginStrategy
+	domain           string
+	audience         string
+	jwksCache        *jwksCache
+	strategies       map[domain.AuthProvider]LoginStrategy
+	userInfoProvider UserInfoProvider
 }
 
 // JWKS represents the JSON Web Key Set
@@ -84,9 +85,10 @@ func (c *jwksCache) set(keys []JSONWebKey) {
 // NewAuth0Middleware creates a new Auth0 middleware
 func NewAuth0Middleware(auth0Domain, audience string) *Auth0Middleware {
 	return &Auth0Middleware{
-		domain:    auth0Domain,
-		audience:  audience,
-		jwksCache: newJWKSCache(1 * time.Hour),
+		domain:           auth0Domain,
+		audience:         audience,
+		jwksCache:        newJWKSCache(1 * time.Hour),
+		userInfoProvider: NewAuth0UserInfoProvider(auth0Domain),
 		strategies: map[domain.AuthProvider]LoginStrategy{
 			domain.AuthProviderGoogle: &SSOLoginStrategy{provider: domain.AuthProviderGoogle},
 			domain.AuthProviderGitHub: &SSOLoginStrategy{provider: domain.AuthProviderGitHub},
@@ -182,6 +184,24 @@ func (m *Auth0Middleware) validateToken(ctx context.Context, tokenString string)
 	user, err := strategy.ExtractUser(claims)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract user from token: %w", err)
+	}
+
+	// When claims lack email or display name, fetch from Auth0 /userinfo
+	if (user.Email == "" || user.DisplayName == "" || user.DisplayName == user.Email) && m.userInfoProvider != nil {
+		info, infoErr := m.userInfoProvider.GetUserInfo(ctx, tokenString)
+		if infoErr != nil {
+			log.Printf("[AUTH] userinfo enrichment failed (non-fatal): %v", infoErr)
+		} else {
+			if user.Email == "" && info.Email != "" {
+				user.Email = info.Email
+			}
+			if (user.DisplayName == "" || user.DisplayName == user.Email) && info.Name != "" {
+				user.DisplayName = info.Name
+			}
+			if user.AvatarURL == "" && info.Picture != "" {
+				user.AvatarURL = info.Picture
+			}
+		}
 	}
 
 	return user, nil
