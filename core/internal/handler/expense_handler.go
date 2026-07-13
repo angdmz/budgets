@@ -41,7 +41,13 @@ func NewExpenseHandler(pool *pgxpool.Pool, encryptor *encryption.Encryptor) *Exp
 // @Security BearerAuth
 // @Router /budgets/{budget_id}/expected-expenses [post]
 func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
-	budgetIDStr := c.Param("id")
+	user := middleware.GetDBUserFromContext(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
+		return
+	}
+
+	budgetIDStr := c.Param("budget_id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id", Message: "Invalid UUID format"})
@@ -57,12 +63,6 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 	amount, err := decimal.NewFromString(req.Amount.Amount)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount", Message: "Invalid amount format"})
-		return
-	}
-
-	user := middleware.GetDBUserFromContext(c)
-	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -99,6 +99,7 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 			Name:        persistedExpense.Name(),
 			Description: persistedExpense.Description(),
 			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CategoryID:  persistedExpense.CategoryExternalID(),
 			CreatedAt:   persistedExpense.CreatedAt(),
 			UpdatedAt:   persistedExpense.UpdatedAt(),
 		}
@@ -162,6 +163,7 @@ func (h *ExpenseHandler) GetExpectedExpense(c *gin.Context) {
 			Name:        expense.Name(),
 			Description: expense.Description(),
 			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CategoryID:  expense.CategoryExternalID(),
 			CreatedAt:   expense.CreatedAt(),
 			UpdatedAt:   expense.UpdatedAt(),
 		}
@@ -189,7 +191,7 @@ func (h *ExpenseHandler) GetExpectedExpense(c *gin.Context) {
 // @Security BearerAuth
 // @Router /budgets/{budget_id}/expected-expenses [get]
 func (h *ExpenseHandler) GetExpectedExpenses(c *gin.Context) {
-	budgetIDStr := c.Param("id")
+	budgetIDStr := c.Param("budget_id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id", Message: "Invalid UUID format"})
@@ -226,6 +228,7 @@ func (h *ExpenseHandler) GetExpectedExpenses(c *gin.Context) {
 				Name:        e.Name(),
 				Description: e.Description(),
 				Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+				CategoryID:  e.CategoryExternalID(),
 				CreatedAt:   e.CreatedAt(),
 				UpdatedAt:   e.UpdatedAt(),
 			}
@@ -302,6 +305,7 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 		expense.UpdateName(req.Name)
 		expense.UpdateDescription(req.Description)
 		expense.UpdateEncryptedAmount(encryptedAmount)
+		expense.UpdateCategoryExternalID(req.CategoryID)
 
 		if err := expense.UpdateIn(ctx, p); err != nil {
 			return err
@@ -317,6 +321,7 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 			Name:        expense.Name(),
 			Description: expense.Description(),
 			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CategoryID:  expense.CategoryExternalID(),
 			CreatedAt:   expense.CreatedAt(),
 			UpdatedAt:   expense.UpdatedAt(),
 		}
@@ -393,7 +398,13 @@ func (h *ExpenseHandler) DeleteExpectedExpense(c *gin.Context) {
 // @Security BearerAuth
 // @Router /budgets/{budget_id}/actual-expenses [post]
 func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
-	budgetIDStr := c.Param("id")
+	user := middleware.GetDBUserFromContext(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
+		return
+	}
+
+	budgetIDStr := c.Param("budget_id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id", Message: "Invalid UUID format"})
@@ -415,12 +426,6 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 	expenseDate, err := time.Parse("2006-01-02", req.ExpenseDate)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_expense_date", Message: "Date must be in YYYY-MM-DD format"})
-		return
-	}
-
-	user := middleware.GetDBUserFromContext(c)
-	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -549,7 +554,7 @@ func (h *ExpenseHandler) GetActualExpense(c *gin.Context) {
 // @Security BearerAuth
 // @Router /budgets/{budget_id}/actual-expenses [get]
 func (h *ExpenseHandler) GetActualExpenses(c *gin.Context) {
-	budgetIDStr := c.Param("id")
+	budgetIDStr := c.Param("budget_id")
 	budgetID, err := uuid.Parse(budgetIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id", Message: "Invalid UUID format"})

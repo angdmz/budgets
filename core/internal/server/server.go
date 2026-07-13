@@ -153,13 +153,13 @@ func (s *Server) setupRoutes() {
 			protected.DELETE("/categories/:id", categoryHandler.DeleteCategory)
 
 			// Budgets
-			protected.POST("/budgets/:id/expected-expenses", expenseHandler.CreateExpectedExpense)
-			protected.GET("/budgets/:id/expected-expenses", expenseHandler.GetExpectedExpenses)
-			protected.POST("/budgets/:id/actual-expenses", expenseHandler.CreateActualExpense)
-			protected.GET("/budgets/:id/actual-expenses", expenseHandler.GetActualExpenses)
-			protected.GET("/budgets/:id", budgetHandler.GetBudget)
-			protected.PUT("/budgets/:id", budgetHandler.UpdateBudget)
-			protected.DELETE("/budgets/:id", budgetHandler.DeleteBudget)
+			protected.POST("/budgets/:budget_id/expected-expenses", expenseHandler.CreateExpectedExpense)
+			protected.GET("/budgets/:budget_id/expected-expenses", expenseHandler.GetExpectedExpenses)
+			protected.POST("/budgets/:budget_id/actual-expenses", expenseHandler.CreateActualExpense)
+			protected.GET("/budgets/:budget_id/actual-expenses", expenseHandler.GetActualExpenses)
+			protected.GET("/budgets/:budget_id", budgetHandler.GetBudget)
+			protected.PUT("/budgets/:budget_id", budgetHandler.UpdateBudget)
+			protected.DELETE("/budgets/:budget_id", budgetHandler.DeleteBudget)
 
 			// Expected Expenses
 			protected.GET("/expected-expenses/:id", expenseHandler.GetExpectedExpense)

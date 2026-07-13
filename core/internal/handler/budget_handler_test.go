@@ -19,10 +19,13 @@ func TestUpdateBudget_InvalidUUID(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{{Key: "id", Value: "invalid-uuid"}}
+	c.Params = gin.Params{{Key: "budget_id", Value: "invalid-uuid"}}
 
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
+
+	user := &domain.User{}
+	c.Set("db_user", user)
 
 	handler := &BudgetHandler{}
 	handler.UpdateBudget(c)
@@ -36,7 +39,7 @@ func TestUpdateBudget_NoUserInContext(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{{Key: "id", Value: uuid.New().String()}}
+	c.Params = gin.Params{{Key: "budget_id", Value: uuid.New().String()}}
 
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
@@ -63,7 +66,7 @@ func TestUpdateBudget_InvalidRequestBody(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{{Key: "id", Value: uuid.New().String()}}
+	c.Params = gin.Params{{Key: "budget_id", Value: uuid.New().String()}}
 
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
@@ -86,7 +89,7 @@ func TestUpdateBudget_InvalidDateFormat(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{{Key: "id", Value: uuid.New().String()}}
+	c.Params = gin.Params{{Key: "budget_id", Value: uuid.New().String()}}
 
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
@@ -116,10 +119,13 @@ func TestDeleteBudget_InvalidUUID(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{{Key: "id", Value: "invalid-uuid"}}
+	c.Params = gin.Params{{Key: "budget_id", Value: "invalid-uuid"}}
 
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
+
+	user := &domain.User{}
+	c.Set("db_user", user)
 
 	handler := &BudgetHandler{}
 	handler.DeleteBudget(c)
@@ -133,7 +139,7 @@ func TestDeleteBudget_NoUserInContext(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{{Key: "id", Value: uuid.New().String()}}
+	c.Params = gin.Params{{Key: "budget_id", Value: uuid.New().String()}}
 
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)

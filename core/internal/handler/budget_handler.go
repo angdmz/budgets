@@ -201,7 +201,7 @@ func (h *BudgetHandler) GetBudgets(c *gin.Context) {
 // @Security BearerAuth
 // @Router /budgets/{id} [get]
 func (h *BudgetHandler) GetBudget(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Param("budget_id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id", Message: "Invalid UUID format"})
@@ -270,7 +270,7 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 // @Security BearerAuth
 // @Router /budgets/{id} [put]
 func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Param("budget_id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id", Message: "Invalid UUID format"})
@@ -365,7 +365,7 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 // @Security BearerAuth
 // @Router /budgets/{id} [delete]
 func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Param("budget_id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_id", Message: "Invalid UUID format"})

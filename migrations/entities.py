@@ -327,8 +327,8 @@ class ExpectedExpense(BaseModelWithID):
     )
     category_id = Column(
         Integer,
-        ForeignKey("expense_categories.id", ondelete="SET NULL"),
-        nullable=True,
+        ForeignKey("expense_categories.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     budget = relationship("Budget", back_populates="expected_expenses")

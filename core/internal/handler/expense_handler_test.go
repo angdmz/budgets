@@ -81,6 +81,52 @@ func TestUpdateActualExpense_InvalidRequestBody(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "invalid_request")
 }
 
+func TestCreateExpectedExpense_InvalidUUID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "budget_id", Value: "invalid-uuid"}}
+
+	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
+	c.Set("config", cfg)
+
+	user := &domain.User{}
+	c.Set("db_user", user)
+
+	handler := &ExpenseHandler{}
+	handler.CreateExpectedExpense(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_budget_id")
+}
+
+func TestCreateExpectedExpense_NoUserInContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "budget_id", Value: uuid.New().String()}}
+
+	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
+	c.Set("config", cfg)
+
+	reqBody := CreateExpectedExpenseRequest{
+		Name:        "New Expected",
+		Description: "Description",
+		Amount:      MoneyRequest{Amount: "100.00", Currency: "USD"},
+	}
+	bodyBytes, _ := json.Marshal(reqBody)
+	c.Request = httptest.NewRequest("POST", "/budgets/"+uuid.New().String()+"/expected-expenses", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler := &ExpenseHandler{}
+	handler.CreateExpectedExpense(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "unauthorized")
+}
+
 func TestDeleteActualExpense_InvalidUUID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
