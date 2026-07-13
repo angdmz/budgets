@@ -36,7 +36,7 @@ export interface ExpectedExpense {
   name: string;
   description: string;
   amount: Money;
-  category_id: string;
+  category_id?: string;
   budget_id: string;
   created_at: string;
   updated_at: string;
@@ -85,7 +85,14 @@ export interface CreateExpectedExpenseRequest {
   name: string;
   description: string;
   amount: Money;
-  category_id: string;
+  category_id?: string;
+}
+
+export interface UpdateExpectedExpenseRequest {
+  name: string;
+  description: string;
+  amount: Money;
+  category_id?: string;
 }
 
 export interface Invitation {
@@ -111,4 +118,24 @@ export interface InvitationDetail {
 
 export interface CreateInvitationRequest {
   role?: string;
+}
+
+export interface UpdateCategoryRequest {
+  name: string;
+  description: string;
+  color: string;
+}
+
+export interface UpdateBudgetRequest {
+  name: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+}
+
+export interface UpdateActualExpenseRequest {
+  name: string;
+  description: string;
+  amount: Money;
+  expense_date: string;
 }

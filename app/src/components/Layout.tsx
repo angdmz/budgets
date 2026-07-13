@@ -11,6 +11,7 @@ export default function Layout() {
     { name: 'Budgets', href: '/budgets', icon: '💰' },
     { name: 'Categories', href: '/categories', icon: '🏷️' },
     { name: 'Expenses', href: '/expenses', icon: '💸' },
+    { name: 'Expected', href: '/expected-expenses', icon: '📋' },
   ];
 
   const isActive = (path: string) => location.pathname === path;

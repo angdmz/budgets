@@ -7,6 +7,7 @@ import Groups from './pages/Groups';
 import Budgets from './pages/Budgets';
 import Categories from './pages/Categories';
 import Expenses from './pages/Expenses';
+import ExpectedExpenses from './pages/ExpectedExpenses';
 import AcceptInvitation from './pages/AcceptInvitation';
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/expenses" element={<Expenses />} />
+          <Route path="/expected-expenses" element={<ExpectedExpenses />} />
         </Route>
       </Route>
       <Route path="/invite/:token" element={<AcceptInvitation />} />

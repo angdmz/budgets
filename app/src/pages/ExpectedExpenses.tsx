@@ -2,22 +2,23 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../lib/api';
-import type { ActualExpense, Budget, Group, CreateActualExpenseRequest, UpdateActualExpenseRequest } from '../lib/types';
+import type { ExpectedExpense, Budget, Group, Category, CreateExpectedExpenseRequest, UpdateExpectedExpenseRequest } from '../lib/types';
+import CategoryCombobox from '../components/CategoryCombobox';
 
-export default function Expenses() {
+export default function ExpectedExpenses() {
   const { getAccessTokenSilently } = useAuth0();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [selectedBudgetId, setSelectedBudgetId] = useState('');
-  const [formData, setFormData] = useState<CreateActualExpenseRequest>({
+  const [formData, setFormData] = useState<CreateExpectedExpenseRequest>({
     name: '',
     description: '',
     amount: { amount: '', currency: 'USD' },
-    expense_date: new Date().toISOString().split('T')[0],
+    category_id: '',
   });
-  const [editingExpense, setEditingExpense] = useState<ActualExpense | null>(null);
-  const [deletingExpense, setDeletingExpense] = useState<ActualExpense | null>(null);
+  const [editingExpense, setEditingExpense] = useState<ExpectedExpense | null>(null);
+  const [deletingExpense, setDeletingExpense] = useState<ExpectedExpense | null>(null);
 
   const { data: groups } = useQuery({
     queryKey: ['groups'],
@@ -40,40 +41,50 @@ export default function Expenses() {
   });
 
   const { data: expenses } = useQuery({
-    queryKey: ['actual-expenses', selectedBudgetId],
+    queryKey: ['expected-expenses', selectedBudgetId],
     queryFn: async () => {
       if (!selectedBudgetId) return [];
       const api = await createApiClient(getAccessTokenSilently);
-      const response = await api.get<ActualExpense[]>(`/budgets/${selectedBudgetId}/actual-expenses`);
+      const response = await api.get<ExpectedExpense[]>(`/budgets/${selectedBudgetId}/expected-expenses`);
       return response.data;
     },
     enabled: !!selectedBudgetId,
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (data: CreateActualExpenseRequest) => {
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories', selectedGroupId],
+    queryFn: async () => {
+      if (!selectedGroupId) return [];
       const api = await createApiClient(getAccessTokenSilently);
-      return api.post(`/budgets/${selectedBudgetId}/actual-expenses`, data);
+      const response = await api.get<Category[]>(`/groups/${selectedGroupId}/categories`);
+      return response.data;
+    },
+    enabled: !!selectedGroupId,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateExpectedExpenseRequest) => {
+      const api = await createApiClient(getAccessTokenSilently);
+      return api.post(`/budgets/${selectedBudgetId}/expected-expenses`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['actual-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['expected-expenses'] });
       setIsModalOpen(false);
       setFormData({
         name: '',
         description: '',
         amount: { amount: '', currency: 'USD' },
-        expense_date: new Date().toISOString().split('T')[0],
       });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateActualExpenseRequest }) => {
+    mutationFn: async ({ id, data }: { id: string; data: UpdateExpectedExpenseRequest }) => {
       const api = await createApiClient(getAccessTokenSilently);
-      return api.put(`/actual-expenses/${id}`, data);
+      return api.put(`/expected-expenses/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['actual-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['expected-expenses'] });
       setEditingExpense(null);
     },
   });
@@ -81,31 +92,35 @@ export default function Expenses() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const api = await createApiClient(getAccessTokenSilently);
-      return api.delete(`/actual-expenses/${id}`);
+      return api.delete(`/expected-expenses/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['actual-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['expected-expenses'] });
       setDeletingExpense(null);
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate(formData);
+    const submitData = {
+      ...formData,
+      category_id: formData.category_id || undefined,
+    };
+    createMutation.mutate(submitData);
   };
 
-  const handleEdit = (expense: ActualExpense) => {
+  const handleEdit = (expense: ExpectedExpense) => {
     setEditingExpense(expense);
   };
 
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingExpense) {
-      const updateData: UpdateActualExpenseRequest = {
+      const updateData: UpdateExpectedExpenseRequest = {
         name: editingExpense.name,
         description: editingExpense.description,
         amount: editingExpense.amount,
-        expense_date: editingExpense.expense_date,
+        category_id: editingExpense.category_id,
       };
       updateMutation.mutate({ id: editingExpense.id, data: updateData });
     }
@@ -121,8 +136,8 @@ export default function Expenses() {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Expenses</h1>
-          <p className="mt-2 text-sm text-gray-700">Track your actual expenses</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Expected Expenses</h1>
+          <p className="mt-2 text-sm text-gray-700">Plan your expected budget expenses</p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
           <button
@@ -130,7 +145,7 @@ export default function Expenses() {
             disabled={!selectedBudgetId}
             className="block rounded-md bg-primary-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
           >
-            Add Expense
+            Add Expected Expense
           </button>
         </div>
       </div>
@@ -172,8 +187,8 @@ export default function Expenses() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
-                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount</th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
                   <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                     <span className="sr-only">Actions</span>
@@ -181,16 +196,23 @@ export default function Expenses() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {expenses?.map((expense) => (
+                {expenses?.map((expense) => {
+                  const category = categories.find(c => c.id === expense.category_id);
+                  return (
                   <tr key={expense.id}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                       {expense.name}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {new Date(expense.expense_date).toLocaleDateString()}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       ${parseFloat(expense.amount.amount).toFixed(2)} {expense.amount.currency}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500">
+                      {category ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }}></div>
+                          <span>{category.name}</span>
+                        </div>
+                      ) : '-'}
                     </td>
                     <td className="px-3 py-4 text-sm text-gray-500">{expense.description || '-'}</td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -208,7 +230,8 @@ export default function Expenses() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -218,7 +241,7 @@ export default function Expenses() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Add Expense</h2>
+            <h2 className="text-lg font-semibold mb-4">Add Expected Expense</h2>
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
@@ -227,7 +250,7 @@ export default function Expenses() {
                     type="text"
                     required
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   />
                 </div>
@@ -238,18 +261,26 @@ export default function Expenses() {
                     step="0.01"
                     required
                     value={formData.amount.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: { ...formData.amount, amount: e.target.value } })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, amount: { ...prev.amount, amount: e.target.value } }))}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Date</label>
+                  <label className="block text-sm font-medium text-gray-700">Description</label>
                   <input
-                    type="date"
-                    required
-                    value={formData.expense_date}
-                    onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
+                    type="text"
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                  <CategoryCombobox
+                    groupId={selectedGroupId}
+                    value={formData.category_id}
+                    onChange={(categoryId) => setFormData(prev => ({ ...prev, category_id: categoryId }))}
+                    getAccessTokenSilently={getAccessTokenSilently}
                   />
                 </div>
               </div>
@@ -269,7 +300,7 @@ export default function Expenses() {
       {editingExpense && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Edit Expense</h2>
+            <h2 className="text-lg font-semibold mb-4">Edit Expected Expense</h2>
             <form onSubmit={handleUpdate}>
               <div className="space-y-4">
                 <div>
@@ -278,7 +309,7 @@ export default function Expenses() {
                     type="text"
                     required
                     value={editingExpense.name}
-                    onChange={(e) => setEditingExpense({ ...editingExpense, name: e.target.value })}
+                    onChange={(e) => setEditingExpense(prev => prev ? { ...prev, name: e.target.value } : prev)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   />
                 </div>
@@ -289,18 +320,26 @@ export default function Expenses() {
                     step="0.01"
                     required
                     value={editingExpense.amount.amount}
-                    onChange={(e) => setEditingExpense({ ...editingExpense, amount: { ...editingExpense.amount, amount: e.target.value } })}
+                    onChange={(e) => setEditingExpense(prev => prev ? { ...prev, amount: { ...prev.amount, amount: e.target.value } } : prev)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Date</label>
+                  <label className="block text-sm font-medium text-gray-700">Description</label>
                   <input
-                    type="date"
-                    required
-                    value={editingExpense.expense_date}
-                    onChange={(e) => setEditingExpense({ ...editingExpense, expense_date: e.target.value })}
+                    type="text"
+                    value={editingExpense.description}
+                    onChange={(e) => setEditingExpense(prev => prev ? { ...prev, description: e.target.value } : prev)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                  <CategoryCombobox
+                    groupId={selectedGroupId}
+                    value={editingExpense.category_id}
+                    onChange={(categoryId) => setEditingExpense(prev => prev ? { ...prev, category_id: categoryId } : prev)}
+                    getAccessTokenSilently={getAccessTokenSilently}
                   />
                 </div>
               </div>
@@ -320,7 +359,7 @@ export default function Expenses() {
       {deletingExpense && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Delete Expense</h2>
+            <h2 className="text-lg font-semibold mb-4">Delete Expected Expense</h2>
             <p className="text-sm text-gray-500 mb-4">
               Are you sure you want to delete <strong>{deletingExpense.name}</strong>? This action cannot be undone.
             </p>

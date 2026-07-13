@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../lib/api';
-import type { Budget, Group, CreateBudgetRequest } from '../lib/types';
+import type { Budget, Group, CreateBudgetRequest, UpdateBudgetRequest } from '../lib/types';
 
 export default function Budgets() {
   const { getAccessTokenSilently } = useAuth0();
@@ -15,6 +15,8 @@ export default function Budgets() {
     start_date: '',
     end_date: '',
   });
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [deletingBudget, setDeletingBudget] = useState<Budget | null>(null);
 
   const { data: groups } = useQuery({
     queryKey: ['groups'],
@@ -48,9 +50,54 @@ export default function Budgets() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateBudgetRequest }) => {
+      const api = await createApiClient(getAccessTokenSilently);
+      return api.put(`/budgets/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      setEditingBudget(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const api = await createApiClient(getAccessTokenSilently);
+      return api.delete(`/budgets/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      setDeletingBudget(null);
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate(formData);
+  };
+
+  const handleEdit = (budget: Budget) => {
+    setEditingBudget(budget);
+  };
+
+  const handleUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingBudget) {
+      const updateData: UpdateBudgetRequest = {
+        name: editingBudget.name,
+        description: editingBudget.description,
+        start_date: editingBudget.start_date,
+        end_date: editingBudget.end_date,
+      };
+      updateMutation.mutate({ id: editingBudget.id, data: updateData });
+    }
+  };
+
+  const handleDelete = () => {
+    if (deletingBudget) {
+      deleteMutation.mutate(deletingBudget.id);
+    }
   };
 
   return (
@@ -96,6 +143,9 @@ export default function Budgets() {
                   <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Period</th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
+                  <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
@@ -108,6 +158,20 @@ export default function Budgets() {
                       {new Date(budget.start_date).toLocaleDateString()} - {new Date(budget.end_date).toLocaleDateString()}
                     </td>
                     <td className="px-3 py-4 text-sm text-gray-500">{budget.description || '-'}</td>
+                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                      <button
+                        onClick={() => handleEdit(budget)}
+                        className="text-blue-600 hover:text-blue-900 mr-4"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setDeletingBudget(budget)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -169,6 +233,89 @@ export default function Budgets() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {editingBudget && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Edit Budget</h2>
+            <form onSubmit={handleUpdate}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingBudget.name}
+                    onChange={(e) => setEditingBudget({ ...editingBudget, name: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={editingBudget.start_date}
+                    onChange={(e) => setEditingBudget({ ...editingBudget, start_date: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">End Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={editingBudget.end_date}
+                    onChange={(e) => setEditingBudget({ ...editingBudget, end_date: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingBudget(null)}
+                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
+                >
+                  Update
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {deletingBudget && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Delete Budget</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Are you sure you want to delete <strong>{deletingBudget.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setDeletingBudget(null)}
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

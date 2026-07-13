@@ -319,13 +319,14 @@ func (e *PersistibleExpectedExpense) PersistTo(ctx context.Context, p Persister)
 	}
 
 	return &PersistedExpectedExpense{
-		id:              expenseID,
-		externalID:      expenseExternalID,
-		name:            e.name,
-		description:     e.description,
-		encryptedAmount: e.encryptedAmount,
-		createdAt:       createdAt,
-		updatedAt:       updatedAt,
+		id:                 expenseID,
+		externalID:         expenseExternalID,
+		name:               e.name,
+		description:        e.description,
+		encryptedAmount:    e.encryptedAmount,
+		categoryExternalID: e.categoryExternalID,
+		createdAt:          createdAt,
+		updatedAt:          updatedAt,
 	}, nil
 }
 
@@ -688,21 +689,25 @@ func (b *PersistedBudget) DeleteFrom(ctx context.Context, p Persister) error {
 }
 
 type PersistedExpectedExpense struct {
-	id              int64
-	externalID      uuid.UUID
-	name            string
-	description     string
-	encryptedAmount string
-	createdAt       time.Time
-	updatedAt       time.Time
+	id                 int64
+	externalID         uuid.UUID
+	name               string
+	description        string
+	encryptedAmount    string
+	categoryExternalID *uuid.UUID
+	createdAt          time.Time
+	updatedAt          time.Time
 }
 
 func PersistedExpectedExpenseFromPersistence(ctx context.Context, externalID uuid.UUID, p Persister) (*PersistedExpectedExpense, error) {
 	var e PersistedExpectedExpense
 	err := p.QueryRow(
 		ctx,
-		[]any{&e.id, &e.externalID, &e.name, &e.description, &e.encryptedAmount, &e.createdAt, &e.updatedAt},
-		`SELECT id, external_id, name, description, encrypted_amount, created_at, updated_at FROM expected_expenses WHERE external_id = $1 AND revoked_at IS NULL`,
+		[]any{&e.id, &e.externalID, &e.name, &e.description, &e.encryptedAmount, &e.categoryExternalID, &e.createdAt, &e.updatedAt},
+		`SELECT ee.id, ee.external_id, ee.name, ee.description, ee.encrypted_amount, ec.external_id, ee.created_at, ee.updated_at 
+		FROM expected_expenses ee 
+		LEFT JOIN expense_categories ec ON ee.category_id = ec.id AND ec.revoked_at IS NULL
+		WHERE ee.external_id = $1 AND ee.revoked_at IS NULL`,
 		externalID,
 	)
 	if err != nil {
@@ -735,6 +740,10 @@ func (e *PersistedExpectedExpense) UpdatedAt() time.Time {
 	return e.updatedAt
 }
 
+func (e *PersistedExpectedExpense) CategoryExternalID() *uuid.UUID {
+	return e.categoryExternalID
+}
+
 func (e *PersistedExpectedExpense) UpdateName(name string) {
 	e.name = name
 }
@@ -747,13 +756,32 @@ func (e *PersistedExpectedExpense) UpdateEncryptedAmount(encryptedAmount string)
 	e.encryptedAmount = encryptedAmount
 }
 
+func (e *PersistedExpectedExpense) UpdateCategoryExternalID(categoryExternalID *uuid.UUID) {
+	e.categoryExternalID = categoryExternalID
+}
+
 func (e *PersistedExpectedExpense) UpdateIn(ctx context.Context, p Persister) error {
+	var categoryID *int64
+	if e.categoryExternalID != nil {
+		var catID int64
+		err := p.QueryRow(
+			ctx,
+			[]any{&catID},
+			`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
+			*e.categoryExternalID,
+		)
+		if err != nil {
+			return fmt.Errorf("%w: category not found", ErrNotFound)
+		}
+		categoryID = &catID
+	}
+
 	var updatedAt time.Time
 	err := p.QueryRow(
 		ctx,
 		[]any{&updatedAt},
-		`UPDATE expected_expenses SET name = $1, description = $2, encrypted_amount = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING updated_at`,
-		e.name, e.description, e.encryptedAmount, e.id,
+		`UPDATE expected_expenses SET name = $1, description = $2, encrypted_amount = $3, category_id = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING updated_at`,
+		e.name, e.description, e.encryptedAmount, categoryID, e.id,
 	)
 	if err != nil {
 		return err
@@ -1156,12 +1184,13 @@ func PersistedExpectedExpensesForBudget(ctx context.Context, budgetExternalID uu
 			var e PersistedExpectedExpense
 			expenses = append(expenses, e)
 			idx := len(expenses) - 1
-			return []any{&expenses[idx].id, &expenses[idx].externalID, &expenses[idx].name, &expenses[idx].description, &expenses[idx].encryptedAmount, &expenses[idx].createdAt, &expenses[idx].updatedAt}
+			return []any{&expenses[idx].id, &expenses[idx].externalID, &expenses[idx].name, &expenses[idx].description, &expenses[idx].encryptedAmount, &expenses[idx].categoryExternalID, &expenses[idx].createdAt, &expenses[idx].updatedAt}
 		},
-		`SELECT id, external_id, name, description, encrypted_amount, created_at, updated_at
-		FROM expected_expenses
-		WHERE budget_id = $1 AND revoked_at IS NULL
-		ORDER BY created_at DESC`,
+		`SELECT ee.id, ee.external_id, ee.name, ee.description, ee.encrypted_amount, ec.external_id, ee.created_at, ee.updated_at
+		FROM expected_expenses ee
+		LEFT JOIN expense_categories ec ON ee.category_id = ec.id AND ec.revoked_at IS NULL
+		WHERE ee.budget_id = $1 AND ee.revoked_at IS NULL
+		ORDER BY ee.created_at DESC`,
 		budgetID,
 	)
 	if err != nil {

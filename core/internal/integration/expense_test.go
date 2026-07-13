@@ -15,8 +15,8 @@ func TestExpenseAPI(t *testing.T) {
 	defer ts.Cleanup(t)
 	defer ts.CleanupTestData(t)
 
-	// Setup: group → budget
-	var groupID, budgetID string
+	// Setup: group → category → budget
+	var groupID, budgetID, categoryID string
 	t.Run("Setup", func(t *testing.T) {
 		resp := ts.Post("/api/v1/groups", map[string]interface{}{
 			"name": "Expense Test Group",
@@ -25,6 +25,15 @@ func TestExpenseAPI(t *testing.T) {
 		var g map[string]interface{}
 		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &g))
 		groupID = g["id"].(string)
+
+		resp = ts.Post("/api/v1/groups/"+groupID+"/categories", map[string]interface{}{
+			"name":  "Test Category",
+			"color": "#0ea5e9",
+		})
+		require.Equal(t, http.StatusCreated, resp.Code)
+		var c map[string]interface{}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &c))
+		categoryID = c["id"].(string)
 
 		now := time.Now()
 		resp = ts.Post("/api/v1/groups/"+groupID+"/budgets", map[string]interface{}{
@@ -49,6 +58,7 @@ func TestExpenseAPI(t *testing.T) {
 				"amount":   "1500.00",
 				"currency": "USD",
 			},
+			"category_id": categoryID,
 		}
 		resp := ts.Post("/api/v1/budgets/"+budgetID+"/expected-expenses", body)
 		assert.Equal(t, http.StatusCreated, resp.Code)
@@ -59,6 +69,7 @@ func TestExpenseAPI(t *testing.T) {
 		amt := result["amount"].(map[string]interface{})
 		assert.Equal(t, "1500", amt["amount"])
 		assert.Equal(t, "USD", amt["currency"])
+		assert.Equal(t, categoryID, result["category_id"])
 		expectedID = result["id"].(string)
 	})
 
@@ -70,6 +81,7 @@ func TestExpenseAPI(t *testing.T) {
 		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &result))
 		assert.Equal(t, expectedID, result["id"])
 		assert.Equal(t, "Rent", result["name"])
+		assert.Equal(t, categoryID, result["category_id"])
 	})
 
 	t.Run("ListExpectedExpenses", func(t *testing.T) {
@@ -89,6 +101,7 @@ func TestExpenseAPI(t *testing.T) {
 				"amount":   "1800.50",
 				"currency": "USD",
 			},
+			"category_id": categoryID,
 		}
 		resp := ts.Put("/api/v1/expected-expenses/"+expectedID, body)
 		assert.Equal(t, http.StatusOK, resp.Code)
@@ -98,6 +111,26 @@ func TestExpenseAPI(t *testing.T) {
 		assert.Equal(t, "Rent + Utilities", result["name"])
 		amt := result["amount"].(map[string]interface{})
 		assert.Equal(t, "1800.5", amt["amount"])
+		assert.Equal(t, categoryID, result["category_id"])
+	})
+
+	t.Run("CreateExpectedExpenseWithoutCategory", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":        "No Category Expense",
+			"description": "Test without category",
+			"amount": map[string]interface{}{
+				"amount":   "100.00",
+				"currency": "USD",
+			},
+		}
+		resp := ts.Post("/api/v1/budgets/"+budgetID+"/expected-expenses", body)
+		assert.Equal(t, http.StatusCreated, resp.Code)
+
+		var result map[string]interface{}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &result))
+		assert.Equal(t, "No Category Expense", result["name"])
+		_, hasCategoryID := result["category_id"]
+		assert.False(t, hasCategoryID, "category_id should not be present when not set")
 	})
 
 	t.Run("DeleteExpectedExpense", func(t *testing.T) {

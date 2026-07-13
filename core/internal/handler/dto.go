@@ -106,6 +106,7 @@ type ExpectedExpenseResponse struct {
 	Name        string        `json:"name"`
 	Description string        `json:"description,omitempty"`
 	Amount      MoneyResponse `json:"amount"`
+	CategoryID  *uuid.UUID    `json:"category_id,omitempty"`
 	CreatedAt   time.Time     `json:"created_at"`
 	UpdatedAt   time.Time     `json:"updated_at"`
 }

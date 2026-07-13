@@ -44,6 +44,9 @@ export default function Groups() {
       setIsModalOpen(false);
       setFormData({ name: '', description: '' });
     },
+    onError: (error) => {
+      console.error('[createGroup] mutation failed:', error);
+    },
   });
 
   const { data: invitations, refetch: refetchInvitations } = useQuery({
@@ -130,7 +133,7 @@ export default function Groups() {
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => { setIsModalOpen(true); createMutation.reset(); }}
             className="block rounded-md bg-primary-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
           >
             Add Group
@@ -355,19 +358,28 @@ export default function Groups() {
                   />
                 </div>
               </div>
+              {createMutation.isError && (
+                <p className="mt-2 text-sm text-red-600">
+                  Failed to create group. Please try again.
+                  {createMutation.error instanceof Error && (
+                    <span className="block text-xs mt-1 opacity-75">{createMutation.error.message}</span>
+                  )}
+                </p>
+              )}
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => { setIsModalOpen(false); createMutation.reset(); }}
                   className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
+                  disabled={createMutation.isPending}
+                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
                 >
-                  Create
+                  {createMutation.isPending ? 'Creating...' : 'Create'}
                 </button>
               </div>
             </form>
