@@ -5,8 +5,8 @@ import type { Category } from '../lib/types';
 
 interface CategoryComboboxProps {
   groupId: string;
-  value?: string;
-  onChange: (categoryId: string | undefined) => void;
+  value: string;
+  onChange: (categoryId: string) => void;
   getAccessTokenSilently: () => Promise<string>;
 }
 
@@ -58,7 +58,7 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
             <span>{selectedCategory.name}</span>
           </div>
         ) : (
-          <span className="text-gray-400">Select category (optional)</span>
+          <span className="text-gray-400">Select category</span>
         )}
       </button>
 
@@ -75,17 +75,6 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
             />
           </div>
           <div className="max-h-60 overflow-y-auto">
-            <button
-              type="button"
-              onClick={() => {
-                onChange(undefined);
-                setIsOpen(false);
-                setSearch('');
-              }}
-              className="w-full px-3 py-2 text-left hover:bg-gray-100 text-gray-500"
-            >
-              None
-            </button>
             {filteredCategories.map((category) => (
               <button
                 key={category.id}

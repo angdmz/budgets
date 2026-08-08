@@ -172,6 +172,37 @@ class TestBudgetWorkflow:
         Select(select_element).select_by_visible_text(group_name)
         time.sleep(1)
 
+    def _select_category(self, driver, category_name):
+        """Open the CategoryCombobox and select a category by name."""
+        category_button = self._wait(driver).until(
+            EC.element_to_be_clickable(
+                (By.XPATH, "//button[contains(., 'Select category')]")
+            )
+        )
+        driver.execute_script("arguments[0].click()", category_button)
+
+        category_search = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "input[placeholder*='Search categories']")
+            )
+        )
+        self._set_react_input(driver, category_search, category_name)
+        time.sleep(0.5)
+
+        category_option = self._wait(driver).until(
+            EC.element_to_be_clickable(
+                (By.XPATH, f"//button[contains(., '{category_name}') and contains(@class,'text-left') and not(contains(.,'Select category'))]")
+            )
+        )
+        category_option.click()
+
+        self._wait(driver).until(
+            EC.invisibility_of_element_located(
+                (By.CSS_SELECTOR, "input[placeholder*='Search categories']")
+            )
+        )
+        time.sleep(0.5)
+
     # ── main test ──────────────────────────────────────────────────────────────
 
     @pytest.mark.integration
@@ -311,6 +342,8 @@ class TestBudgetWorkflow:
 
         date_input = modal.find_element(By.CSS_SELECTOR, "input[type='date']")
         self._set_react_date(driver, date_input, "2025-06-15")
+
+        self._select_category(driver, category_name)
 
         driver.save_screenshot(f"{screenshots_dir}/wf_05_expense_modal.png")
         self._submit_modal(driver)

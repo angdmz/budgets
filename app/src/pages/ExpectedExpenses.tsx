@@ -73,6 +73,7 @@ export default function ExpectedExpenses() {
       setFormData({
         name: '',
         description: '',
+        category_id: '',
         amount: { amount: '', currency: 'USD' },
       });
     },
@@ -102,11 +103,7 @@ export default function ExpectedExpenses() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const submitData = {
-      ...formData,
-      category_id: formData.category_id || undefined,
-    };
-    createMutation.mutate(submitData);
+    createMutation.mutate(formData);
   };
 
   const handleEdit = (expense: ExpectedExpense) => {

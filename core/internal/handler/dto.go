@@ -91,14 +91,14 @@ type CreateExpectedExpenseRequest struct {
 	Name        string       `json:"name" binding:"required"`
 	Description string       `json:"description"`
 	Amount      MoneyRequest `json:"amount" binding:"required"`
-	CategoryID  *uuid.UUID   `json:"category_id"`
+	CategoryID  uuid.UUID    `json:"category_id" binding:"required"`
 }
 
 type UpdateExpectedExpenseRequest struct {
 	Name        string       `json:"name" binding:"required"`
 	Description string       `json:"description"`
 	Amount      MoneyRequest `json:"amount" binding:"required"`
-	CategoryID  *uuid.UUID   `json:"category_id"`
+	CategoryID  uuid.UUID    `json:"category_id" binding:"required"`
 }
 
 type ExpectedExpenseResponse struct {
@@ -106,7 +106,7 @@ type ExpectedExpenseResponse struct {
 	Name        string        `json:"name"`
 	Description string        `json:"description,omitempty"`
 	Amount      MoneyResponse `json:"amount"`
-	CategoryID  *uuid.UUID    `json:"category_id,omitempty"`
+	CategoryID  uuid.UUID     `json:"category_id"`
 	CreatedAt   time.Time     `json:"created_at"`
 	UpdatedAt   time.Time     `json:"updated_at"`
 }
@@ -116,7 +116,7 @@ type CreateActualExpenseRequest struct {
 	Description       string       `json:"description"`
 	ExpenseDate       string       `json:"expense_date" binding:"required"`
 	Amount            MoneyRequest `json:"amount" binding:"required"`
-	CategoryID        *uuid.UUID   `json:"category_id"`
+	CategoryID        uuid.UUID    `json:"category_id" binding:"required"`
 	ExpectedExpenseID *uuid.UUID   `json:"expected_expense_id"`
 }
 
@@ -125,7 +125,7 @@ type UpdateActualExpenseRequest struct {
 	Description       string       `json:"description"`
 	ExpenseDate       string       `json:"expense_date" binding:"required"`
 	Amount            MoneyRequest `json:"amount" binding:"required"`
-	CategoryID        *uuid.UUID   `json:"category_id"`
+	CategoryID        uuid.UUID    `json:"category_id" binding:"required"`
 	ExpectedExpenseID *uuid.UUID   `json:"expected_expense_id"`
 }
 
@@ -135,6 +135,7 @@ type ActualExpenseResponse struct {
 	Description string        `json:"description,omitempty"`
 	ExpenseDate string        `json:"expense_date"`
 	Amount      MoneyResponse `json:"amount"`
+	CategoryID  uuid.UUID     `json:"category_id"`
 	CreatedAt   time.Time     `json:"created_at"`
 	UpdatedAt   time.Time     `json:"updated_at"`
 }

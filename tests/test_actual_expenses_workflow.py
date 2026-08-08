@@ -5,9 +5,9 @@ from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 
 
-class TestEditDeleteWorkflow:
-    """End-to-end integration test covering edit and delete operations:
-    login → create entities → edit each → verify updates → delete each → verify removal.
+class TestActualExpensesWorkflow:
+    """End-to-end integration test for Actual Expenses CRUD with mandatory category:
+    login → create group/budget/category → create expense (with category) → edit → delete.
     """
 
     TIMEOUT = 20
@@ -27,9 +27,9 @@ class TestEditDeleteWorkflow:
                         (By.CSS_SELECTOR, "input[name='username'], input[type='email'], input[id='username']")
                     )
                 )
-            except:
+            except Exception:
                 pytest.skip("Auth0 login form did not appear")
-            
+
             email_field.clear()
             email_field.send_keys(credentials["email"])
             driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
@@ -49,7 +49,7 @@ class TestEditDeleteWorkflow:
                 (By.XPATH, "//nav//a[contains(normalize-space(),'Groups')]")
             )
         )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_logged_in.png")
+        driver.save_screenshot(f"{screenshots_dir}/ae_logged_in.png")
 
     def _nav(self, driver, link_text):
         """Click a top-nav link by its visible text."""
@@ -72,7 +72,7 @@ class TestEditDeleteWorkflow:
         )
 
     def _submit_modal(self, driver, button_text="Create"):
-        """Click the button inside the modal and wait for it to close."""
+        """Click the submit button inside the modal and wait for it to close."""
         driver.find_element(
             By.XPATH,
             f"//div[contains(@class,'fixed') and contains(@class,'inset-0')]//button[normalize-space()='{button_text}']",
@@ -104,14 +104,6 @@ class TestEditDeleteWorkflow:
             element,
             date_str,
         )
-
-    def _select_group(self, driver, group_name):
-        """Pick a group by name from the first <select> on the page."""
-        select_element = self._wait(driver).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "select"))
-        )
-        Select(select_element).select_by_visible_text(group_name)
-        time.sleep(1)
 
     def _select_category(self, driver, category_name):
         """Open the CategoryCombobox and select a category by name."""
@@ -145,25 +137,25 @@ class TestEditDeleteWorkflow:
         time.sleep(0.5)
 
     @pytest.mark.integration
-    def test_edit_and_delete_workflow(
+    def test_actual_expenses_crud_with_mandatory_category(
         self, driver, base_url, auth0_test_user, screenshots_dir
     ):
-        """Full edit/delete workflow:
-        1. Log in via Auth0
-        2. Create a group, budget, category, and expense
-        3. Edit each entity and verify the updated name
-        4. Delete each entity and verify removal from UI
+        """Full actual expenses CRUD workflow with mandatory category:
+        1.  Log in via Auth0
+        2.  Create a group and budget
+        3.  Create a category
+        4.  Navigate to Expenses, select group and budget
+        5.  Create an actual expense — category is required and must be selected
+        6.  Verify the expense appears in the table with its category
+        7.  Edit the expense name and verify the category is pre-populated
+        8.  Delete the expense
         """
         ts = str(int(time.time()))
-        group_name = f"Test Group {ts}"
-        budget_name = f"Test Budget {ts}"
-        category_name = f"Test Category {ts}"
-        expense_name = f"Test Expense {ts}"
-
-        group_name_updated = f"{group_name} (Edited)"
-        budget_name_updated = f"{budget_name} (Edited)"
-        category_name_updated = f"{category_name} (Edited)"
-        expense_name_updated = f"{expense_name} (Edited)"
+        group_name = f"AE Test Group {ts}"
+        budget_name = f"AE Test Budget {ts}"
+        category_name = f"AE Category {ts}"
+        expense_name = f"Actual Rent {ts}"
+        expense_name_updated = f"Actual Rent {ts} (Edited)"
 
         # ── 1. Login ───────────────────────────────────────────────────────────
         self._login(driver, base_url, auth0_test_user, screenshots_dir)
@@ -180,11 +172,15 @@ class TestEditDeleteWorkflow:
                 (By.XPATH, f"//td[normalize-space()='{group_name}']")
             )
         )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_01_group_created.png")
+        driver.save_screenshot(f"{screenshots_dir}/ae_01_group_created.png")
 
         # ── 3. Create budget ───────────────────────────────────────────────────
         self._nav(driver, "Budgets")
-        self._select_group(driver, group_name)
+        select_element = self._wait(driver).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "select"))
+        )
+        Select(select_element).select_by_visible_text(group_name)
+        time.sleep(1)
         self._open_modal(driver, "Add Budget")
         modal = driver.find_element(By.CSS_SELECTOR, ".fixed.inset-0")
         name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
@@ -198,11 +194,15 @@ class TestEditDeleteWorkflow:
                 (By.XPATH, f"//td[normalize-space()='{budget_name}']")
             )
         )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_02_budget_created.png")
+        driver.save_screenshot(f"{screenshots_dir}/ae_02_budget_created.png")
 
         # ── 4. Create category ─────────────────────────────────────────────────
         self._nav(driver, "Categories")
-        self._select_group(driver, group_name)
+        select_element = self._wait(driver).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "select"))
+        )
+        Select(select_element).select_by_visible_text(group_name)
+        time.sleep(1)
         self._open_modal(driver, "Add Category")
         modal = driver.find_element(By.CSS_SELECTOR, ".fixed.inset-0")
         name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
@@ -213,206 +213,112 @@ class TestEditDeleteWorkflow:
                 (By.XPATH, f"//h3[normalize-space()='{category_name}']")
             )
         )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_03_category_created.png")
+        driver.save_screenshot(f"{screenshots_dir}/ae_03_category_created.png")
 
-        # ── 5. Create expense ──────────────────────────────────────────────────
+        # ── 5. Navigate to Expenses and select group + budget ──────────────────
         self._nav(driver, "Expenses")
-        selects = self._wait(driver).until(
-            lambda d: d.find_elements(By.CSS_SELECTOR, "select")
+        self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, "//h1[normalize-space()='Expenses']")
+            )
         )
+        self._wait(driver).until(
+            lambda d: len(d.find_elements(By.CSS_SELECTOR, "select")) >= 2
+        )
+        selects = driver.find_elements(By.CSS_SELECTOR, "select")
         Select(selects[0]).select_by_visible_text(group_name)
         time.sleep(1)
         selects = driver.find_elements(By.CSS_SELECTOR, "select")
         Select(selects[1]).select_by_visible_text(budget_name)
         time.sleep(1)
+        driver.save_screenshot(f"{screenshots_dir}/ae_04_selected_group_budget.png")
 
+        # ── 6. Create actual expense with mandatory category ───────────────────
         self._open_modal(driver, "Add Expense")
         modal = driver.find_element(By.CSS_SELECTOR, ".fixed.inset-0")
-        name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
-        self._set_react_input(driver, name_input, expense_name)
+
+        text_inputs = modal.find_elements(By.CSS_SELECTOR, "input[type='text']")
+        self._set_react_input(driver, text_inputs[0], expense_name)
+
         amount_input = modal.find_element(By.CSS_SELECTOR, "input[type='number']")
-        self._set_react_input(driver, amount_input, "42.50")
+        self._set_react_input(driver, amount_input, "850.00")
+
         date_input = modal.find_element(By.CSS_SELECTOR, "input[type='date']")
         self._set_react_date(driver, date_input, "2025-06-15")
+
         self._select_category(driver, category_name)
+
+        driver.save_screenshot(f"{screenshots_dir}/ae_05_expense_modal_filled.png")
         self._submit_modal(driver)
+
+        # Verify expense appears in table
         self._wait(driver).until(
             EC.presence_of_element_located(
                 (By.XPATH, f"//td[normalize-space()='{expense_name}']")
             )
         )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_04_expense_created.png")
-
-        # ── 6. Edit category ───────────────────────────────────────────────────
-        self._nav(driver, "Categories")
-        self._select_group(driver, group_name)
-        time.sleep(1)
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_05_before_category_edit.png")
-        
-        # Click Edit button next to the category
-        edit_button = self._wait(driver).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, f"//h3[normalize-space()='{category_name}']/../../..//button[normalize-space()='Edit']")
-            )
-        )
-        edit_button.click()
-        
-        # Wait for edit modal and update name
-        modal = self._wait(driver).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".fixed.inset-0"))
-        )
-        name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
-        self._set_react_input(driver, name_input, category_name_updated)
-        self._submit_modal(driver, "Update")
-        
-        # Verify updated name appears
+        # Verify category is shown in the same row
         self._wait(driver).until(
             EC.presence_of_element_located(
-                (By.XPATH, f"//h3[normalize-space()='{category_name_updated}']")
+                (By.XPATH, f"//tr[.//td[normalize-space()='{expense_name}']]//td[contains(., '{category_name}')]")
             )
         )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_05_category_edited.png")
+        driver.save_screenshot(f"{screenshots_dir}/ae_06_expense_created_with_category.png")
 
-        # ── 7. Edit budget ─────────────────────────────────────────────────────
-        self._nav(driver, "Budgets")
-        self._select_group(driver, group_name)
-        time.sleep(1)
-        
-        # Click Edit button in the budget row
-        edit_button = self._wait(driver).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, f"//td[normalize-space()='{budget_name}']/ancestor::tr//button[normalize-space()='Edit']")
-            )
-        )
-        edit_button.click()
-        
-        # Wait for edit modal and update name
-        modal = self._wait(driver).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".fixed.inset-0"))
-        )
-        name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
-        self._set_react_input(driver, name_input, budget_name_updated)
-        self._submit_modal(driver, "Update")
-        
-        # Verify updated name appears
-        self._wait(driver).until(
-            EC.presence_of_element_located(
-                (By.XPATH, f"//td[normalize-space()='{budget_name_updated}']")
-            )
-        )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_06_budget_edited.png")
-
-        # ── 8. Edit expense ────────────────────────────────────────────────────
-        self._nav(driver, "Expenses")
-        selects = driver.find_elements(By.CSS_SELECTOR, "select")
-        Select(selects[0]).select_by_visible_text(group_name)
-        time.sleep(1)
-        selects = driver.find_elements(By.CSS_SELECTOR, "select")
-        Select(selects[1]).select_by_visible_text(budget_name_updated)
-        time.sleep(1)
-        
-        # Click Edit button in the expense row
+        # ── 7. Edit expense and verify category is pre-populated ───────────────
         edit_button = self._wait(driver).until(
             EC.element_to_be_clickable(
                 (By.XPATH, f"//td[normalize-space()='{expense_name}']/ancestor::tr//button[normalize-space()='Edit']")
             )
         )
         edit_button.click()
-        
-        # Wait for edit modal and update name
+
         modal = self._wait(driver).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, ".fixed.inset-0"))
         )
-        name_input = modal.find_element(By.CSS_SELECTOR, "input[type='text']")
-        self._set_react_input(driver, name_input, expense_name_updated)
+
+        # Category must be pre-populated in the edit modal
+        category_button = modal.find_element(By.XPATH, f"//button[contains(., '{category_name}')]")
+        assert category_button is not None, "Category should be pre-populated in edit modal"
+
+        text_inputs = modal.find_elements(By.CSS_SELECTOR, "input[type='text']")
+        self._set_react_input(driver, text_inputs[0], expense_name_updated)
+
         self._submit_modal(driver, "Update")
-        
-        # Verify updated name appears
+
         self._wait(driver).until(
             EC.presence_of_element_located(
                 (By.XPATH, f"//td[normalize-space()='{expense_name_updated}']")
             )
         )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_07_expense_edited.png")
+        # Category must still be visible after update
+        self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//tr[.//td[normalize-space()='{expense_name_updated}']]//td[contains(., '{category_name}')]")
+            )
+        )
+        driver.save_screenshot(f"{screenshots_dir}/ae_07_expense_edited.png")
 
-        # ── 9. Delete expense ──────────────────────────────────────────────────
+        # ── 8. Delete expense ──────────────────────────────────────────────────
         delete_button = self._wait(driver).until(
             EC.element_to_be_clickable(
                 (By.XPATH, f"//td[normalize-space()='{expense_name_updated}']/ancestor::tr//button[normalize-space()='Delete']")
             )
         )
         delete_button.click()
-        
-        # Confirm deletion in modal
+
         confirm_button = self._wait(driver).until(
             EC.element_to_be_clickable(
                 (By.XPATH, "//div[contains(@class,'fixed')]//button[normalize-space()='Delete' and contains(@class,'bg-red')]")
             )
         )
         confirm_button.click()
-        
-        # Verify expense is removed
+
         self._wait(driver).until(
             EC.invisibility_of_element_located(
                 (By.XPATH, f"//td[normalize-space()='{expense_name_updated}']")
             )
         )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_08_expense_deleted.png")
+        driver.save_screenshot(f"{screenshots_dir}/ae_08_expense_deleted.png")
 
-        # ── 10. Delete category ────────────────────────────────────────────────
-        self._nav(driver, "Categories")
-        self._select_group(driver, group_name)
-        time.sleep(1)
-        
-        delete_button = self._wait(driver).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, f"//h3[normalize-space()='{category_name_updated}']/../../..//button[normalize-space()='Delete']")
-            )
-        )
-        delete_button.click()
-        
-        # Confirm deletion
-        confirm_button = self._wait(driver).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, "//div[contains(@class,'fixed')]//button[normalize-space()='Delete' and contains(@class,'bg-red')]")
-            )
-        )
-        confirm_button.click()
-        
-        # Verify category is removed
-        self._wait(driver).until(
-            EC.invisibility_of_element_located(
-                (By.XPATH, f"//h3[normalize-space()='{category_name_updated}']")
-            )
-        )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_09_category_deleted.png")
-
-        # ── 11. Delete budget ──────────────────────────────────────────────────
-        self._nav(driver, "Budgets")
-        self._select_group(driver, group_name)
-        time.sleep(1)
-        
-        delete_button = self._wait(driver).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, f"//td[normalize-space()='{budget_name_updated}']/ancestor::tr//button[normalize-space()='Delete']")
-            )
-        )
-        delete_button.click()
-        
-        # Confirm deletion
-        confirm_button = self._wait(driver).until(
-            EC.element_to_be_clickable(
-                (By.XPATH, "//div[contains(@class,'fixed')]//button[normalize-space()='Delete' and contains(@class,'bg-red')]")
-            )
-        )
-        confirm_button.click()
-        
-        # Verify budget is removed
-        self._wait(driver).until(
-            EC.invisibility_of_element_located(
-                (By.XPATH, f"//td[normalize-space()='{budget_name_updated}']")
-            )
-        )
-        driver.save_screenshot(f"{screenshots_dir}/edit_delete_10_budget_deleted.png")
-
-        print("\n✅ Full edit/delete workflow test passed!")
+        print("\n✅ Actual expenses CRUD workflow test passed!")

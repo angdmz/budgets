@@ -463,6 +463,7 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 			Description: persistedExpense.Description(),
 			ExpenseDate: persistedExpense.ExpenseDate().Format("2006-01-02"),
 			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CategoryID:  persistedExpense.CategoryExternalID(),
 			CreatedAt:   persistedExpense.CreatedAt(),
 			UpdatedAt:   persistedExpense.UpdatedAt(),
 		}
@@ -527,6 +528,7 @@ func (h *ExpenseHandler) GetActualExpense(c *gin.Context) {
 			Description: expense.Description(),
 			ExpenseDate: expense.ExpenseDate().Format("2006-01-02"),
 			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CategoryID:  expense.CategoryExternalID(),
 			CreatedAt:   expense.CreatedAt(),
 			UpdatedAt:   expense.UpdatedAt(),
 		}
@@ -592,6 +594,7 @@ func (h *ExpenseHandler) GetActualExpenses(c *gin.Context) {
 				Description: e.Description(),
 				ExpenseDate: e.ExpenseDate().Format("2006-01-02"),
 				Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+				CategoryID:  e.CategoryExternalID(),
 				CreatedAt:   e.CreatedAt(),
 				UpdatedAt:   e.UpdatedAt(),
 			}
@@ -675,6 +678,7 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 		expense.UpdateDescription(req.Description)
 		expense.UpdateExpenseDate(expenseDate)
 		expense.UpdateEncryptedAmount(encryptedAmount)
+		expense.UpdateCategoryExternalID(req.CategoryID)
 
 		if err := expense.UpdateIn(ctx, p); err != nil {
 			return err
@@ -691,6 +695,7 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 			Description: expense.Description(),
 			ExpenseDate: expense.ExpenseDate().Format("2006-01-02"),
 			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+			CategoryID:  expense.CategoryExternalID(),
 			CreatedAt:   expense.CreatedAt(),
 			UpdatedAt:   expense.UpdatedAt(),
 		}

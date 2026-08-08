@@ -14,6 +14,78 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestCreateActualExpense_InvalidUUID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "budget_id", Value: "invalid-uuid"}}
+
+	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
+	c.Set("config", cfg)
+
+	user := &domain.User{}
+	c.Set("db_user", user)
+
+	handler := &ExpenseHandler{}
+	handler.CreateActualExpense(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_budget_id")
+}
+
+func TestCreateActualExpense_NoUserInContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "budget_id", Value: uuid.New().String()}}
+
+	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
+	c.Set("config", cfg)
+
+	reqBody := CreateActualExpenseRequest{
+		Name:        "New Expense",
+		Description: "Description",
+		ExpenseDate: "2025-06-15",
+		Amount:      MoneyRequest{Amount: "100.00", Currency: "USD"},
+		CategoryID:  uuid.New(),
+	}
+	bodyBytes, _ := json.Marshal(reqBody)
+	c.Request = httptest.NewRequest("POST", "/budgets/"+uuid.New().String()+"/actual-expenses", bytes.NewReader(bodyBytes))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler := &ExpenseHandler{}
+	handler.CreateActualExpense(c)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "unauthorized")
+}
+
+func TestCreateActualExpense_MissingCategoryID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "budget_id", Value: uuid.New().String()}}
+
+	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
+	c.Set("config", cfg)
+
+	user := &domain.User{}
+	c.Set("db_user", user)
+
+	body := `{"name":"Rent","description":"","expense_date":"2025-06-15","amount":{"amount":"100.00","currency":"USD"}}`
+	c.Request = httptest.NewRequest("POST", "/budgets/"+uuid.New().String()+"/actual-expenses", bytes.NewReader([]byte(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler := &ExpenseHandler{}
+	handler.CreateActualExpense(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_request")
+}
+
 func TestUpdateActualExpense_InvalidUUID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -115,6 +187,7 @@ func TestCreateExpectedExpense_NoUserInContext(t *testing.T) {
 		Name:        "New Expected",
 		Description: "Description",
 		Amount:      MoneyRequest{Amount: "100.00", Currency: "USD"},
+		CategoryID:  uuid.New(),
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
 	c.Request = httptest.NewRequest("POST", "/budgets/"+uuid.New().String()+"/expected-expenses", bytes.NewReader(bodyBytes))
@@ -194,6 +267,7 @@ func TestUpdateExpectedExpense_NoUserInContext(t *testing.T) {
 		Name:        "Updated Expected",
 		Description: "Updated description",
 		Amount:      MoneyRequest{Amount: "100.00", Currency: "USD"},
+		CategoryID:  uuid.New(),
 	}
 	bodyBytes, _ := json.Marshal(reqBody)
 	c.Request = httptest.NewRequest("PUT", "/expected-expenses/"+uuid.New().String(), bytes.NewReader(bodyBytes))
