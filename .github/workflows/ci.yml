@@ -12,14 +12,18 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      checks: write
     steps:
       - uses: actions/checkout@v4
 
       - name: Create CI secrets
         run: |
           mkdir -p secrets test-results
-          echo "ci-test-password" > secrets/db_password.txt
-          openssl rand -base64 32 | tr -d '\n' > secrets/encryption_key.txt
+          echo -n "ci-test-password" > secrets/db_password.txt
+          python3 -c "import os, base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode(), end='')" > secrets/encryption_key.txt
           openssl rand -base64 32 | tr -d '\n' > secrets/jwt_secret.txt
           echo -n "ci-placeholder" > secrets/auth0_client_secret.txt
           echo -n "ci-placeholder" > secrets/auth0_mgmt_client_secret.txt
@@ -69,8 +73,8 @@ jobs:
           retention-days: 14
 
       - name: Publish test report
-        if: always()
-        uses: dorny/test-reporter@v1
+        if: ${{ !cancelled() }}
+        uses: dorny/test-reporter@v3
         with:
           name: Go Test Results
           path: test-results/junit.xml
