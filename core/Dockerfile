@@ -19,8 +19,8 @@ COPY . .
 FROM base AS test
 
 RUN go install gotest.tools/gotestsum@v1.12.0
-
-CMD ["CGO_ENABLED=0", "gotestsum", "--junitfile", "/tmp/test-results/junit.xml", "--", "-v", "-race", "-coverprofile=/tmp/test-results/coverage.out", "-covermode=atomic", "./..."]
+ENV CGO_ENABLED=0
+CMD ["gotestsum", "--junitfile", "/tmp/test-results/junit.xml", "--", "-v", "-race", "-coverprofile=/tmp/test-results/coverage.out", "-covermode=atomic", "./..."]
 
 # =============================================================================
 # Builder stage - compiles the application
