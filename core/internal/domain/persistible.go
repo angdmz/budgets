@@ -258,15 +258,18 @@ type PersistibleExpectedExpense struct {
 	description          string
 	encryptedAmount      string
 	budgetExternalID     uuid.UUID
-	categoryExternalID   *uuid.UUID
+	categoryExternalID   uuid.UUID
 }
 
-func NewPersistibleExpectedExpense(name, description, encryptedAmount string, budgetExternalID uuid.UUID, categoryExternalID *uuid.UUID) (*PersistibleExpectedExpense, error) {
+func NewPersistibleExpectedExpense(name, description, encryptedAmount string, budgetExternalID uuid.UUID, categoryExternalID uuid.UUID) (*PersistibleExpectedExpense, error) {
 	if name == "" {
 		return nil, fmt.Errorf("%w: name cannot be empty", ErrValidation)
 	}
 	if encryptedAmount == "" {
 		return nil, fmt.Errorf("%w: encrypted amount cannot be empty", ErrValidation)
+	}
+	if categoryExternalID == uuid.Nil {
+		return nil, fmt.Errorf("%w: category cannot be empty", ErrValidation)
 	}
 	return &PersistibleExpectedExpense{
 		name:               name,
@@ -289,19 +292,15 @@ func (e *PersistibleExpectedExpense) PersistTo(ctx context.Context, p Persister)
 		return nil, fmt.Errorf("%w: budget not found", ErrNotFound)
 	}
 
-	var categoryID *int64
-	if e.categoryExternalID != nil {
-		var catID int64
-		err := p.QueryRow(
-			ctx,
-			[]any{&catID},
-			`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
-			*e.categoryExternalID,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("%w: category not found", ErrNotFound)
-		}
-		categoryID = &catID
+	var categoryID int64
+	err = p.QueryRow(
+		ctx,
+		[]any{&categoryID},
+		`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
+		e.categoryExternalID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: category not found", ErrNotFound)
 	}
 
 	var expenseID int64
@@ -336,16 +335,19 @@ type PersistibleActualExpense struct {
 	expenseDate                time.Time
 	encryptedAmount            string
 	budgetExternalID           uuid.UUID
-	categoryExternalID         *uuid.UUID
+	categoryExternalID         uuid.UUID
 	expectedExpenseExternalID  *uuid.UUID
 }
 
-func NewPersistibleActualExpense(name, description string, expenseDate time.Time, encryptedAmount string, budgetExternalID uuid.UUID, categoryExternalID, expectedExpenseExternalID *uuid.UUID) (*PersistibleActualExpense, error) {
+func NewPersistibleActualExpense(name, description string, expenseDate time.Time, encryptedAmount string, budgetExternalID, categoryExternalID uuid.UUID, expectedExpenseExternalID *uuid.UUID) (*PersistibleActualExpense, error) {
 	if name == "" {
 		return nil, fmt.Errorf("%w: name cannot be empty", ErrValidation)
 	}
 	if encryptedAmount == "" {
 		return nil, fmt.Errorf("%w: encrypted amount cannot be empty", ErrValidation)
+	}
+	if categoryExternalID == uuid.Nil {
+		return nil, fmt.Errorf("%w: category cannot be empty", ErrValidation)
 	}
 	return &PersistibleActualExpense{
 		name:                      name,
@@ -370,19 +372,15 @@ func (e *PersistibleActualExpense) PersistTo(ctx context.Context, p Persister) (
 		return nil, fmt.Errorf("%w: budget not found", ErrNotFound)
 	}
 
-	var categoryID *int64
-	if e.categoryExternalID != nil {
-		var catID int64
-		err := p.QueryRow(
-			ctx,
-			[]any{&catID},
-			`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
-			*e.categoryExternalID,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("%w: category not found", ErrNotFound)
-		}
-		categoryID = &catID
+	var categoryID int64
+	err = p.QueryRow(
+		ctx,
+		[]any{&categoryID},
+		`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
+		e.categoryExternalID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: category not found", ErrNotFound)
 	}
 
 	var expectedExpenseID *int64
@@ -415,14 +413,15 @@ func (e *PersistibleActualExpense) PersistTo(ctx context.Context, p Persister) (
 	}
 
 	return &PersistedActualExpense{
-		id:              expenseID,
-		externalID:      expenseExternalID,
-		name:            e.name,
-		description:     e.description,
-		expenseDate:     e.expenseDate,
-		encryptedAmount: e.encryptedAmount,
-		createdAt:       createdAt,
-		updatedAt:       updatedAt,
+		id:                 expenseID,
+		externalID:         expenseExternalID,
+		name:               e.name,
+		description:        e.description,
+		expenseDate:        e.expenseDate,
+		encryptedAmount:    e.encryptedAmount,
+		categoryExternalID: e.categoryExternalID,
+		createdAt:          createdAt,
+		updatedAt:          updatedAt,
 	}, nil
 }
 
@@ -694,7 +693,7 @@ type PersistedExpectedExpense struct {
 	name               string
 	description        string
 	encryptedAmount    string
-	categoryExternalID *uuid.UUID
+	categoryExternalID uuid.UUID
 	createdAt          time.Time
 	updatedAt          time.Time
 }
@@ -706,7 +705,7 @@ func PersistedExpectedExpenseFromPersistence(ctx context.Context, externalID uui
 		[]any{&e.id, &e.externalID, &e.name, &e.description, &e.encryptedAmount, &e.categoryExternalID, &e.createdAt, &e.updatedAt},
 		`SELECT ee.id, ee.external_id, ee.name, ee.description, ee.encrypted_amount, ec.external_id, ee.created_at, ee.updated_at 
 		FROM expected_expenses ee 
-		LEFT JOIN expense_categories ec ON ee.category_id = ec.id AND ec.revoked_at IS NULL
+		JOIN expense_categories ec ON ee.category_id = ec.id AND ec.revoked_at IS NULL
 		WHERE ee.external_id = $1 AND ee.revoked_at IS NULL`,
 		externalID,
 	)
@@ -740,7 +739,7 @@ func (e *PersistedExpectedExpense) UpdatedAt() time.Time {
 	return e.updatedAt
 }
 
-func (e *PersistedExpectedExpense) CategoryExternalID() *uuid.UUID {
+func (e *PersistedExpectedExpense) CategoryExternalID() uuid.UUID {
 	return e.categoryExternalID
 }
 
@@ -756,28 +755,24 @@ func (e *PersistedExpectedExpense) UpdateEncryptedAmount(encryptedAmount string)
 	e.encryptedAmount = encryptedAmount
 }
 
-func (e *PersistedExpectedExpense) UpdateCategoryExternalID(categoryExternalID *uuid.UUID) {
+func (e *PersistedExpectedExpense) UpdateCategoryExternalID(categoryExternalID uuid.UUID) {
 	e.categoryExternalID = categoryExternalID
 }
 
 func (e *PersistedExpectedExpense) UpdateIn(ctx context.Context, p Persister) error {
-	var categoryID *int64
-	if e.categoryExternalID != nil {
-		var catID int64
-		err := p.QueryRow(
-			ctx,
-			[]any{&catID},
-			`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
-			*e.categoryExternalID,
-		)
-		if err != nil {
-			return fmt.Errorf("%w: category not found", ErrNotFound)
-		}
-		categoryID = &catID
+	var categoryID int64
+	err := p.QueryRow(
+		ctx,
+		[]any{&categoryID},
+		`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
+		e.categoryExternalID,
+	)
+	if err != nil {
+		return fmt.Errorf("%w: category not found", ErrNotFound)
 	}
 
 	var updatedAt time.Time
-	err := p.QueryRow(
+	err = p.QueryRow(
 		ctx,
 		[]any{&updatedAt},
 		`UPDATE expected_expenses SET name = $1, description = $2, encrypted_amount = $3, category_id = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING updated_at`,
@@ -800,22 +795,26 @@ func (e *PersistedExpectedExpense) DeleteFrom(ctx context.Context, p Persister) 
 }
 
 type PersistedActualExpense struct {
-	id              int64
-	externalID      uuid.UUID
-	name            string
-	description     string
-	expenseDate     time.Time
-	encryptedAmount string
-	createdAt       time.Time
-	updatedAt       time.Time
+	id                 int64
+	externalID         uuid.UUID
+	name               string
+	description        string
+	expenseDate        time.Time
+	encryptedAmount    string
+	categoryExternalID uuid.UUID
+	createdAt          time.Time
+	updatedAt          time.Time
 }
 
 func PersistedActualExpenseFromPersistence(ctx context.Context, externalID uuid.UUID, p Persister) (*PersistedActualExpense, error) {
 	var e PersistedActualExpense
 	err := p.QueryRow(
 		ctx,
-		[]any{&e.id, &e.externalID, &e.name, &e.description, &e.expenseDate, &e.encryptedAmount, &e.createdAt, &e.updatedAt},
-		`SELECT id, external_id, name, description, expense_date, encrypted_amount, created_at, updated_at FROM actual_expenses WHERE external_id = $1 AND revoked_at IS NULL`,
+		[]any{&e.id, &e.externalID, &e.name, &e.description, &e.expenseDate, &e.encryptedAmount, &e.categoryExternalID, &e.createdAt, &e.updatedAt},
+		`SELECT ae.id, ae.external_id, ae.name, ae.description, ae.expense_date, ae.encrypted_amount, ec.external_id, ae.created_at, ae.updated_at 
+		FROM actual_expenses ae 
+		JOIN expense_categories ec ON ae.category_id = ec.id AND ec.revoked_at IS NULL
+		WHERE ae.external_id = $1 AND ae.revoked_at IS NULL`,
 		externalID,
 	)
 	if err != nil {
@@ -852,6 +851,10 @@ func (e *PersistedActualExpense) UpdatedAt() time.Time {
 	return e.updatedAt
 }
 
+func (e *PersistedActualExpense) CategoryExternalID() uuid.UUID {
+	return e.categoryExternalID
+}
+
 func (e *PersistedActualExpense) UpdateName(name string) {
 	e.name = name
 }
@@ -868,13 +871,28 @@ func (e *PersistedActualExpense) UpdateEncryptedAmount(encryptedAmount string) {
 	e.encryptedAmount = encryptedAmount
 }
 
+func (e *PersistedActualExpense) UpdateCategoryExternalID(categoryExternalID uuid.UUID) {
+	e.categoryExternalID = categoryExternalID
+}
+
 func (e *PersistedActualExpense) UpdateIn(ctx context.Context, p Persister) error {
-	var updatedAt time.Time
+	var categoryID int64
 	err := p.QueryRow(
 		ctx,
+		[]any{&categoryID},
+		`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
+		e.categoryExternalID,
+	)
+	if err != nil {
+		return fmt.Errorf("%w: category not found", ErrNotFound)
+	}
+
+	var updatedAt time.Time
+	err = p.QueryRow(
+		ctx,
 		[]any{&updatedAt},
-		`UPDATE actual_expenses SET name = $1, description = $2, expense_date = $3, encrypted_amount = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING updated_at`,
-		e.name, e.description, e.expenseDate, e.encryptedAmount, e.id,
+		`UPDATE actual_expenses SET name = $1, description = $2, expense_date = $3, encrypted_amount = $4, category_id = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6 RETURNING updated_at`,
+		e.name, e.description, e.expenseDate, e.encryptedAmount, categoryID, e.id,
 	)
 	if err != nil {
 		return err
@@ -1188,7 +1206,7 @@ func PersistedExpectedExpensesForBudget(ctx context.Context, budgetExternalID uu
 		},
 		`SELECT ee.id, ee.external_id, ee.name, ee.description, ee.encrypted_amount, ec.external_id, ee.created_at, ee.updated_at
 		FROM expected_expenses ee
-		LEFT JOIN expense_categories ec ON ee.category_id = ec.id AND ec.revoked_at IS NULL
+		JOIN expense_categories ec ON ee.category_id = ec.id AND ec.revoked_at IS NULL
 		WHERE ee.budget_id = $1 AND ee.revoked_at IS NULL
 		ORDER BY ee.created_at DESC`,
 		budgetID,
@@ -1218,12 +1236,13 @@ func PersistedActualExpensesForBudget(ctx context.Context, budgetExternalID uuid
 			var e PersistedActualExpense
 			expenses = append(expenses, e)
 			idx := len(expenses) - 1
-			return []any{&expenses[idx].id, &expenses[idx].externalID, &expenses[idx].name, &expenses[idx].description, &expenses[idx].expenseDate, &expenses[idx].encryptedAmount, &expenses[idx].createdAt, &expenses[idx].updatedAt}
+			return []any{&expenses[idx].id, &expenses[idx].externalID, &expenses[idx].name, &expenses[idx].description, &expenses[idx].expenseDate, &expenses[idx].encryptedAmount, &expenses[idx].categoryExternalID, &expenses[idx].createdAt, &expenses[idx].updatedAt}
 		},
-		`SELECT id, external_id, name, description, expense_date, encrypted_amount, created_at, updated_at
-		FROM actual_expenses
-		WHERE budget_id = $1 AND revoked_at IS NULL
-		ORDER BY created_at DESC`,
+		`SELECT ae.id, ae.external_id, ae.name, ae.description, ae.expense_date, ae.encrypted_amount, ec.external_id, ae.created_at, ae.updated_at
+		FROM actual_expenses ae
+		JOIN expense_categories ec ON ae.category_id = ec.id AND ec.revoked_at IS NULL
+		WHERE ae.budget_id = $1 AND ae.revoked_at IS NULL
+		ORDER BY ae.created_at DESC`,
 		budgetID,
 	)
 	if err != nil {

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../lib/api';
-import type { ActualExpense, Budget, Group, CreateActualExpenseRequest, UpdateActualExpenseRequest } from '../lib/types';
+import type { ActualExpense, Budget, Group, Category, CreateActualExpenseRequest, UpdateActualExpenseRequest } from '../lib/types';
+import CategoryCombobox from '../components/CategoryCombobox';
 
 export default function Expenses() {
   const { getAccessTokenSilently } = useAuth0();
@@ -15,6 +16,7 @@ export default function Expenses() {
     description: '',
     amount: { amount: '', currency: 'USD' },
     expense_date: new Date().toISOString().split('T')[0],
+    category_id: '',
   });
   const [editingExpense, setEditingExpense] = useState<ActualExpense | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<ActualExpense | null>(null);
@@ -50,6 +52,17 @@ export default function Expenses() {
     enabled: !!selectedBudgetId,
   });
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories', selectedGroupId],
+    queryFn: async () => {
+      if (!selectedGroupId) return [];
+      const api = await createApiClient(getAccessTokenSilently);
+      const response = await api.get<Category[]>(`/groups/${selectedGroupId}/categories`);
+      return response.data;
+    },
+    enabled: !!selectedGroupId,
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: CreateActualExpenseRequest) => {
       const api = await createApiClient(getAccessTokenSilently);
@@ -63,6 +76,7 @@ export default function Expenses() {
         description: '',
         amount: { amount: '', currency: 'USD' },
         expense_date: new Date().toISOString().split('T')[0],
+        category_id: '',
       });
     },
   });
@@ -106,6 +120,7 @@ export default function Expenses() {
         description: editingExpense.description,
         amount: editingExpense.amount,
         expense_date: editingExpense.expense_date,
+        category_id: editingExpense.category_id,
       };
       updateMutation.mutate({ id: editingExpense.id, data: updateData });
     }
@@ -174,6 +189,7 @@ export default function Expenses() {
                   <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Amount</th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
                   <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
                   <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                     <span className="sr-only">Actions</span>
@@ -181,7 +197,9 @@ export default function Expenses() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {expenses?.map((expense) => (
+                {expenses?.map((expense) => {
+                  const category = categories.find(c => c.id === expense.category_id);
+                  return (
                   <tr key={expense.id}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                       {expense.name}
@@ -191,6 +209,14 @@ export default function Expenses() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       ${parseFloat(expense.amount.amount).toFixed(2)} {expense.amount.currency}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-gray-500">
+                      {category ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }}></div>
+                          <span>{category.name}</span>
+                        </div>
+                      ) : '-'}
                     </td>
                     <td className="px-3 py-4 text-sm text-gray-500">{expense.description || '-'}</td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -208,7 +234,8 @@ export default function Expenses() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -227,7 +254,7 @@ export default function Expenses() {
                     type="text"
                     required
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   />
                 </div>
@@ -238,7 +265,7 @@ export default function Expenses() {
                     step="0.01"
                     required
                     value={formData.amount.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: { ...formData.amount, amount: e.target.value } })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, amount: { ...prev.amount, amount: e.target.value } }))}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   />
                 </div>
@@ -248,8 +275,17 @@ export default function Expenses() {
                     type="date"
                     required
                     value={formData.expense_date}
-                    onChange={(e) => setFormData({ ...formData, expense_date: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, expense_date: e.target.value }))}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                  <CategoryCombobox
+                    groupId={selectedGroupId}
+                    value={formData.category_id}
+                    onChange={(categoryId) => setFormData(prev => ({ ...prev, category_id: categoryId }))}
+                    getAccessTokenSilently={getAccessTokenSilently}
                   />
                 </div>
               </div>
@@ -278,7 +314,7 @@ export default function Expenses() {
                     type="text"
                     required
                     value={editingExpense.name}
-                    onChange={(e) => setEditingExpense({ ...editingExpense, name: e.target.value })}
+                    onChange={(e) => setEditingExpense(prev => prev ? { ...prev, name: e.target.value } : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   />
                 </div>
@@ -289,7 +325,7 @@ export default function Expenses() {
                     step="0.01"
                     required
                     value={editingExpense.amount.amount}
-                    onChange={(e) => setEditingExpense({ ...editingExpense, amount: { ...editingExpense.amount, amount: e.target.value } })}
+                    onChange={(e) => setEditingExpense(prev => prev ? { ...prev, amount: { ...prev.amount, amount: e.target.value } } : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   />
                 </div>
@@ -299,8 +335,17 @@ export default function Expenses() {
                     type="date"
                     required
                     value={editingExpense.expense_date}
-                    onChange={(e) => setEditingExpense({ ...editingExpense, expense_date: e.target.value })}
+                    onChange={(e) => setEditingExpense(prev => prev ? { ...prev, expense_date: e.target.value } : null)}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                  <CategoryCombobox
+                    groupId={selectedGroupId}
+                    value={editingExpense.category_id}
+                    onChange={(categoryId) => setEditingExpense(prev => prev ? { ...prev, category_id: categoryId } : null)}
+                    getAccessTokenSilently={getAccessTokenSilently}
                   />
                 </div>
               </div>

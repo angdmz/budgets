@@ -179,7 +179,7 @@ type ExpectedExpense struct {
 	Description string `json:"description,omitempty"`
 	Amount      Money  `json:"amount"`
 	BudgetID    int64  `json:"-"`
-	CategoryID  *int64 `json:"-"`
+	CategoryID  int64  `json:"-"`
 }
 
 type ActualExpense struct {
