@@ -18,7 +18,9 @@ COPY . .
 # =============================================================================
 FROM base AS test
 
-CMD ["go", "test", "-v", "./..."]
+RUN go install gotest.tools/gotestsum@latest
+
+CMD ["gotestsum", "--junitfile", "/tmp/test-results/junit.xml", "--", "-v", "-race", "-coverprofile=/tmp/test-results/coverage.out", "-covermode=atomic", "./..."]
 
 # =============================================================================
 # Builder stage - compiles the application

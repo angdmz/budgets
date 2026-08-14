@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ci-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create CI secrets
+        run: |
+          mkdir -p secrets test-results
+          echo "ci-test-password" > secrets/db_password.txt
+          openssl rand -base64 32 | tr -d '\n' > secrets/encryption_key.txt
+          openssl rand -base64 32 | tr -d '\n' > secrets/jwt_secret.txt
+          echo -n "ci-placeholder" > secrets/auth0_client_secret.txt
+          echo -n "ci-placeholder" > secrets/auth0_mgmt_client_secret.txt
+          echo -n "ci@test.local" > secrets/integration_tests_auth0_email.txt
+          echo -n "ci-password" > secrets/integration_tests_auth0_password.txt
+
+      - name: Create CI .env
+        run: |
+          cat > .env <<EOF
+          DB_USERNAME=postgres
+          DB_NAME=budgets
+          DB_PORT=5432
+          API_PORT=8080
+          SERVER_ENV=test
+          AUTH0_DOMAIN=ci.placeholder.auth0.com
+          AUTH0_AUDIENCE=ci-audience
+          AUTH0_CLIENT_ID=ci-client-id
+          AUTH0_MGMT_CLIENT_ID=ci-mgmt-client-id
+          AUTH0_DB_CONNECTION=Username-Password-Authentication
+          SECRETS_PROVIDER=docker
+          INTEGRATION_TESTS_BASE_URL=http://nginx
+          INTEGRATION_TESTS_SCREENSHOTS_DIR=/tests/screenshots
+          INTEGRATION_TESTS_SCREENSHOTS_HOST_DIR=./tests/screenshots
+          INTEGRATION_TESTS_SECRETS_PROVIDER=docker
+          EOF
+
+      - name: Build all services
+        run: docker compose build
+
+      - name: Run Go tests (unit + integration with DB)
+        run: docker compose --profile test run --rm test
+
+      - name: Generate coverage summary
+        if: always()
+        run: |
+          if [ -f test-results/coverage.out ]; then
+            docker run --rm -v "$PWD/test-results:/results" golang:1.22-alpine \
+              go tool cover -func=/results/coverage.out | tail -1
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 14
+
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Go Test Results
+          path: test-results/junit.xml
+          reporter: java-junit
+          fail-on-error: true
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile test down -v

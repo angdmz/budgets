@@ -192,6 +192,8 @@ services:
       context: ./core
       dockerfile: Dockerfile
       target: test
+    volumes:
+      - ./test-results:/tmp/test-results
     environment:
       DB_HOSTNAME: db
       DB_PORT: 5432

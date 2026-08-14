@@ -1,0 +1,124 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# RACE CONDITION HANDLING:
+# Only one deploy runs at a time. Subsequent merges queue (cancel-in-progress: false).
+# This ensures migrations run sequentially and no half-deployed state occurs.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create placeholder secrets (compose needs files to exist)
+        run: |
+          mkdir -p secrets
+          for f in db_password encryption_key jwt_secret auth0_client_secret \
+                   auth0_mgmt_client_secret integration_tests_auth0_email \
+                   integration_tests_auth0_password; do
+            echo "placeholder" > "secrets/${f}.txt"
+          done
+
+      - name: Create .env with build args
+        run: |
+          cat > .env <<EOF
+          AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE }}
+          AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+          EOF
+
+      - name: Generate compose override with registry image names
+        run: |
+          TAG="${GITHUB_SHA::7}"
+          REG="ghcr.io/${{ github.repository }}"
+          cat > docker-compose.ci-images.yml <<EOF
+          services:
+            api:
+              image: ${REG}/api:${TAG}
+            app:
+              image: ${REG}/app:${TAG}
+            admin:
+              image: ${REG}/admin:${TAG}
+            landing:
+              image: ${REG}/landing:${TAG}
+            migrations:
+              image: ${REG}/migrations:${TAG}
+            nginx:
+              image: ${REG}/nginx:${TAG}
+          EOF
+
+      - name: Build images
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.ci-images.yml \
+            build api app admin landing migrations nginx
+
+      - name: Push images
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.ci-images.yml \
+            push api app admin landing migrations nginx
+
+  migrate:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Run database migrations
+        run: |
+          echo "TODO: Pull and run migrations image against production DB."
+          echo "  docker run --rm \\"
+          echo "    -e DB_HOSTNAME=\${{ secrets.DB_HOSTNAME }} \\"
+          echo "    -e DB_PORT=5432 \\"
+          echo "    -e DB_USERNAME=\${{ secrets.DB_USERNAME }} \\"
+          echo "    -e DB_NAME=\${{ secrets.DB_NAME }} \\"
+          echo "    -e DB_PASSWORD=\${{ secrets.DB_PASSWORD }} \\"
+          echo "    -e ENCRYPTION_KEY=\${{ secrets.ENCRYPTION_KEY }} \\"
+          echo "    -e SECRETS_PROVIDER=env \\"
+          echo "    ghcr.io/${{ github.repository }}/migrations:${GITHUB_SHA::7} \\"
+          echo "    alembic upgrade head"
+
+  deploy:
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy services
+        run: |
+          echo "TODO: Replace with actual deploy command. Examples:"
+          echo "  - VPS: ssh deploy@host 'cd /app && docker compose pull && docker compose up -d'"
+          echo "  - K8s: kubectl set image deployment/api api=ghcr.io/.../api:\${SHA::7}"
+          echo "  - ECS: aws ecs update-service --force-new-deployment"
+          echo ""
+          echo "Deployed commit: ${{ github.sha }}"
+
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check
+        run: |
+          echo "TODO: curl --fail --retry 5 --retry-delay 10 https://your-domain.com/api/health"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "TODO: Send notification (Slack/Discord/email) on failed deploy."
