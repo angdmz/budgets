@@ -124,13 +124,7 @@ func TestExpenseAPI(t *testing.T) {
 			},
 		}
 		resp := ts.Post("/api/v1/budgets/"+budgetID+"/expected-expenses", body)
-		assert.Equal(t, http.StatusCreated, resp.Code)
-
-		var result map[string]interface{}
-		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &result))
-		assert.Equal(t, "No Category Expense", result["name"])
-		_, hasCategoryID := result["category_id"]
-		assert.False(t, hasCategoryID, "category_id should not be present when not set")
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
 	})
 
 	t.Run("DeleteExpectedExpense", func(t *testing.T) {
@@ -150,6 +144,7 @@ func TestExpenseAPI(t *testing.T) {
 				"amount":   "85.25",
 				"currency": "ARS",
 			},
+			"category_id": categoryID,
 		}
 		resp := ts.Post("/api/v1/budgets/"+budgetID+"/actual-expenses", body)
 		assert.Equal(t, http.StatusCreated, resp.Code)
@@ -191,6 +186,7 @@ func TestExpenseAPI(t *testing.T) {
 				"amount":   "92.50",
 				"currency": "ARS",
 			},
+			"category_id": categoryID,
 		}
 		resp := ts.Put("/api/v1/actual-expenses/"+actualID, body)
 		assert.Equal(t, http.StatusOK, resp.Code)

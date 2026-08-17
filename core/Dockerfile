@@ -18,7 +18,12 @@ COPY . .
 # =============================================================================
 FROM base AS test
 
-CMD ["go", "test", "-v", "./..."]
+RUN apk add --no-cache gcc musl-dev
+
+RUN go install gotest.tools/gotestsum@v1.12.0
+
+ENV CGO_ENABLED=1
+CMD ["gotestsum", "--junitfile", "/tmp/test-results/junit.xml", "--", "-v", "-race", "-coverprofile=/tmp/test-results/coverage.out", "-covermode=atomic", "./..."]
 
 # =============================================================================
 # Builder stage - compiles the application

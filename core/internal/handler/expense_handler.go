@@ -266,6 +266,12 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 		return
 	}
 
+	user := middleware.GetDBUserFromContext(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
+		return
+	}
+
 	var req UpdateExpectedExpenseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		SafeValidationError(c, err)
@@ -275,12 +281,6 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 	amount, err := decimal.NewFromString(req.Amount.Amount)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount", Message: "Invalid amount format"})
-		return
-	}
-
-	user := middleware.GetDBUserFromContext(c)
-	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -632,6 +632,12 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 		return
 	}
 
+	user := middleware.GetDBUserFromContext(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
+		return
+	}
+
 	var req UpdateActualExpenseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		SafeValidationError(c, err)
@@ -647,12 +653,6 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 	expenseDate, err := time.Parse("2006-01-02", req.ExpenseDate)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_expense_date", Message: "Date must be in YYYY-MM-DD format"})
-		return
-	}
-
-	user := middleware.GetDBUserFromContext(c)
-	if user == nil {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
 
@@ -764,6 +764,10 @@ func handleServiceError(c *gin.Context, err error) {
 	}
 	if errors.Is(err, domain.ErrForbidden) {
 		c.JSON(http.StatusForbidden, ErrorResponse{Error: "forbidden", Message: "You do not have permission to perform this action"})
+		return
+	}
+	if errors.Is(err, domain.ErrValidation) {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_request", Message: err.Error()})
 		return
 	}
 	SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)

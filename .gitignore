@@ -84,3 +84,7 @@ nginx/logs/error.log
 # Integration test screenshots
 tests/screenshots/
 
+# CI/CD artifacts
+test-results/
+docker-compose.ci-images.yml
+

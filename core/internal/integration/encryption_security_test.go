@@ -16,7 +16,7 @@ func TestEncryptionSecurity(t *testing.T) {
 	defer ts.Cleanup(t)
 	defer ts.CleanupTestData(t)
 
-	var groupID, budgetID, expenseID string
+	var groupID, budgetID, categoryID, expenseID string
 
 	t.Run("SetupTestData", func(t *testing.T) {
 		// Create a group
@@ -29,6 +29,18 @@ func TestEncryptionSecurity(t *testing.T) {
 		var groupResult map[string]interface{}
 		json.Unmarshal(resp.Body.Bytes(), &groupResult)
 		groupID = groupResult["id"].(string)
+
+		// Create a category
+		categoryBody := map[string]interface{}{
+			"name":  "Test Category",
+			"color": "#0ea5e9",
+		}
+		resp = ts.Post("/api/v1/groups/"+groupID+"/categories", categoryBody)
+		require.Equal(t, http.StatusCreated, resp.Code)
+
+		var categoryResult map[string]interface{}
+		json.Unmarshal(resp.Body.Bytes(), &categoryResult)
+		categoryID = categoryResult["id"].(string)
 
 		// Create a budget
 		budgetBody := map[string]interface{}{
@@ -52,6 +64,7 @@ func TestEncryptionSecurity(t *testing.T) {
 				"amount":   "12345.67",
 				"currency": "USD",
 			},
+			"category_id": categoryID,
 		}
 		resp = ts.Post("/api/v1/budgets/"+budgetID+"/actual-expenses", expenseBody)
 		require.Equal(t, http.StatusCreated, resp.Code)
@@ -120,6 +133,7 @@ func TestEncryptionSecurity(t *testing.T) {
 					"amount":   amt,
 					"currency": "USD",
 				},
+				"category_id": categoryID,
 			}
 			resp := ts.Post("/api/v1/budgets/"+budgetID+"/actual-expenses", expenseBody)
 			require.Equal(t, http.StatusCreated, resp.Code)
