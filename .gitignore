@@ -81,6 +81,9 @@ lerna-debug.log*
 nginx/logs/access.log
 nginx/logs/error.log
 
+# Nginx SSL certificates (Cloudflare Origin Certificates)
+nginx/ssl/
+
 # Integration test screenshots
 tests/screenshots/
 
