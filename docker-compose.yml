@@ -177,6 +177,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:80"
+      - "443:443"
     depends_on:
       - api
       - landing
@@ -185,6 +186,8 @@ services:
     networks:
       - budget_network
     volumes:
+      - ${NGINX_CONF:-./nginx/nginx.dev.conf}:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./nginx/logs:/var/log/nginx
 
   test:
