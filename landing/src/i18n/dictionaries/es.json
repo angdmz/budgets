@@ -1,0 +1,92 @@
+{
+  "metadata": {
+    "title": "Sistema de Gestión de Presupuestos - Toma el Control de tus Finanzas",
+    "description": "Un poderoso sistema de gestión de presupuestos con soporte multiusuario, presupuestos grupales y seguimiento de gastos en tiempo real. Comienza a gestionar mejor tus finanzas hoy.",
+    "ogTitle": "Sistema de Gestión de Presupuestos - Toma el Control de tus Finanzas",
+    "ogDescription": "Un poderoso sistema de gestión de presupuestos con soporte multiusuario, presupuestos grupales y seguimiento de gastos en tiempo real.",
+    "twitterTitle": "Sistema de Gestión de Presupuestos",
+    "twitterDescription": "Toma el control de tus finanzas con nuestro poderoso sistema de gestión de presupuestos."
+  },
+  "nav": {
+    "brand": "Gestor de Presupuestos",
+    "signIn": "Iniciar Sesión",
+    "getStarted": "Comenzar"
+  },
+  "hero": {
+    "titlePart1": "Toma el Control de tus",
+    "titleHighlight": "Finanzas",
+    "description": "Un poderoso sistema de gestión de presupuestos con soporte multiusuario, presupuestos grupales y seguimiento de gastos en tiempo real. Comienza a gestionar mejor tus finanzas hoy.",
+    "cta": "Comenzar Gratis",
+    "learnMore": "Más Información",
+    "dashboardPreview": "Vista Previa del Panel"
+  },
+  "features": {
+    "sectionTitle": "Todo lo que Necesitas para Gestionar tu Presupuesto",
+    "sectionSubtitle": "Funciones poderosas diseñadas para hacer la gestión de presupuestos simple y efectiva.",
+    "multiUser": {
+      "title": "Soporte Multiusuario",
+      "description": "Colabora con miembros de tu familia o equipo. Comparte presupuestos y rastrea gastos juntos."
+    },
+    "groupBudgeting": {
+      "title": "Presupuestos Grupales",
+      "description": "Crea presupuestos separados para diferentes grupos - familia, negocios o proyectos personales."
+    },
+    "realTime": {
+      "title": "Seguimiento en Tiempo Real",
+      "description": "Rastrea gastos esperados vs reales en tiempo real. Ve a dónde va tu dinero instantáneamente."
+    },
+    "secure": {
+      "title": "Seguro y Encriptado",
+      "description": "Tus datos financieros están encriptados en reposo. Seguridad de nivel bancario para tu tranquilidad."
+    },
+    "categories": {
+      "title": "Categorías Personalizadas",
+      "description": "Crea categorías de gastos personalizadas que coincidan con tu estilo de vida y patrones de gasto."
+    },
+    "reports": {
+      "title": "Informes Detallados",
+      "description": "Genera informes completos para entender tus hábitos de gasto y tomar mejores decisiones."
+    }
+  },
+  "benefits": {
+    "sectionTitle": "¿Por Qué Elegir Gestor de Presupuestos?",
+    "sectionSubtitle": "Únete a miles de usuarios que han transformado sus vidas financieras.",
+    "saveMoney": {
+      "stat": "20%",
+      "title": "Ahorra Más Dinero",
+      "description": "Los usuarios ahorran un promedio de 20% más cuando rastrean activamente sus presupuestos."
+    },
+    "reduceStress": {
+      "stat": "85%",
+      "title": "Reduce el Estrés",
+      "description": "Sabe exactamente a dónde va tu dinero y elimina la ansiedad financiera."
+    },
+    "achieveGoals": {
+      "stat": "3x",
+      "title": "Alcanza Metas",
+      "description": "Establece y alcanza tus objetivos financieros más rápido con visibilidad clara."
+    }
+  },
+  "cta": {
+    "title": "¿Listo para Tomar el Control de tus Finanzas?",
+    "subtitle": "Comienza a gestionar tu presupuesto hoy. No se requiere tarjeta de crédito.",
+    "button": "Comenzar Gratis"
+  },
+  "footer": {
+    "brand": "Gestor de Presupuestos",
+    "tagline": "Toma el control de tus finanzas con nuestro poderoso sistema de gestión de presupuestos.",
+    "product": "Producto",
+    "features": "Características",
+    "pricing": "Precios",
+    "demo": "Demo",
+    "company": "Compañía",
+    "about": "Acerca de",
+    "contact": "Contacto",
+    "privacy": "Privacidad",
+    "support": "Soporte",
+    "helpCenter": "Centro de Ayuda",
+    "documentation": "Documentación",
+    "api": "API",
+    "copyright": "© {{year}} Gestor de Presupuestos. Todos los derechos reservados."
+  }
+}

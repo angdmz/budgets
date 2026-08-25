@@ -164,11 +164,21 @@ class TestBudgetWorkflow:
         )
 
     def _select_group(self, driver, group_name, select_element=None):
-        """Pick a group by name from the first <select> on the page (or the given element)."""
+        """Pick a group by name from the group <select> on the page (or the given element).
+
+        The Layout component renders a language <select> in the nav bar that appears
+        before the page content, so we can't just grab the first <select>. Instead,
+        find the <select> whose <option> list contains the target group name.
+        """
         if select_element is None:
-            select_element = self._wait(driver).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "select"))
+            # Wait for the target option to appear (populated async by useQuery),
+            # then find its parent <select>.
+            option = self._wait(driver).until(
+                EC.presence_of_element_located(
+                    (By.XPATH, f"//select/option[normalize-space()='{group_name}']")
+                )
             )
+            select_element = option.find_element(By.XPATH, "./ancestor::select")
         Select(select_element).select_by_visible_text(group_name)
         time.sleep(1)
 
@@ -316,19 +326,24 @@ class TestBudgetWorkflow:
             )
         )
 
-        # Expenses page has two selects side-by-side: group then budget.
-        # Wait until both are rendered.
-        self._wait(driver).until(
-            lambda d: len(d.find_elements(By.CSS_SELECTOR, "select")) >= 2
+        # Expenses page has group and budget selects (plus the language
+        # selector in the nav bar). Find the right <select> by its option text.
+        group_option = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//select/option[normalize-space()='{group_name}']")
+            )
         )
-        selects = driver.find_elements(By.CSS_SELECTOR, "select")
-
-        Select(selects[0]).select_by_visible_text(group_name)
+        group_select = group_option.find_element(By.XPATH, "./ancestor::select")
+        Select(group_select).select_by_visible_text(group_name)
         time.sleep(1)  # budget select populates after group is chosen
 
-        # Re-fetch selects after group selection triggers re-render
-        selects = driver.find_elements(By.CSS_SELECTOR, "select")
-        Select(selects[1]).select_by_visible_text(budget_name)
+        budget_option = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//select/option[normalize-space()='{budget_name}']")
+            )
+        )
+        budget_select = budget_option.find_element(By.XPATH, "./ancestor::select")
+        Select(budget_select).select_by_visible_text(budget_name)
         time.sleep(1)
 
         self._open_modal(driver, "Add Expense")
@@ -370,6 +385,11 @@ class TestBudgetWorkflow:
         budget_section_select = self._wait(driver).until(
             EC.presence_of_element_located(
                 (By.XPATH, "//h2[normalize-space()='Budgets']/following::select[1]")
+            )
+        )
+        self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//select/option[normalize-space()='{group_name}']")
             )
         )
         Select(budget_section_select).select_by_visible_text(group_name)

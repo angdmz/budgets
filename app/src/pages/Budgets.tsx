@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useTranslation } from 'react-i18next';
 import { createApiClient } from '../lib/api';
+import { formatDate } from '../lib/format';
 import type { Budget, Group, CreateBudgetRequest, UpdateBudgetRequest } from '../lib/types';
 
 export default function Budgets() {
   const { getAccessTokenSilently } = useAuth0();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
@@ -104,8 +107,8 @@ export default function Budgets() {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Budgets</h1>
-          <p className="mt-2 text-sm text-gray-700">Manage your budgets</p>
+          <h1 className="text-2xl font-semibold text-gray-900">{t('budgets.title')}</h1>
+          <p className="mt-2 text-sm text-gray-700">{t('budgets.subtitle')}</p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
           <button
@@ -113,19 +116,19 @@ export default function Budgets() {
             disabled={!selectedGroupId}
             className="block rounded-md bg-primary-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
           >
-            Add Budget
+            {t('budgets.addBudget')}
           </button>
         </div>
       </div>
 
       <div className="mt-6">
-        <label className="block text-sm font-medium text-gray-700">Select Group</label>
+        <label className="block text-sm font-medium text-gray-700">{t('common.selectGroup')}</label>
         <select
           value={selectedGroupId}
           onChange={(e) => setSelectedGroupId(e.target.value)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
         >
-          <option value="">Select a group...</option>
+          <option value="">{t('common.selectGroupPlaceholder')}</option>
           {groups?.map((group) => (
             <option key={group.id} value={group.id}>
               {group.name}
@@ -140,11 +143,11 @@ export default function Budgets() {
             <table className="min-w-full divide-y divide-gray-300">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
-                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Period</th>
-                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
+                  <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">{t('common.name')}</th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('budgets.period')}</th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('common.description')}</th>
                   <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                    <span className="sr-only">Actions</span>
+                    <span className="sr-only">{t('common.actions')}</span>
                   </th>
                 </tr>
               </thead>
@@ -155,7 +158,7 @@ export default function Budgets() {
                       {budget.name}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {new Date(budget.start_date).toLocaleDateString()} - {new Date(budget.end_date).toLocaleDateString()}
+                      {formatDate(budget.start_date)} - {formatDate(budget.end_date)}
                     </td>
                     <td className="px-3 py-4 text-sm text-gray-500">{budget.description || '-'}</td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -163,13 +166,13 @@ export default function Budgets() {
                         onClick={() => handleEdit(budget)}
                         className="text-blue-600 hover:text-blue-900 mr-4"
                       >
-                        Edit
+                        {t('common.edit')}
                       </button>
                       <button
                         onClick={() => setDeletingBudget(budget)}
                         className="text-red-600 hover:text-red-900"
                       >
-                        Delete
+                        {t('common.delete')}
                       </button>
                     </td>
                   </tr>
@@ -183,11 +186,11 @@ export default function Budgets() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Create Budget</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('budgets.createBudget')}</h2>
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
                   <input
                     type="text"
                     required
@@ -197,7 +200,7 @@ export default function Budgets() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('budgets.startDate')}</label>
                   <input
                     type="date"
                     required
@@ -207,7 +210,7 @@ export default function Budgets() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">End Date</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('budgets.endDate')}</label>
                   <input
                     type="date"
                     required
@@ -223,13 +226,13 @@ export default function Budgets() {
                   onClick={() => setIsModalOpen(false)}
                   className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
                 >
-                  Create
+                  {t('common.create')}
                 </button>
               </div>
             </form>
@@ -240,11 +243,11 @@ export default function Budgets() {
       {editingBudget && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Edit Budget</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('budgets.editBudget')}</h2>
             <form onSubmit={handleUpdate}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
                   <input
                     type="text"
                     required
@@ -254,7 +257,7 @@ export default function Budgets() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('budgets.startDate')}</label>
                   <input
                     type="date"
                     required
@@ -264,7 +267,7 @@ export default function Budgets() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">End Date</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('budgets.endDate')}</label>
                   <input
                     type="date"
                     required
@@ -280,13 +283,13 @@ export default function Budgets() {
                   onClick={() => setEditingBudget(null)}
                   className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
                 >
-                  Update
+                  {t('common.update')}
                 </button>
               </div>
             </form>
@@ -297,9 +300,9 @@ export default function Budgets() {
       {deletingBudget && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Delete Budget</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('budgets.deleteBudget')}</h2>
             <p className="text-sm text-gray-500 mb-4">
-              Are you sure you want to delete <strong>{deletingBudget.name}</strong>? This action cannot be undone.
+              {t('common.deleteConfirm', { name: deletingBudget.name }).replace(/\*\*/g, '')}
             </p>
             <div className="flex justify-end space-x-3">
               <button
@@ -307,13 +310,13 @@ export default function Budgets() {
                 onClick={() => setDeletingBudget(null)}
                 className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleDelete}
                 className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
               >
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           </div>

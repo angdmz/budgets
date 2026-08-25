@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { createApiClient } from '../lib/api';
 import type { Category } from '../lib/types';
 
@@ -14,6 +15,7 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', groupId],
@@ -58,7 +60,7 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
             <span>{selectedCategory.name}</span>
           </div>
         ) : (
-          <span className="text-gray-400">Select category</span>
+          <span className="text-gray-400">{t('categories.selectCategory')}</span>
         )}
       </button>
 
@@ -69,7 +71,7 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search categories..."
+              placeholder={t('categories.searchCategories')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               onClick={(e) => e.stopPropagation()}
             />
@@ -91,7 +93,7 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
               </button>
             ))}
             {filteredCategories.length === 0 && search && (
-              <div className="px-3 py-2 text-gray-500 text-sm">No categories found</div>
+              <div className="px-3 py-2 text-gray-500 text-sm">{t('categories.noCategories')}</div>
             )}
           </div>
         </div>

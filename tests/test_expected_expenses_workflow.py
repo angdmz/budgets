@@ -106,10 +106,18 @@ class TestExpectedExpensesWorkflow:
         )
 
     def _select_group(self, driver, group_name):
-        """Pick a group by name from the first <select> on the page."""
-        select_element = self._wait(driver).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "select"))
+        """Pick a group by name from the group <select> on the page.
+
+        The Layout component renders a language <select> in the nav bar that appears
+        before the page content, so we can't just grab the first <select>. Instead,
+        find the <select> whose <option> list contains the target group name.
+        """
+        option = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//select/option[normalize-space()='{group_name}']")
+            )
         )
+        select_element = option.find_element(By.XPATH, "./ancestor::select")
         Select(select_element).select_by_visible_text(group_name)
         time.sleep(1)
 
@@ -183,13 +191,27 @@ class TestExpectedExpensesWorkflow:
 
         # ── 5. Navigate to Expected Expenses and select group/budget ───────────
         self._nav(driver, "Expected")
-        selects = self._wait(driver).until(
-            lambda d: d.find_elements(By.CSS_SELECTOR, "select")
+        self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, "//h1[normalize-space()='Expected Expenses']")
+            )
         )
-        Select(selects[0]).select_by_visible_text(group_name)
+        # Find the group <select> by its option (skip language selector in nav)
+        group_option = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//select/option[normalize-space()='{group_name}']")
+            )
+        )
+        group_select = group_option.find_element(By.XPATH, "./ancestor::select")
+        Select(group_select).select_by_visible_text(group_name)
         time.sleep(1)
-        selects = driver.find_elements(By.CSS_SELECTOR, "select")
-        Select(selects[1]).select_by_visible_text(budget_name)
+        budget_option = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//select/option[normalize-space()='{budget_name}']")
+            )
+        )
+        budget_select = budget_option.find_element(By.XPATH, "./ancestor::select")
+        Select(budget_select).select_by_visible_text(budget_name)
         time.sleep(1)
         driver.save_screenshot(f"{screenshots_dir}/ee_04_selected_group_budget.png")
 

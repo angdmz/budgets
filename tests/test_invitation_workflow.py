@@ -294,9 +294,13 @@ class TestInvitationWorkflow:
 
         self._go_to_budgets(driver)
 
-        group_select = self._wait(driver).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "select"))
+        # Find the group <select> by its option (skip language selector in nav)
+        group_option = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, "//select/option[normalize-space()='Budget Access Test']")
+            )
         )
+        group_select = group_option.find_element(By.XPATH, "./ancestor::select")
         Select(group_select).select_by_visible_text("Budget Access Test")
         time.sleep(1)
 
@@ -353,16 +357,13 @@ class TestInvitationWorkflow:
             self._go_to_budgets(second_driver)
 
             # Wait for the group option to appear in the select (groups query may still be loading)
-            self._wait(second_driver).until(
+            group_option = self._wait(second_driver).until(
                 EC.presence_of_element_located(
                     (By.XPATH, "//select//option[contains(text(),'Budget Access Test')]")
                 )
             )
-            group_select = second_driver.find_element(By.CSS_SELECTOR, "select")
-            opt = second_driver.find_element(
-                By.XPATH, "//select//option[contains(text(),'Budget Access Test')]"
-            )
-            grp_id = opt.get_attribute("value")
+            group_select = group_option.find_element(By.XPATH, "./ancestor::select")
+            grp_id = group_option.get_attribute("value")
             # Use native setter + change event so React's onChange fires reliably
             second_driver.execute_script("""
                 var setter = Object.getOwnPropertyDescriptor(
