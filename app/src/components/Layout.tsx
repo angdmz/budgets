@@ -1,17 +1,22 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useTranslation } from 'react-i18next';
+import { useLanguageSync } from '../lib/useLanguageSync';
+import { SUPPORTED_LANGUAGES } from '../lib/languages';
 
 export default function Layout() {
   const { user, logout } = useAuth0();
   const location = useLocation();
+  const { t } = useTranslation();
+  const { changeLanguage, currentLanguage } = useLanguageSync();
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: '📊' },
-    { name: 'Groups', href: '/groups', icon: '👥' },
-    { name: 'Budgets', href: '/budgets', icon: '💰' },
-    { name: 'Categories', href: '/categories', icon: '🏷️' },
-    { name: 'Expenses', href: '/expenses', icon: '💸' },
-    { name: 'Expected', href: '/expected-expenses', icon: '📋' },
+    { nameKey: 'nav.dashboard', href: '/dashboard' },
+    { nameKey: 'nav.groups', href: '/groups' },
+    { nameKey: 'nav.budgets', href: '/budgets' },
+    { nameKey: 'nav.categories', href: '/categories' },
+    { nameKey: 'nav.expenses', href: '/expenses' },
+    { nameKey: 'nav.expected', href: '/expected-expenses' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -21,41 +26,43 @@ export default function Layout() {
       {/* Navigation */}
       <nav className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-primary-600">Budget Manager</h1>
-              </div>
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                {navigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                      isActive(item.href)
-                        ? 'border-primary-500 text-gray-900'
-                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-                    }`}
-                  >
-                    <span className="mr-2">{item.icon}</span>
-                    {item.name}
-                  </Link>
+          <div className="flex justify-between items-center h-14">
+            <h1 className="text-xl font-bold text-primary-600">{t('nav.appName')}</h1>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-700">{user?.name || user?.email}</span>
+              <select
+                value={currentLanguage}
+                onChange={(e) => changeLanguage(e.target.value as any)}
+                className="bg-white text-gray-700 px-2 py-1 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.label}
+                  </option>
                 ))}
-              </div>
+              </select>
+              <button
+                onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+                className="bg-white text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium border border-gray-300"
+              >
+                {t('common.logout')}
+              </button>
             </div>
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-700">{user?.name || user?.email}</span>
-                  <button
-                    onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                    className="bg-white text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium border border-gray-300"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </div>
-            </div>
+          </div>
+          <div className="flex space-x-4 overflow-x-auto pb-0">
+            {navigation.map((item) => (
+              <Link
+                key={item.nameKey}
+                to={item.href}
+                className={`whitespace-nowrap px-1 py-2 border-b-2 text-sm font-medium ${
+                  isActive(item.href)
+                    ? 'border-primary-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+              >
+                {t(item.nameKey)}
+              </Link>
+            ))}
           </div>
         </div>
       </nav>

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useTranslation } from 'react-i18next';
 import { createApiClient } from '../lib/api';
 import type { Category, Group, CreateCategoryRequest, UpdateCategoryRequest } from '../lib/types';
 
 export default function Categories() {
   const { getAccessTokenSilently } = useAuth0();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
@@ -98,8 +100,8 @@ export default function Categories() {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Categories</h1>
-          <p className="mt-2 text-sm text-gray-700">Manage expense categories</p>
+          <h1 className="text-2xl font-semibold text-gray-900">{t('categories.title')}</h1>
+          <p className="mt-2 text-sm text-gray-700">{t('categories.subtitle')}</p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
           <button
@@ -107,19 +109,19 @@ export default function Categories() {
             disabled={!selectedGroupId}
             className="block rounded-md bg-primary-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
           >
-            Add Category
+            {t('categories.addCategory')}
           </button>
         </div>
       </div>
 
       <div className="mt-6">
-        <label className="block text-sm font-medium text-gray-700">Select Group</label>
+        <label className="block text-sm font-medium text-gray-700">{t('common.selectGroup')}</label>
         <select
           value={selectedGroupId}
           onChange={(e) => setSelectedGroupId(e.target.value)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
         >
-          <option value="">Select a group...</option>
+          <option value="">{t('common.selectGroupPlaceholder')}</option>
           {groups?.map((group) => (
             <option key={group.id} value={group.id}>{group.name}</option>
           ))}
@@ -133,20 +135,20 @@ export default function Categories() {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <h3 className="text-lg font-medium text-gray-900">{category.name}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{category.description || 'No description'}</p>
+                  <p className="mt-1 text-sm text-gray-500">{category.description || t('categories.noDescription')}</p>
                 </div>
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleEdit(category)}
                     className="text-blue-600 hover:text-blue-800"
                   >
-                    Edit
+                    {t('common.edit')}
                   </button>
                   <button
                     onClick={() => setDeletingCategory(category)}
                     className="text-red-600 hover:text-red-800"
                   >
-                    Delete
+                    {t('common.delete')}
                   </button>
                 </div>
               </div>
@@ -158,11 +160,11 @@ export default function Categories() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Create Category</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('categories.createCategory')}</h2>
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
                   <input
                     type="text"
                     required
@@ -172,7 +174,7 @@ export default function Categories() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Color</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('categories.color')}</label>
                   <input
                     type="color"
                     value={formData.color}
@@ -183,10 +185,10 @@ export default function Categories() {
               </div>
               <div className="mt-6 flex justify-end space-x-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">
-                  Create
+                  {t('common.create')}
                 </button>
               </div>
             </form>
@@ -197,11 +199,11 @@ export default function Categories() {
       {editingCategory && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Edit Category</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('categories.editCategory')}</h2>
             <form onSubmit={handleUpdate}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
                   <input
                     type="text"
                     required
@@ -211,7 +213,7 @@ export default function Categories() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Color</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('categories.color')}</label>
                   <input
                     type="color"
                     value={editingCategory.color}
@@ -222,10 +224,10 @@ export default function Categories() {
               </div>
               <div className="mt-6 flex justify-end space-x-3">
                 <button type="button" onClick={() => setEditingCategory(null)} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">
-                  Update
+                  {t('common.update')}
                 </button>
               </div>
             </form>
@@ -236,9 +238,9 @@ export default function Categories() {
       {deletingCategory && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Delete Category</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('categories.deleteCategory')}</h2>
             <p className="text-sm text-gray-500 mb-4">
-              Are you sure you want to delete <strong>{deletingCategory.name}</strong>? This action cannot be undone.
+              {t('common.deleteConfirm', { name: deletingCategory.name }).replace(/\*\*/g, '')}
             </p>
             <div className="flex justify-end space-x-3">
               <button
@@ -246,13 +248,13 @@ export default function Categories() {
                 onClick={() => setDeletingCategory(null)}
                 className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleDelete}
                 className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
               >
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           </div>

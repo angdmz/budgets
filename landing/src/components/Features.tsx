@@ -1,33 +1,46 @@
-export function Features() {
+interface FeaturesProps {
+  dict: {
+    sectionTitle: string;
+    sectionSubtitle: string;
+    multiUser: { title: string; description: string };
+    groupBudgeting: { title: string; description: string };
+    realTime: { title: string; description: string };
+    secure: { title: string; description: string };
+    categories: { title: string; description: string };
+    reports: { title: string; description: string };
+  };
+}
+
+export function Features({ dict }: FeaturesProps) {
   const features = [
     {
-      title: "Multi-User Support",
-      description: "Collaborate with family members or team members. Share budgets and track expenses together.",
+      title: dict.multiUser.title,
+      description: dict.multiUser.description,
       icon: "👥",
     },
     {
-      title: "Group-Based Budgeting",
-      description: "Create separate budgets for different groups - family, business, or personal projects.",
+      title: dict.groupBudgeting.title,
+      description: dict.groupBudgeting.description,
       icon: "📊",
     },
     {
-      title: "Real-Time Tracking",
-      description: "Track expected vs actual expenses in real-time. See where your money is going instantly.",
+      title: dict.realTime.title,
+      description: dict.realTime.description,
       icon: "⚡",
     },
     {
-      title: "Secure & Encrypted",
-      description: "Your financial data is encrypted at rest. Bank-level security for your peace of mind.",
+      title: dict.secure.title,
+      description: dict.secure.description,
       icon: "🔒",
     },
     {
-      title: "Custom Categories",
-      description: "Create custom expense categories that match your lifestyle and spending patterns.",
+      title: dict.categories.title,
+      description: dict.categories.description,
       icon: "🏷️",
     },
     {
-      title: "Detailed Reports",
-      description: "Generate comprehensive reports to understand your spending habits and make better decisions.",
+      title: dict.reports.title,
+      description: dict.reports.description,
       icon: "📈",
     },
   ];
@@ -37,10 +50,10 @@ export function Features() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Everything You Need to Manage Your Budget
+            {dict.sectionTitle}
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Powerful features designed to make budget management simple and effective.
+            {dict.sectionSubtitle}
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

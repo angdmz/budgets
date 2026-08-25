@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useTranslation } from 'react-i18next';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { createApiClient } from '../lib/api';
+import { formatDate, formatCurrency } from '../lib/format';
 import type { Budget, Group, ExpectedExpense, ActualExpense } from '../lib/types';
 
 export default function Dashboard() {
   const { getAccessTokenSilently } = useAuth0();
+  const { t } = useTranslation();
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [selectedBudgetId, setSelectedBudgetId] = useState<string>('');
 
@@ -74,9 +77,9 @@ export default function Dashboard() {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">{t('dashboard.title')}</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Overview of your budget performance
+            {t('dashboard.subtitle')}
           </p>
         </div>
       </div>
@@ -84,7 +87,7 @@ export default function Dashboard() {
       {/* Group Selector */}
       <div className="mt-6">
         <label htmlFor="group" className="block text-sm font-medium text-gray-700">
-          Select Group
+          {t('common.selectGroup')}
         </label>
         <select
           id="group"
@@ -92,7 +95,7 @@ export default function Dashboard() {
           onChange={(e) => { setSelectedGroupId(e.target.value); setSelectedBudgetId(''); }}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
         >
-          <option value="">Select a group...</option>
+          <option value="">{t('common.selectGroupPlaceholder')}</option>
           {groups?.map((group) => (
             <option key={group.id} value={group.id}>
               {group.name}
@@ -104,7 +107,7 @@ export default function Dashboard() {
       {/* Budget Selector */}
       <div className="mt-4">
         <label htmlFor="budget" className="block text-sm font-medium text-gray-700">
-          Select Budget
+          {t('common.selectBudget')}
         </label>
         <select
           id="budget"
@@ -113,10 +116,10 @@ export default function Dashboard() {
           disabled={!selectedGroupId}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm disabled:opacity-50"
         >
-          <option value="">Select a budget...</option>
+          <option value="">{t('common.selectBudgetPlaceholder')}</option>
           {budgets?.map((budget) => (
             <option key={budget.id} value={budget.id}>
-              {budget.name} ({new Date(budget.start_date).toLocaleDateString()} - {new Date(budget.end_date).toLocaleDateString()})
+              {budget.name} ({formatDate(budget.start_date)} - {formatDate(budget.end_date)})
             </option>
           ))}
         </select>
@@ -134,7 +137,7 @@ export default function Dashboard() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Expected</dt>
+                      <dt className="text-sm font-medium text-gray-500 truncate">{t('dashboard.expected')}</dt>
                       <dd className="text-lg font-semibold text-gray-900">
                         ${expectedTotal.toFixed(2)}
                       </dd>
@@ -152,7 +155,7 @@ export default function Dashboard() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Actual</dt>
+                      <dt className="text-sm font-medium text-gray-500 truncate">{t('dashboard.actual')}</dt>
                       <dd className="text-lg font-semibold text-gray-900">
                         ${actualTotal.toFixed(2)}
                       </dd>
@@ -170,9 +173,9 @@ export default function Dashboard() {
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">Difference</dt>
+                      <dt className="text-sm font-medium text-gray-500 truncate">{t('dashboard.difference')}</dt>
                       <dd className={`text-lg font-semibold ${difference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ${Math.abs(difference).toFixed(2)} {difference >= 0 ? 'under' : 'over'}
+                        ${Math.abs(difference).toFixed(2)} {t(difference >= 0 ? 'dashboard.under' : 'dashboard.over')}
                       </dd>
                     </dl>
                   </div>
@@ -183,7 +186,7 @@ export default function Dashboard() {
 
           {/* Chart */}
           <div className="mt-6 bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Budget vs Actual</h2>
+            <h2 className="text-lg font-medium text-gray-900 mb-4">{t('dashboard.budgetVsActual')}</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -199,19 +202,19 @@ export default function Dashboard() {
 
           {/* Recent Expenses */}
           <div className="mt-6 bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Recent Expenses</h2>
+            <h2 className="text-lg font-medium text-gray-900 mb-4">{t('dashboard.recentExpenses')}</h2>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
                     <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
+                      {t('common.name')}
                     </th>
                     <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
+                      {t('dashboard.date')}
                     </th>
                     <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
+                      {t('dashboard.amount')}
                     </th>
                   </tr>
                 </thead>
@@ -222,10 +225,10 @@ export default function Dashboard() {
                         {expense.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(expense.expense_date).toLocaleDateString()}
+                        {formatDate(expense.expense_date)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${parseFloat(expense.amount.amount).toFixed(2)} {expense.amount.currency}
+                        {formatCurrency(expense.amount.amount, expense.amount.currency)}
                       </td>
                     </tr>
                   ))}

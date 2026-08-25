@@ -176,9 +176,18 @@ class TestActualExpensesWorkflow:
 
         # ── 3. Create budget ───────────────────────────────────────────────────
         self._nav(driver, "Budgets")
-        select_element = self._wait(driver).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "select"))
+        self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, "//h1[normalize-space()='Budgets']")
+            )
         )
+        # Find the group <select> by its option (skip language selector in nav)
+        group_option = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//select/option[normalize-space()='{group_name}']")
+            )
+        )
+        select_element = group_option.find_element(By.XPATH, "./ancestor::select")
         Select(select_element).select_by_visible_text(group_name)
         time.sleep(1)
         self._open_modal(driver, "Add Budget")
@@ -198,9 +207,17 @@ class TestActualExpensesWorkflow:
 
         # ── 4. Create category ─────────────────────────────────────────────────
         self._nav(driver, "Categories")
-        select_element = self._wait(driver).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "select"))
+        self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, "//h1[normalize-space()='Categories']")
+            )
         )
+        group_option = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//select/option[normalize-space()='{group_name}']")
+            )
+        )
+        select_element = group_option.find_element(By.XPATH, "./ancestor::select")
         Select(select_element).select_by_visible_text(group_name)
         time.sleep(1)
         self._open_modal(driver, "Add Category")
@@ -222,14 +239,21 @@ class TestActualExpensesWorkflow:
                 (By.XPATH, "//h1[normalize-space()='Expenses']")
             )
         )
-        self._wait(driver).until(
-            lambda d: len(d.find_elements(By.CSS_SELECTOR, "select")) >= 2
+        group_option = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//select/option[normalize-space()='{group_name}']")
+            )
         )
-        selects = driver.find_elements(By.CSS_SELECTOR, "select")
-        Select(selects[0]).select_by_visible_text(group_name)
+        group_select = group_option.find_element(By.XPATH, "./ancestor::select")
+        Select(group_select).select_by_visible_text(group_name)
         time.sleep(1)
-        selects = driver.find_elements(By.CSS_SELECTOR, "select")
-        Select(selects[1]).select_by_visible_text(budget_name)
+        budget_option = self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//select/option[normalize-space()='{budget_name}']")
+            )
+        )
+        budget_select = budget_option.find_element(By.XPATH, "./ancestor::select")
+        Select(budget_select).select_by_visible_text(budget_name)
         time.sleep(1)
         driver.save_screenshot(f"{screenshots_dir}/ae_04_selected_group_budget.png")
 

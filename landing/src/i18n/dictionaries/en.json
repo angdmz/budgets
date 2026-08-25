@@ -1,0 +1,92 @@
+{
+  "metadata": {
+    "title": "Budget Management System - Take Control of Your Finances",
+    "description": "A powerful budget management system with multi-user support, group-based budgeting, and real-time expense tracking. Start managing your finances better today.",
+    "ogTitle": "Budget Management System - Take Control of Your Finances",
+    "ogDescription": "A powerful budget management system with multi-user support, group-based budgeting, and real-time expense tracking.",
+    "twitterTitle": "Budget Management System",
+    "twitterDescription": "Take control of your finances with our powerful budget management system."
+  },
+  "nav": {
+    "brand": "Budget Manager",
+    "signIn": "Sign In",
+    "getStarted": "Get Started"
+  },
+  "hero": {
+    "titlePart1": "Take Control of Your",
+    "titleHighlight": "Finances",
+    "description": "A powerful budget management system with multi-user support, group-based budgeting, and real-time expense tracking. Start managing your finances better today.",
+    "cta": "Get Started Free",
+    "learnMore": "Learn More",
+    "dashboardPreview": "Dashboard Preview"
+  },
+  "features": {
+    "sectionTitle": "Everything You Need to Manage Your Budget",
+    "sectionSubtitle": "Powerful features designed to make budget management simple and effective.",
+    "multiUser": {
+      "title": "Multi-User Support",
+      "description": "Collaborate with family members or team members. Share budgets and track expenses together."
+    },
+    "groupBudgeting": {
+      "title": "Group-Based Budgeting",
+      "description": "Create separate budgets for different groups - family, business, or personal projects."
+    },
+    "realTime": {
+      "title": "Real-Time Tracking",
+      "description": "Track expected vs actual expenses in real-time. See where your money is going instantly."
+    },
+    "secure": {
+      "title": "Secure & Encrypted",
+      "description": "Your financial data is encrypted at rest. Bank-level security for your peace of mind."
+    },
+    "categories": {
+      "title": "Custom Categories",
+      "description": "Create custom expense categories that match your lifestyle and spending patterns."
+    },
+    "reports": {
+      "title": "Detailed Reports",
+      "description": "Generate comprehensive reports to understand your spending habits and make better decisions."
+    }
+  },
+  "benefits": {
+    "sectionTitle": "Why Choose Budget Manager?",
+    "sectionSubtitle": "Join thousands of users who have transformed their financial lives.",
+    "saveMoney": {
+      "stat": "20%",
+      "title": "Save More Money",
+      "description": "Users save an average of 20% more when actively tracking their budgets."
+    },
+    "reduceStress": {
+      "stat": "85%",
+      "title": "Reduce Stress",
+      "description": "Know exactly where your money is going and eliminate financial anxiety."
+    },
+    "achieveGoals": {
+      "stat": "3x",
+      "title": "Achieve Goals",
+      "description": "Set and reach your financial goals faster with clear visibility."
+    }
+  },
+  "cta": {
+    "title": "Ready to Take Control of Your Finances?",
+    "subtitle": "Start managing your budget today. No credit card required.",
+    "button": "Get Started Free"
+  },
+  "footer": {
+    "brand": "Budget Manager",
+    "tagline": "Take control of your finances with our powerful budget management system.",
+    "product": "Product",
+    "features": "Features",
+    "pricing": "Pricing",
+    "demo": "Demo",
+    "company": "Company",
+    "about": "About",
+    "contact": "Contact",
+    "privacy": "Privacy",
+    "support": "Support",
+    "helpCenter": "Help Center",
+    "documentation": "Documentation",
+    "api": "API",
+    "copyright": "© {{year}} Budget Manager. All rights reserved."
+  }
+}

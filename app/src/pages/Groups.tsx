@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useTranslation } from 'react-i18next';
 import { createApiClient } from '../lib/api';
+import { formatDate } from '../lib/format';
 import type { Budget, Group, CreateGroupRequest, Invitation } from '../lib/types';
 
 export default function Groups() {
   const { getAccessTokenSilently } = useAuth0();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
@@ -119,16 +122,16 @@ export default function Groups() {
   };
 
   if (isLoading) {
-    return <div className="text-center py-12">Loading...</div>;
+    return <div className="text-center py-12">{t('common.loading')}</div>;
   }
 
   return (
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Groups</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">{t('groups.title')}</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Manage your budgeting groups
+            {t('groups.subtitle')}
           </p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
@@ -136,7 +139,7 @@ export default function Groups() {
             onClick={() => { setIsModalOpen(true); createMutation.reset(); }}
             className="block rounded-md bg-primary-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
           >
-            Add Group
+            {t('groups.addGroup')}
           </button>
         </div>
       </div>
@@ -149,16 +152,16 @@ export default function Groups() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                      Name
+                      {t('common.name')}
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Description
+                      {t('common.description')}
                     </th>
                     <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Created
+                      {t('groups.created')}
                     </th>
                     <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                      <span className="sr-only">Actions</span>
+                      <span className="sr-only">{t('common.actions')}</span>
                     </th>
                   </tr>
                 </thead>
@@ -172,20 +175,20 @@ export default function Groups() {
                         {group.description || '-'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {new Date(group.created_at).toLocaleDateString()}
+                        {formatDate(group.created_at)}
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                         <button
                           onClick={() => openInviteModal(group.id)}
                           className="text-primary-600 hover:text-primary-900 mr-4"
                         >
-                          Invite
+                          {t('groups.invite')}
                         </button>
                         <button
                           onClick={() => deleteMutation.mutate(group.id)}
                           className="text-red-600 hover:text-red-900"
                         >
-                          Delete
+                          {t('common.delete')}
                         </button>
                       </td>
                     </tr>
@@ -198,16 +201,16 @@ export default function Groups() {
       </div>
 
       <div className="mt-10">
-        <h2 className="text-lg font-semibold text-gray-900">Budgets</h2>
-        <p className="mt-1 text-sm text-gray-700">Select a group to view its budgets</p>
+        <h2 className="text-lg font-semibold text-gray-900">{t('groups.budgets')}</h2>
+        <p className="mt-1 text-sm text-gray-700">{t('groups.budgetsSubtitle')}</p>
         <div className="mt-3">
-          <label className="block text-sm font-medium text-gray-700">Select Group</label>
+          <label className="block text-sm font-medium text-gray-700">{t('common.selectGroup')}</label>
           <select
             value={selectedGroupId}
             onChange={(e) => setSelectedGroupId(e.target.value)}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
           >
-            <option value="">Select a group...</option>
+            <option value="">{t('common.selectGroupPlaceholder')}</option>
             {groups?.map((group) => (
               <option key={group.id} value={group.id}>{group.name}</option>
             ))}
@@ -217,15 +220,15 @@ export default function Groups() {
         {selectedGroupId && (
           <div className="mt-6 flow-root">
             {isBudgetsLoading ? (
-              <div className="text-center py-6 text-sm text-gray-500">Loading budgets...</div>
+              <div className="text-center py-6 text-sm text-gray-500">{t('groups.loadingBudgets')}</div>
             ) : budgets && budgets.length > 0 ? (
               <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
                 <table className="min-w-full divide-y divide-gray-300">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
-                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Period</th>
-                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
+                      <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">{t('common.name')}</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('groups.period')}</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('common.description')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
@@ -235,7 +238,7 @@ export default function Groups() {
                           {budget.name}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {new Date(budget.start_date).toLocaleDateString()} - {new Date(budget.end_date).toLocaleDateString()}
+                          {formatDate(budget.start_date)} - {formatDate(budget.end_date)}
                         </td>
                         <td className="px-3 py-4 text-sm text-gray-500">{budget.description || '-'}</td>
                       </tr>
@@ -244,7 +247,7 @@ export default function Groups() {
                 </table>
               </div>
             ) : (
-              <div className="text-center py-6 text-sm text-gray-500">No budgets found for this group.</div>
+              <div className="text-center py-6 text-sm text-gray-500">{t('groups.noBudgets')}</div>
             )}
           </div>
         )}
@@ -254,8 +257,8 @@ export default function Groups() {
       {inviteModalGroupId && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-            <h2 className="text-lg font-semibold mb-1">Invite to Group</h2>
-            <p className="text-sm text-gray-600 mb-4">Generate a link to invite someone to join this group.</p>
+            <h2 className="text-lg font-semibold mb-1">{t('groups.inviteToGroup')}</h2>
+            <p className="text-sm text-gray-600 mb-4">{t('groups.inviteSubtitle')}</p>
 
             {!createdInviteLink ? (
               <button
@@ -263,11 +266,11 @@ export default function Groups() {
                 disabled={createInvitationMutation.isPending}
                 className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
               >
-                {createInvitationMutation.isPending ? 'Generating...' : 'Generate Invite Link'}
+                {createInvitationMutation.isPending ? t('groups.generating') : t('groups.generateLink')}
               </button>
             ) : (
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Share this link (expires in 7 days):</p>
+                <p className="text-sm font-medium text-gray-700 mb-2">{t('groups.shareLinkLabel')}</p>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -279,7 +282,7 @@ export default function Groups() {
                     onClick={handleCopyLink}
                     className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
                   >
-                    {copySuccess ? 'Copied!' : 'Copy'}
+                    {copySuccess ? t('groups.copied') : t('groups.copy')}
                   </button>
                 </div>
               </div>
@@ -287,7 +290,7 @@ export default function Groups() {
 
             {invitations && invitations.length > 0 && (
               <div className="mt-5">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Existing Invitations</h3>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">{t('groups.existingInvitations')}</h3>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {invitations.map((inv) => (
                     <div key={inv.id} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
@@ -301,7 +304,7 @@ export default function Groups() {
                         </span>
                         <span className="text-gray-600 capitalize">{inv.role}</span>
                         <span className="text-gray-400 text-xs">
-                          expires {new Date(inv.expires_at).toLocaleDateString()}
+                          {t('groups.expires')} {formatDate(inv.expires_at)}
                         </span>
                       </div>
                       {inv.status === 'pending' && (
@@ -310,7 +313,7 @@ export default function Groups() {
                           disabled={revokeInvitationMutation.isPending}
                           className="text-red-600 hover:text-red-900 text-xs font-medium disabled:opacity-50"
                         >
-                          Revoke
+                          {t('groups.revoke')}
                         </button>
                       )}
                     </div>
@@ -324,7 +327,7 @@ export default function Groups() {
                 onClick={closeInviteModal}
                 className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
               >
-                Close
+                {t('common.close')}
               </button>
             </div>
           </div>
@@ -335,11 +338,11 @@ export default function Groups() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">Create Group</h2>
+            <h2 className="text-lg font-semibold mb-4">{t('groups.createGroup')}</h2>
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
                   <input
                     type="text"
                     required
@@ -349,7 +352,7 @@ export default function Groups() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('common.description')}</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -360,7 +363,7 @@ export default function Groups() {
               </div>
               {createMutation.isError && (
                 <p className="mt-2 text-sm text-red-600">
-                  Failed to create group. Please try again.
+                  {t('groups.createError')}
                   {createMutation.error instanceof Error && (
                     <span className="block text-xs mt-1 opacity-75">{createMutation.error.message}</span>
                   )}
@@ -372,14 +375,14 @@ export default function Groups() {
                   onClick={() => { setIsModalOpen(false); createMutation.reset(); }}
                   className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
                   className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
                 >
-                  {createMutation.isPending ? 'Creating...' : 'Create'}
+                  {createMutation.isPending ? `${t('common.create')}...` : t('common.create')}
                 </button>
               </div>
             </form>
