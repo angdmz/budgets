@@ -13,7 +13,6 @@ import (
 	"github.com/budgets/core/internal/handler"
 	"github.com/budgets/core/internal/middleware"
 	"github.com/budgets/core/internal/repository"
-	"github.com/budgets/core/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -33,8 +32,6 @@ type Dependencies struct {
 // BuildDependencies creates the Dependencies struct with all handlers and middleware.
 func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor) Dependencies {
 	userRepo := repository.NewUserRepository()
-	prefRepo := repository.NewUserPreferenceRepository()
-	preferenceService := service.NewPreferenceService(pool, prefRepo)
 
 	exchangeProvider := currency.NewStubExchangeRateProvider()
 	exchangeCache := currency.NewInMemoryCache()
@@ -48,7 +45,7 @@ func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor) Dependenci
 		CategoryHandler:    handler.NewCategoryHandler(pool),
 		BudgetHandler:      handler.NewBudgetHandler(pool),
 		ExpenseHandler:     handler.NewExpenseHandler(pool, enc),
-		PreferenceHandler:  handler.NewPreferenceHandler(preferenceService),
+		PreferenceHandler:  handler.NewPreferenceHandler(pool),
 		CurrencyHandler:    handler.NewCurrencyHandler(marketplace),
 		InvitationHandler:  handler.NewInvitationHandler(pool),
 		UserResolver:       userResolver,
@@ -174,6 +171,7 @@ func (s *Server) setupRoutes() {
 			// User Preferences
 			protected.GET("/preferences", preferenceHandler.GetPreferences)
 			protected.PUT("/preferences", preferenceHandler.UpdatePreferences)
+			protected.PATCH("/preferences", preferenceHandler.PatchPreferences)
 
 			// Currency
 			protected.POST("/currency/convert", currencyHandler.Convert)

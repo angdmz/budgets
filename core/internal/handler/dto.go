@@ -150,6 +150,12 @@ type UpdatePreferenceRequest struct {
 	DisplayCurrency string `json:"display_currency" binding:"required"`
 }
 
+type PatchPreferenceRequest struct {
+	Theme           *string `json:"theme"`
+	Language        *string `json:"language"`
+	DisplayCurrency *string `json:"display_currency"`
+}
+
 type PreferenceResponse struct {
 	Theme           string `json:"theme"`
 	Language        string `json:"language"`

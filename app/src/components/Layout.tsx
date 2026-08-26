@@ -1,14 +1,14 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
-import { useLanguageSync } from '../lib/useLanguageSync';
+import { usePreferences, SUPPORTED_THEMES } from '../lib/usePreferences';
 import { SUPPORTED_LANGUAGES } from '../lib/languages';
 
 export default function Layout() {
   const { user, logout } = useAuth0();
   const location = useLocation();
   const { t } = useTranslation();
-  const { changeLanguage, currentLanguage } = useLanguageSync();
+  const { preferences, updateTheme, updateLanguage, currentLanguage } = usePreferences();
 
   const navigation = [
     { nameKey: 'nav.dashboard', href: '/dashboard' },
@@ -22,18 +22,40 @@ export default function Layout() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm">
+      <nav className="bg-white shadow-sm dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-14">
             <h1 className="text-xl font-bold text-primary-600">{t('nav.appName')}</h1>
             <div className="flex items-center space-x-3">
-              <span className="text-sm text-gray-700">{user?.name || user?.email}</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">{user?.name || user?.email}</span>
+              <select
+                value={preferences?.theme || 'LIGHT'}
+                onChange={(e) => updateTheme(e.target.value as any)}
+                className="bg-white text-gray-700 dark:text-gray-300 dark:bg-gray-800 px-2 py-1 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {SUPPORTED_THEMES.map((theme) => (
+                  <option key={theme.value} value={theme.value}>
+                    {theme.label}
+                  </option>
+                ))}
+              </select>
+              {/* <select
+                value={preferences?.display_currency || 'USD'}
+                onChange={(e) => updateDisplayCurrency(e.target.value as any)}
+                className="bg-white text-gray-700 dark:text-gray-300 dark:bg-gray-800 px-2 py-1 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {SUPPORTED_CURRENCIES.map((currency) => (
+                  <option key={currency.value} value={currency.value}>
+                    {currency.value}
+                  </option>
+                ))}
+              </select> */}
               <select
                 value={currentLanguage}
-                onChange={(e) => changeLanguage(e.target.value as any)}
-                className="bg-white text-gray-700 px-2 py-1 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                onChange={(e) => updateLanguage(e.target.value as any)}
+                className="bg-white text-gray-700 dark:text-gray-300 dark:bg-gray-800 px-2 py-1 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 {SUPPORTED_LANGUAGES.map((lang) => (
                   <option key={lang.code} value={lang.code}>
@@ -43,7 +65,7 @@ export default function Layout() {
               </select>
               <button
                 onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                className="bg-white text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium border border-gray-300"
+                className="bg-white text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:bg-gray-700 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium border border-gray-300 dark:border-gray-600"
               >
                 {t('common.logout')}
               </button>
@@ -56,8 +78,8 @@ export default function Layout() {
                 to={item.href}
                 className={`whitespace-nowrap px-1 py-2 border-b-2 text-sm font-medium ${
                   isActive(item.href)
-                    ? 'border-primary-500 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                    ? 'border-primary-500 text-gray-900 dark:text-white'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                 }`}
               >
                 {t(item.nameKey)}
