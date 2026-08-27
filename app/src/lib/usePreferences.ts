@@ -9,6 +9,8 @@ export type Theme = 'LIGHT' | 'DIM' | 'DARK';
 
 export type Currency = 'USD' | 'EUR' | 'GBP' | 'ARS' | 'BRL' | 'MXN' | 'CLP' | 'COP' | 'PEN' | 'UYU';
 
+const THEME_STORAGE_KEY = 'budgets.theme';
+
 export interface UserPreferences {
   theme: Theme;
   language: string;
@@ -33,6 +35,11 @@ export const SUPPORTED_CURRENCIES: { value: Currency; label: string }[] = [
   { value: 'UYU', label: 'UYU - Uruguayan Peso' },
 ];
 
+function readCachedTheme(): Theme | null {
+  const value = localStorage.getItem(THEME_STORAGE_KEY);
+  return value === 'LIGHT' || value === 'DIM' || value === 'DARK' ? value : null;
+}
+
 function applyThemeClass(theme: Theme) {
   const root = document.documentElement;
   root.classList.remove('dark', 'dim');
@@ -41,6 +48,12 @@ function applyThemeClass(theme: Theme) {
   } else if (theme === 'DIM') {
     root.classList.add('dim');
   }
+}
+
+// Apply cached theme synchronously to prevent flash on reload
+const cachedTheme = readCachedTheme();
+if (cachedTheme) {
+  applyThemeClass(cachedTheme);
 }
 
 export function usePreferences() {
@@ -59,6 +72,7 @@ export function usePreferences() {
   useEffect(() => {
     if (preferences?.theme) {
       applyThemeClass(preferences.theme);
+      localStorage.setItem(THEME_STORAGE_KEY, preferences.theme);
     }
   }, [preferences?.theme]);
 
@@ -80,9 +94,14 @@ export function usePreferences() {
   });
 
   const updateTheme = useCallback((theme: Theme) => {
+    const previousTheme = preferences?.theme ?? readCachedTheme() ?? 'LIGHT';
     applyThemeClass(theme);
-    patchMutation.mutate({ theme });
-  }, [patchMutation]);
+    patchMutation.mutate({ theme }, {
+      onError: () => {
+        applyThemeClass(previousTheme);
+      },
+    });
+  }, [patchMutation, preferences?.theme]);
 
   const updateLanguage = useCallback((languageCode: LanguageCode) => {
     i18n.changeLanguage(languageCode);
@@ -95,6 +114,7 @@ export function usePreferences() {
 
   return {
     preferences,
+    theme: preferences?.theme ?? readCachedTheme() ?? 'LIGHT',
     updateTheme,
     updateLanguage,
     updateDisplayCurrency,

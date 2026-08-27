@@ -8,7 +8,7 @@ export default function Layout() {
   const { user, logout } = useAuth0();
   const location = useLocation();
   const { t } = useTranslation();
-  const { preferences, updateTheme, updateLanguage, currentLanguage } = usePreferences();
+  const { theme, updateTheme, updateLanguage, currentLanguage } = usePreferences();
 
   const navigation = [
     { nameKey: 'nav.dashboard', href: '/dashboard' },
@@ -31,13 +31,13 @@ export default function Layout() {
             <div className="flex items-center space-x-3">
               <span className="text-sm text-gray-700 dark:text-gray-300">{user?.name || user?.email}</span>
               <select
-                value={preferences?.theme || 'LIGHT'}
+                value={theme}
                 onChange={(e) => updateTheme(e.target.value as any)}
                 className="bg-white text-gray-700 dark:text-gray-300 dark:bg-gray-800 px-2 py-1 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                {SUPPORTED_THEMES.map((theme) => (
-                  <option key={theme.value} value={theme.value}>
-                    {theme.label}
+                {SUPPORTED_THEMES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
                   </option>
                 ))}
               </select>
