@@ -96,12 +96,18 @@ export function usePreferences() {
   const updateTheme = useCallback((theme: Theme) => {
     const previousTheme = preferences?.theme ?? readCachedTheme() ?? 'LIGHT';
     applyThemeClass(theme);
+    queryClient.setQueryData(['preferences'], (old: UserPreferences | undefined) =>
+      old ? { ...old, theme } : { theme, language: 'EN', display_currency: 'USD' }
+    );
     patchMutation.mutate({ theme }, {
       onError: () => {
         applyThemeClass(previousTheme);
+        queryClient.setQueryData(['preferences'], (old: UserPreferences | undefined) =>
+          old ? { ...old, theme: previousTheme } : undefined
+        );
       },
     });
-  }, [patchMutation, preferences?.theme]);
+  }, [patchMutation, preferences?.theme, queryClient]);
 
   const updateLanguage = useCallback((languageCode: LanguageCode) => {
     i18n.changeLanguage(languageCode);
