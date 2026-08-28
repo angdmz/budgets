@@ -20,6 +20,7 @@ from sqlalchemy import (
     Index,
     Enum,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, relationship
@@ -206,6 +207,7 @@ class Participant(BaseModelWithID):
             "budgeting_group_id",
             "name",
             unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
         ),
     )
 
@@ -274,6 +276,7 @@ class ExpenseCategory(BaseModelWithID):
             "budgeting_group_id",
             "name",
             unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
         ),
     )
 
