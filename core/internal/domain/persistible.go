@@ -1217,6 +1217,152 @@ func PersistedExpectedExpensesForBudget(ctx context.Context, budgetExternalID uu
 	return expenses, nil
 }
 
+type PersistibleUserPreference struct {
+	userID          int64
+	theme           Theme
+	language        Language
+	displayCurrency Currency
+}
+
+func NewPersistibleUserPreference(userID int64, theme Theme, language Language, displayCurrency Currency) (*PersistibleUserPreference, error) {
+	if !theme.IsValid() {
+		return nil, fmt.Errorf("%w: invalid theme", ErrValidation)
+	}
+	if !language.IsValid() {
+		return nil, fmt.Errorf("%w: invalid language", ErrValidation)
+	}
+	if !displayCurrency.IsValid() {
+		return nil, fmt.Errorf("%w: invalid currency", ErrValidation)
+	}
+	return &PersistibleUserPreference{
+		userID:          userID,
+		theme:           theme,
+		language:        language,
+		displayCurrency: displayCurrency,
+	}, nil
+}
+
+func (pref *PersistibleUserPreference) PersistTo(ctx context.Context, p Persister) (*PersistedUserPreference, error) {
+	var id int64
+	var externalID uuid.UUID
+	var createdAt, updatedAt time.Time
+
+	err := p.QueryRow(
+		ctx,
+		[]any{&id, &externalID, &createdAt, &updatedAt},
+		`INSERT INTO user_preferences (user_id, theme, language, display_currency)
+		 VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (user_id) WHERE revoked_at IS NULL
+		 DO UPDATE SET theme = EXCLUDED.theme, language = EXCLUDED.language, display_currency = EXCLUDED.display_currency, updated_at = CURRENT_TIMESTAMP
+		 RETURNING id, external_id, created_at, updated_at`,
+		pref.userID, pref.theme, pref.language, pref.displayCurrency,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PersistedUserPreference{
+		id:              id,
+		externalID:      externalID,
+		userID:          pref.userID,
+		theme:           pref.theme,
+		language:        pref.language,
+		displayCurrency: pref.displayCurrency,
+		createdAt:       createdAt,
+		updatedAt:       updatedAt,
+	}, nil
+}
+
+type PersistedUserPreference struct {
+	id              int64
+	externalID      uuid.UUID
+	userID          int64
+	theme           Theme
+	language        Language
+	displayCurrency Currency
+	createdAt       time.Time
+	updatedAt       time.Time
+}
+
+func PersistedUserPreferenceFromPersistence(ctx context.Context, userID int64, p Persister) (*PersistedUserPreference, error) {
+	var pref PersistedUserPreference
+	err := p.QueryRow(
+		ctx,
+		[]any{&pref.id, &pref.externalID, &pref.theme, &pref.language, &pref.displayCurrency, &pref.createdAt, &pref.updatedAt},
+		`SELECT id, external_id, theme, language, display_currency, created_at, updated_at
+		 FROM user_preferences WHERE user_id = $1 AND revoked_at IS NULL`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("%w: user preferences not found", ErrNotFound)
+	}
+	pref.userID = userID
+	return &pref, nil
+}
+
+func (pref *PersistedUserPreference) ExternalID() uuid.UUID {
+	return pref.externalID
+}
+
+func (pref *PersistedUserPreference) Theme() Theme {
+	return pref.theme
+}
+
+func (pref *PersistedUserPreference) Language() Language {
+	return pref.language
+}
+
+func (pref *PersistedUserPreference) DisplayCurrency() Currency {
+	return pref.displayCurrency
+}
+
+func (pref *PersistedUserPreference) CreatedAt() time.Time {
+	return pref.createdAt
+}
+
+func (pref *PersistedUserPreference) UpdatedAt() time.Time {
+	return pref.updatedAt
+}
+
+func (pref *PersistedUserPreference) UpdateTheme(theme Theme) error {
+	if !theme.IsValid() {
+		return fmt.Errorf("%w: invalid theme", ErrValidation)
+	}
+	pref.theme = theme
+	return nil
+}
+
+func (pref *PersistedUserPreference) UpdateLanguage(language Language) error {
+	if !language.IsValid() {
+		return fmt.Errorf("%w: invalid language", ErrValidation)
+	}
+	pref.language = language
+	return nil
+}
+
+func (pref *PersistedUserPreference) UpdateDisplayCurrency(currency Currency) error {
+	if !currency.IsValid() {
+		return fmt.Errorf("%w: invalid currency", ErrValidation)
+	}
+	pref.displayCurrency = currency
+	return nil
+}
+
+func (pref *PersistedUserPreference) UpdateIn(ctx context.Context, p Persister) error {
+	var updatedAt time.Time
+	err := p.QueryRow(
+		ctx,
+		[]any{&updatedAt},
+		`UPDATE user_preferences SET theme = $1, language = $2, display_currency = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING updated_at`,
+		pref.theme, pref.language, pref.displayCurrency, pref.id,
+	)
+	if err != nil {
+		return err
+	}
+	pref.updatedAt = updatedAt
+	return nil
+}
+
 func PersistedActualExpensesForBudget(ctx context.Context, budgetExternalID uuid.UUID, p Persister) ([]PersistedActualExpense, error) {
 	var budgetID int64
 	err := p.QueryRow(

@@ -14,8 +14,3 @@ type UserRepository interface {
 	GetByID(ctx context.Context, tx pgx.Tx, id int64) (*domain.User, error)
 	GetByExternalID(ctx context.Context, tx pgx.Tx, externalID uuid.UUID) (*domain.User, error)
 }
-
-type UserPreferenceRepository interface {
-	GetByUserID(ctx context.Context, tx pgx.Tx, userID int64) (*domain.UserPreference, error)
-	Upsert(ctx context.Context, tx pgx.Tx, pref *domain.UserPreference) error
-}

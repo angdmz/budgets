@@ -120,15 +120,6 @@ func (l Language) IsValid() bool {
 	return false
 }
 
-// UserPreference stores per-user settings
-type UserPreference struct {
-	BaseModel
-	UserID          int64    `json:"-"`
-	Theme           Theme    `json:"theme"`
-	Language        Language `json:"language"`
-	DisplayCurrency Currency `json:"display_currency"`
-}
-
 type ExpenseCategory struct {
 	BaseModel
 	Name             string `json:"name"`

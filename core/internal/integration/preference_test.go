@@ -110,4 +110,50 @@ func TestPreferenceAPI(t *testing.T) {
 		resp := ts.DoRequest(http.MethodGet, "/api/v1/preferences", nil, http.Header{})
 		assert.Equal(t, http.StatusUnauthorized, resp.Code)
 	})
+
+	t.Run("PatchPreferences_OnlyTheme", func(t *testing.T) {
+		body := map[string]interface{}{
+			"theme": "DARK",
+		}
+		resp := ts.DoRequest(http.MethodPatch, "/api/v1/preferences", body, ts.AuthHeader())
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		var result map[string]interface{}
+		err := json.Unmarshal(resp.Body.Bytes(), &result)
+		require.NoError(t, err)
+
+		assert.Equal(t, "DARK", result["theme"])
+		assert.Equal(t, "EN", result["language"])
+		assert.Equal(t, "EUR", result["display_currency"])
+	})
+
+	t.Run("PatchPreferences_OnlyCurrency", func(t *testing.T) {
+		body := map[string]interface{}{
+			"display_currency": "BRL",
+		}
+		resp := ts.DoRequest(http.MethodPatch, "/api/v1/preferences", body, ts.AuthHeader())
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		var result map[string]interface{}
+		err := json.Unmarshal(resp.Body.Bytes(), &result)
+		require.NoError(t, err)
+
+		assert.Equal(t, "DARK", result["theme"])
+		assert.Equal(t, "EN", result["language"])
+		assert.Equal(t, "BRL", result["display_currency"])
+	})
+
+	t.Run("PatchPreferences_EmptyBody", func(t *testing.T) {
+		body := map[string]interface{}{}
+		resp := ts.DoRequest(http.MethodPatch, "/api/v1/preferences", body, ts.AuthHeader())
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+	})
+
+	t.Run("PatchPreferences_InvalidTheme", func(t *testing.T) {
+		body := map[string]interface{}{
+			"theme": "NEON",
+		}
+		resp := ts.DoRequest(http.MethodPatch, "/api/v1/preferences", body, ts.AuthHeader())
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+	})
 }
