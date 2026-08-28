@@ -1,7 +1,7 @@
 import pytest
 import time
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
@@ -82,18 +82,44 @@ class TestThemePreference:
             )
         print("\n  ✓ Logged in")
 
-    def _theme_select(self, driver):
-        """Locate the theme dropdown in the top nav.
+    # Maps a Theme value to the aria-label used on its icon button.
+    THEME_ARIA_LABELS = {
+        "LIGHT": "Light theme",
+        "DARK": "Dark theme",
+    }
 
-        Identified by the presence of the LIGHT option value, which distinguishes
-        it from the sibling language dropdown.
+    def _theme_button(self, driver, theme):
+        """Locate the icon button for *theme* in the top nav.
+
+        Identified by its aria-label, e.g. ``aria-label="Light theme"``.
         """
-        element = self._wait(driver).until(
+        label = self.THEME_ARIA_LABELS[theme]
+        return self._wait(driver).until(
             EC.element_to_be_clickable(
-                (By.XPATH, "//nav//select[option[@value='LIGHT']]")
+                (By.XPATH, f"//nav//button[@aria-label='{label}']")
             )
         )
-        return Select(element)
+
+    def _active_theme(self, driver):
+        """Return the currently-active theme based on the highlighted button.
+
+        The active button gets the ``bg-primary-100`` class; the inactive one
+        does not.  Falls back to checking the ``<html>`` class list.
+        """
+        for theme, label in self.THEME_ARIA_LABELS.items():
+            try:
+                btn = driver.find_element(
+                    By.XPATH, f"//nav//button[@aria-label='{label}']"
+                )
+                if "bg-primary-100" in (btn.get_attribute("class") or ""):
+                    return theme
+            except Exception:
+                pass
+        # Fallback: infer from <html> class
+        classes = self._root_classes(driver)
+        if "dark" in classes.split():
+            return "DARK"
+        return "LIGHT"
 
     def _root_classes(self, driver):
         """Class list currently applied to the <html> element."""
@@ -112,28 +138,27 @@ class TestThemePreference:
         so waiting for it to hold the new value proves PATCH /preferences
         succeeded and the response was applied.
         """
-        # Wait until the dropdown has hydrated (its value matches the cached
-        # theme or the server-confirmed theme) so we don't interact with a
-        # stale default that swallows the change event.
+        # Wait until the buttons have hydrated (the active button matches the
+        # cached theme or the server-confirmed theme) so we don't interact
+        # with a stale default.
         self._wait(driver).until(
-            lambda d: self._theme_select(d).first_selected_option.get_attribute("value")
-            == (self._cached_theme(d) or "LIGHT")
+            lambda d: self._active_theme(d) == (self._cached_theme(d) or "LIGHT")
         )
 
-        current = self._theme_select(driver).first_selected_option.get_attribute("value")
+        current = self._active_theme(driver)
         if current == value:
-            # The dropdown already shows the target — no change event will
-            # fire, so just verify the cache is already consistent.
+            # The button already shows the target — no click will fire a
+            # change, so just verify the cache is already consistent.
             if self._cached_theme(driver) != value:
                 pytest.fail(
-                    f"Dropdown already shows '{value}' but localStorage"
+                    f"Active theme is already '{value}' but localStorage"
                     f"['{self.THEME_STORAGE_KEY}'] is "
                     f"'{self._cached_theme(driver)}'. The theme was never "
                     f"persisted server-side."
                 )
             return
 
-        self._theme_select(driver).select_by_value(value)
+        self._theme_button(driver, value).click()
         try:
             self._wait(driver).until(
                 lambda d: self._cached_theme(d) == value
@@ -156,23 +181,26 @@ class TestThemePreference:
 
     # ── tests ──────────────────────────────────────────────────────────────────
 
-    def test_theme_dropdown_excludes_dim(
+    def test_theme_buttons_exclude_dim(
         self, driver, base_url, credentials, screenshots_dir
     ):
         """Only LIGHT and DARK are user-selectable; DIM stays out of the UI."""
         self._login(driver, base_url, credentials, screenshots_dir)
 
-        options = [o.get_attribute("value") for o in self._theme_select(driver).options]
-        print(f"\n  Theme options exposed: {options}")
+        buttons = driver.find_elements(
+            By.XPATH, "//nav//button[contains(@aria-label, 'theme')]")
+        labels = [b.get_attribute("aria-label") for b in buttons]
+        print(f"\n  Theme buttons exposed: {labels}")
 
-        assert options == ["LIGHT", "DARK"], (
-            f"Expected exactly ['LIGHT', 'DARK'] in the theme dropdown, got {options}"
+        expected = {"Light theme", "Dark theme"}
+        assert set(labels) == expected, (
+            f"Expected exactly {expected} theme buttons, got {labels}"
         )
-        assert "DIM" not in options, (
+        assert not any("dim" in lbl.lower() for lbl in labels), (
             "DIM must not be selectable from the UI even though it remains a "
             "valid theme in the API and stylesheet"
         )
-        driver.save_screenshot(f"{screenshots_dir}/theme_01_dropdown_options.png")
+        driver.save_screenshot(f"{screenshots_dir}/theme_01_button_options.png")
 
     def test_selecting_dark_applies_class_and_caches_it(
         self, driver, base_url, credentials, screenshots_dir
@@ -264,10 +292,8 @@ class TestThemePreference:
                     f"The preference was probably never persisted server-side."
                 )
 
-            # The dropdown must reflect the stored value too.
-            assert self._theme_select(driver).first_selected_option.get_attribute(
-                "value"
-            ) == "DARK"
+            # The active button must reflect the stored value too.
+            assert self._active_theme(driver) == "DARK"
             assert self._cached_theme(driver) == "DARK", (
                 "Theme fetched from the API should be re-cached locally"
             )
