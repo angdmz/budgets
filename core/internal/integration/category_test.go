@@ -106,6 +106,25 @@ func TestCategoryAPI(t *testing.T) {
 		}
 	})
 
+	t.Run("RecreateCategoryAfterDelete", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":        "Groceries",
+			"description": "Recreated category",
+			"color":       "#4CAF50",
+			"icon":        "cart",
+		}
+		resp := ts.Post("/api/v1/groups/"+groupID+"/categories", body)
+		assert.Equal(t, http.StatusCreated, resp.Code, "Recreating a deleted category with the same name should succeed")
+
+		var result map[string]interface{}
+		err := json.Unmarshal(resp.Body.Bytes(), &result)
+		require.NoError(t, err)
+
+		assert.NotEmpty(t, result["id"])
+		assert.NotEqual(t, categoryID, result["id"], "New category should have a different ID")
+		assert.Equal(t, "Groceries", result["name"])
+	})
+
 	t.Run("CreateCategoryWithoutAuth", func(t *testing.T) {
 		body := map[string]interface{}{
 			"name": "Unauthorized Category",
