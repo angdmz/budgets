@@ -225,6 +225,13 @@ class TestExpectedExpensesWorkflow:
         amount_input = modal.find_element(By.CSS_SELECTOR, "input[type='number']")
         self._set_react_input(driver, amount_input, "1500.00")
         
+        # Select a non-default currency (EUR) to verify the dropdown works
+        currency_select = self._wait(driver).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "select[data-testid='currency-select']"))
+        )
+        Select(currency_select).select_by_visible_text("EUR")
+        time.sleep(0.5)
+        
         category_button = self._wait(driver).until(
             EC.element_to_be_clickable(
                 (By.XPATH, "//button[contains(., 'Select category')]")
@@ -264,6 +271,12 @@ class TestExpectedExpensesWorkflow:
         self._wait(driver).until(
             EC.presence_of_element_located(
                 (By.XPATH, f"//tr[.//td[normalize-space()='{expense_name}']]//td[contains(., '{category_name}')]")
+            )
+        )
+        # Verify the currency symbol for EUR appears in the table row
+        self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//tr[.//td[normalize-space()='{expense_name}']]//td[contains(., '€')]")
             )
         )
         driver.save_screenshot(f"{screenshots_dir}/ee_05_expense_created_with_category.png")

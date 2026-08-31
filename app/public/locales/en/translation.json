@@ -98,6 +98,7 @@
     "deleteExpense": "Delete Expense",
     "date": "Date",
     "amount": "Amount",
+    "currency": "Currency",
     "category": "Category"
   },
   "expectedExpenses": {
@@ -107,6 +108,7 @@
     "editExpectedExpense": "Edit Expected Expense",
     "deleteExpectedExpense": "Delete Expected Expense",
     "amount": "Amount",
+    "currency": "Currency",
     "category": "Category"
   },
   "invitation": {

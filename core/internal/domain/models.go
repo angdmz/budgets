@@ -24,12 +24,19 @@ const (
 )
 
 func (c Currency) IsValid() bool {
-	switch c {
-	case CurrencyUSD, CurrencyEUR, CurrencyGBP, CurrencyARS, CurrencyBRL,
-		CurrencyMXN, CurrencyCLP, CurrencyCOP, CurrencyPEN, CurrencyUYU:
-		return true
+	for _, supported := range SupportedCurrencies() {
+		if c == supported {
+			return true
+		}
 	}
 	return false
+}
+
+func SupportedCurrencies() []Currency {
+	return []Currency{
+		CurrencyUSD, CurrencyEUR, CurrencyGBP, CurrencyARS, CurrencyBRL,
+		CurrencyMXN, CurrencyCLP, CurrencyCOP, CurrencyPEN, CurrencyUYU,
+	}
 }
 
 // AuthProvider represents supported authentication providers

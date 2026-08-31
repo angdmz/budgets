@@ -95,4 +95,24 @@ func TestCurrencyAPI(t *testing.T) {
 		resp := ts.DoRequest(http.MethodPost, "/api/v1/currency/convert", body, http.Header{})
 		assert.Equal(t, http.StatusUnauthorized, resp.Code)
 	})
+
+	t.Run("ListCurrencies", func(t *testing.T) {
+		resp := ts.DoRequest(http.MethodGet, "/api/v1/currencies", nil, http.Header{})
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		var result []map[string]interface{}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &result))
+		assert.Len(t, result, 10)
+
+		codes := make(map[string]bool)
+		for _, c := range result {
+			code := c["code"].(string)
+			codes[code] = true
+			assert.NotEmpty(t, c["name"])
+		}
+
+		for _, expected := range []string{"USD", "EUR", "GBP", "ARS", "BRL", "MXN", "CLP", "COP", "PEN", "UYU"} {
+			assert.True(t, codes[expected], "expected currency %s in response", expected)
+		}
+	})
 }

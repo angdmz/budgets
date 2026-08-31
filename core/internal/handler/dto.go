@@ -206,3 +206,8 @@ type InvitationDetailResponse struct {
 	Role        string    `json:"role"`
 	ExpiresAt   time.Time `json:"expires_at"`
 }
+
+type CurrencyResponse struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}

@@ -267,6 +267,13 @@ class TestActualExpensesWorkflow:
         amount_input = modal.find_element(By.CSS_SELECTOR, "input[type='number']")
         self._set_react_input(driver, amount_input, "850.00")
 
+        # Select a non-default currency (ARS) to verify the dropdown works
+        currency_select = self._wait(driver).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "select[data-testid='currency-select']"))
+        )
+        Select(currency_select).select_by_visible_text("ARS")
+        time.sleep(0.5)
+
         date_input = modal.find_element(By.CSS_SELECTOR, "input[type='date']")
         self._set_react_date(driver, date_input, "2025-06-15")
 
@@ -285,6 +292,12 @@ class TestActualExpensesWorkflow:
         self._wait(driver).until(
             EC.presence_of_element_located(
                 (By.XPATH, f"//tr[.//td[normalize-space()='{expense_name}']]//td[contains(., '{category_name}')]")
+            )
+        )
+        # Verify the currency code ARS appears in the table row
+        self._wait(driver).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//tr[.//td[normalize-space()='{expense_name}']]//td[contains(., 'ARS')]")
             )
         )
         driver.save_screenshot(f"{screenshots_dir}/ae_06_expense_created_with_category.png")

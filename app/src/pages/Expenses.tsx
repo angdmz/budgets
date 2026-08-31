@@ -6,6 +6,7 @@ import { createApiClient } from '../lib/api';
 import { formatDate, formatCurrency } from '../lib/format';
 import type { ActualExpense, Budget, Group, Category, CreateActualExpenseRequest, UpdateActualExpenseRequest } from '../lib/types';
 import CategoryCombobox from '../components/CategoryCombobox';
+import CurrencySelect from '../components/CurrencySelect';
 
 export default function Expenses() {
   const { getAccessTokenSilently } = useAuth0();
@@ -263,14 +264,22 @@ export default function Expenses() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t('expenses.amount')}</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={formData.amount.amount}
-                    onChange={(e) => setFormData(prev => ({ ...prev, amount: { ...prev.amount, amount: e.target.value } }))}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  />
+                  <div className="mt-1 flex gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={formData.amount.amount}
+                      onChange={(e) => setFormData(prev => ({ ...prev, amount: { ...prev.amount, amount: e.target.value } }))}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    />
+                    <div className="w-28">
+                      <CurrencySelect
+                        value={formData.amount.currency}
+                        onChange={(currency) => setFormData(prev => ({ ...prev, amount: { ...prev.amount, currency } }))}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t('expenses.date')}</label>
@@ -323,14 +332,22 @@ export default function Expenses() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t('expenses.amount')}</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={editingExpense.amount.amount}
-                    onChange={(e) => setEditingExpense(prev => prev ? { ...prev, amount: { ...prev.amount, amount: e.target.value } } : null)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  />
+                  <div className="mt-1 flex gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={editingExpense.amount.amount}
+                      onChange={(e) => setEditingExpense(prev => prev ? { ...prev, amount: { ...prev.amount, amount: e.target.value } } : null)}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    />
+                    <div className="w-28">
+                      <CurrencySelect
+                        value={editingExpense.amount.currency}
+                        onChange={(currency) => setEditingExpense(prev => prev ? { ...prev, amount: { ...prev.amount, currency } } : null)}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t('expenses.date')}</label>

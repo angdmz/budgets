@@ -76,13 +76,8 @@ class InvitationStatus(str, PyEnum):
 
 def _get_encryptor():
     """Get the encryptor instance, lazily initialized."""
-    try:
-        secrets_provider = get_secrets_provider()
-        encryption_key = secrets_provider.get_secret("encryption_key")
-    except SecretNotFoundError:
-        import os
-        encryption_key = os.environ.get("ENCRYPTION_KEY")
-    
+    secrets_provider = get_secrets_provider()
+    encryption_key = secrets_provider.get_secret("encryption_key")
     if encryption_key:
         return Encryptor.from_key_string(encryption_key)
     return None
@@ -319,7 +314,7 @@ class ExpectedExpense(BaseModelWithID):
     description = Column(Text, nullable=True)
     
     encrypted_amount = Column(
-        String(1024),
+        EncryptedMoney(encryptor, 1024),
         nullable=False,
     )
 
@@ -356,7 +351,7 @@ class ActualExpense(BaseModelWithID):
     expense_date = Column(Date, nullable=False)
     
     encrypted_amount = Column(
-        String(1024),
+        EncryptedMoney(encryptor, 1024),
         nullable=False,
     )
 

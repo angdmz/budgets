@@ -297,6 +297,102 @@ func TestDeleteExpectedExpense_InvalidUUID(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "invalid_id")
 }
 
+func TestCreateActualExpense_InvalidCurrency(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "budget_id", Value: uuid.New().String()}}
+
+	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
+	c.Set("config", cfg)
+
+	user := &domain.User{}
+	c.Set("db_user", user)
+
+	body := `{"name":"Rent","description":"","expense_date":"2025-06-15","amount":{"amount":"100.00","currency":"BTC"},"category_id":"` + uuid.New().String() + `"}`
+	c.Request = httptest.NewRequest("POST", "/budgets/"+uuid.New().String()+"/actual-expenses", bytes.NewReader([]byte(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler := &ExpenseHandler{}
+	handler.CreateActualExpense(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_currency")
+}
+
+func TestUpdateActualExpense_InvalidCurrency(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "id", Value: uuid.New().String()}}
+
+	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
+	c.Set("config", cfg)
+
+	user := &domain.User{}
+	c.Set("db_user", user)
+
+	body := `{"name":"Rent","description":"","expense_date":"2025-06-15","amount":{"amount":"100.00","currency":"FAKE"},"category_id":"` + uuid.New().String() + `"}`
+	c.Request = httptest.NewRequest("PUT", "/actual-expenses/"+uuid.New().String(), bytes.NewReader([]byte(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler := &ExpenseHandler{}
+	handler.UpdateActualExpense(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_currency")
+}
+
+func TestCreateExpectedExpense_InvalidCurrency(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "budget_id", Value: uuid.New().String()}}
+
+	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
+	c.Set("config", cfg)
+
+	user := &domain.User{}
+	c.Set("db_user", user)
+
+	body := `{"name":"Expected Rent","description":"","amount":{"amount":"100.00","currency":"BTC"},"category_id":"` + uuid.New().String() + `"}`
+	c.Request = httptest.NewRequest("POST", "/budgets/"+uuid.New().String()+"/expected-expenses", bytes.NewReader([]byte(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler := &ExpenseHandler{}
+	handler.CreateExpectedExpense(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_currency")
+}
+
+func TestUpdateExpectedExpense_InvalidCurrency(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "id", Value: uuid.New().String()}}
+
+	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
+	c.Set("config", cfg)
+
+	user := &domain.User{}
+	c.Set("db_user", user)
+
+	body := `{"name":"Expected Rent","description":"","amount":{"amount":"100.00","currency":"FAKE"},"category_id":"` + uuid.New().String() + `"}`
+	c.Request = httptest.NewRequest("PUT", "/expected-expenses/"+uuid.New().String(), bytes.NewReader([]byte(body)))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	handler := &ExpenseHandler{}
+	handler.UpdateExpectedExpense(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid_currency")
+}
+
 func TestDeleteExpectedExpense_NoUserInContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
