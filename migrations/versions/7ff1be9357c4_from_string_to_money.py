@@ -29,10 +29,15 @@ MONEY_TABLES = ("expected_expenses", "actual_expenses")
 
 
 def _get_fernet() -> Fernet:
-    encryption_key = os.environ.get("ENCRYPTION_KEY")
+    from secrets import get_secrets_provider, SecretNotFoundError
+    provider = get_secrets_provider()
+    try:
+        encryption_key = provider.get_secret("encryption_key")
+    except SecretNotFoundError:
+        encryption_key = os.environ.get("ENCRYPTION_KEY", "")
     if not encryption_key:
         raise RuntimeError(
-            "Encryption key not configured. Set ENCRYPTION_KEY environment variable."
+            "Encryption key not configured. Set ENCRYPTION_KEY environment variable or provide via secrets provider."
         )
     return Fernet(encryption_key.encode())
 
