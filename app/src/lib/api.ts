@@ -19,3 +19,13 @@ export async function createApiClient(getAccessTokenSilently: GetAccessTokenSile
     },
   });
 }
+
+export function getErrorMessage(error: unknown): string | undefined {
+  if (axios.isAxiosError(error)) {
+    return error.response?.data?.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return undefined;
+}
