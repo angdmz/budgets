@@ -3,6 +3,11 @@ export interface Money {
   currency: string;
 }
 
+export interface CurrencyInfo {
+  code: string;
+  name: string;
+}
+
 export interface Group {
   id: string;
   name: string;

@@ -114,6 +114,78 @@ func TestExpenseAPI(t *testing.T) {
 		assert.Equal(t, categoryID, result["category_id"])
 	})
 
+	t.Run("CreateExpectedExpenseWithEUR", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":        "EU Insurance",
+			"description": "Monthly EU insurance",
+			"amount": map[string]interface{}{
+				"amount":   "200.00",
+				"currency": "EUR",
+			},
+			"category_id": categoryID,
+		}
+		resp := ts.Post("/api/v1/budgets/"+budgetID+"/expected-expenses", body)
+		assert.Equal(t, http.StatusCreated, resp.Code)
+
+		var result map[string]interface{}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &result))
+		assert.Equal(t, "EU Insurance", result["name"])
+		amt := result["amount"].(map[string]interface{})
+		assert.Equal(t, "200", amt["amount"])
+		assert.Equal(t, "EUR", amt["currency"])
+	})
+
+	t.Run("UpdateExpectedExpenseCurrencyChange", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":        "EU Insurance",
+			"description": "Changed to GBP",
+			"amount": map[string]interface{}{
+				"amount":   "150.00",
+				"currency": "GBP",
+			},
+			"category_id": categoryID,
+		}
+		resp := ts.Post("/api/v1/budgets/"+budgetID+"/expected-expenses", body)
+		require.Equal(t, http.StatusCreated, resp.Code)
+
+		var created map[string]interface{}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &created))
+		createdID := created["id"].(string)
+
+		updateBody := map[string]interface{}{
+			"name":        "EU Insurance",
+			"description": "Changed to GBP",
+			"amount": map[string]interface{}{
+				"amount":   "150.00",
+				"currency": "GBP",
+			},
+			"category_id": categoryID,
+		}
+		resp = ts.Put("/api/v1/expected-expenses/"+createdID, updateBody)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		var updated map[string]interface{}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &updated))
+		amt := updated["amount"].(map[string]interface{})
+		assert.Equal(t, "GBP", amt["currency"])
+		assert.Equal(t, "150", amt["amount"])
+	})
+
+	t.Run("CreateExpectedExpenseInvalidCurrency", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":        "Crypto Expense",
+			"description": "Invalid currency",
+			"amount": map[string]interface{}{
+				"amount":   "100.00",
+				"currency": "BTC",
+			},
+			"category_id": categoryID,
+		}
+		resp := ts.Post("/api/v1/budgets/"+budgetID+"/expected-expenses", body)
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+		assert.Contains(t, resp.Body.String(), "invalid_currency")
+	})
+
 	t.Run("CreateExpectedExpenseWithoutCategory", func(t *testing.T) {
 		body := map[string]interface{}{
 			"name":        "No Category Expense",
@@ -196,6 +268,102 @@ func TestExpenseAPI(t *testing.T) {
 		assert.Equal(t, "Supermarket (Updated)", result["name"])
 		amt := result["amount"].(map[string]interface{})
 		assert.Equal(t, "92.5", amt["amount"])
+	})
+
+	t.Run("CreateActualExpenseWithEUR", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":         "European Lunch",
+			"description":  "Lunch in EUR",
+			"expense_date": time.Now().Format("2006-01-02"),
+			"amount": map[string]interface{}{
+				"amount":   "25.50",
+				"currency": "EUR",
+			},
+			"category_id": categoryID,
+		}
+		resp := ts.Post("/api/v1/budgets/"+budgetID+"/actual-expenses", body)
+		assert.Equal(t, http.StatusCreated, resp.Code)
+
+		var result map[string]interface{}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &result))
+		amt := result["amount"].(map[string]interface{})
+		assert.Equal(t, "EUR", amt["currency"])
+		assert.Equal(t, "25.5", amt["amount"])
+	})
+
+	t.Run("CreateActualExpenseWithBRL", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":         "Brazilian Transport",
+			"description":  "Bus fare in BRL",
+			"expense_date": time.Now().Format("2006-01-02"),
+			"amount": map[string]interface{}{
+				"amount":   "15.00",
+				"currency": "BRL",
+			},
+			"category_id": categoryID,
+		}
+		resp := ts.Post("/api/v1/budgets/"+budgetID+"/actual-expenses", body)
+		assert.Equal(t, http.StatusCreated, resp.Code)
+
+		var result map[string]interface{}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &result))
+		amt := result["amount"].(map[string]interface{})
+		assert.Equal(t, "BRL", amt["currency"])
+		assert.Equal(t, "15", amt["amount"])
+	})
+
+	t.Run("UpdateActualExpenseCurrencyChange", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":         "Currency Swap",
+			"description":  "Will change currency",
+			"expense_date": time.Now().Format("2006-01-02"),
+			"amount": map[string]interface{}{
+				"amount":   "50.00",
+				"currency": "USD",
+			},
+			"category_id": categoryID,
+		}
+		resp := ts.Post("/api/v1/budgets/"+budgetID+"/actual-expenses", body)
+		require.Equal(t, http.StatusCreated, resp.Code)
+
+		var created map[string]interface{}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &created))
+		createdID := created["id"].(string)
+
+		updateBody := map[string]interface{}{
+			"name":         "Currency Swap",
+			"description":  "Changed to MXN",
+			"expense_date": time.Now().Format("2006-01-02"),
+			"amount": map[string]interface{}{
+				"amount":   "500.00",
+				"currency": "MXN",
+			},
+			"category_id": categoryID,
+		}
+		resp = ts.Put("/api/v1/actual-expenses/"+createdID, updateBody)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		var updated map[string]interface{}
+		require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &updated))
+		amt := updated["amount"].(map[string]interface{})
+		assert.Equal(t, "MXN", amt["currency"])
+		assert.Equal(t, "500", amt["amount"])
+	})
+
+	t.Run("CreateActualExpenseInvalidCurrency", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":         "Fake Money",
+			"description":  "Invalid currency",
+			"expense_date": time.Now().Format("2006-01-02"),
+			"amount": map[string]interface{}{
+				"amount":   "100.00",
+				"currency": "FAKE",
+			},
+			"category_id": categoryID,
+		}
+		resp := ts.Post("/api/v1/budgets/"+budgetID+"/actual-expenses", body)
+		assert.Equal(t, http.StatusBadRequest, resp.Code)
+		assert.Contains(t, resp.Body.String(), "invalid_currency")
 	})
 
 	t.Run("DeleteActualExpense", func(t *testing.T) {

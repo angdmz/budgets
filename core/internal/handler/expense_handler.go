@@ -66,6 +66,12 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 		return
 	}
 
+	currency := domain.Currency(req.Amount.Currency)
+	if !currency.IsValid() {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_currency", Message: "Unsupported currency"})
+		return
+	}
+
 	var response ExpectedExpenseResponse
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		guard := domain.NewSecurityGuard(user.ID)
@@ -73,7 +79,7 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 			return err
 		}
 
-		money := encryption.NewMoney(amount, req.Amount.Currency)
+		money := encryption.NewMoney(amount, string(currency))
 		encryptedAmount, err := h.encryptor.EncryptMoney(money)
 		if err != nil {
 			return err
@@ -284,6 +290,12 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 		return
 	}
 
+	currency := domain.Currency(req.Amount.Currency)
+	if !currency.IsValid() {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_currency", Message: "Unsupported currency"})
+		return
+	}
+
 	var response ExpectedExpenseResponse
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		guard := domain.NewSecurityGuard(user.ID)
@@ -296,7 +308,7 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 			return err
 		}
 
-		money := encryption.NewMoney(amount, req.Amount.Currency)
+		money := encryption.NewMoney(amount, string(currency))
 		encryptedAmount, err := h.encryptor.EncryptMoney(money)
 		if err != nil {
 			return err
@@ -423,6 +435,12 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 		return
 	}
 
+	currency := domain.Currency(req.Amount.Currency)
+	if !currency.IsValid() {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_currency", Message: "Unsupported currency"})
+		return
+	}
+
 	expenseDate, err := time.Parse("2006-01-02", req.ExpenseDate)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_expense_date", Message: "Date must be in YYYY-MM-DD format"})
@@ -436,7 +454,7 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 			return err
 		}
 
-		money := encryption.NewMoney(amount, req.Amount.Currency)
+		money := encryption.NewMoney(amount, string(currency))
 		encryptedAmount, err := h.encryptor.EncryptMoney(money)
 		if err != nil {
 			return err
@@ -650,6 +668,12 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 		return
 	}
 
+	currency := domain.Currency(req.Amount.Currency)
+	if !currency.IsValid() {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_currency", Message: "Unsupported currency"})
+		return
+	}
+
 	expenseDate, err := time.Parse("2006-01-02", req.ExpenseDate)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_expense_date", Message: "Date must be in YYYY-MM-DD format"})
@@ -668,7 +692,7 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 			return err
 		}
 
-		money := encryption.NewMoney(amount, req.Amount.Currency)
+		money := encryption.NewMoney(amount, string(currency))
 		encryptedAmount, err := h.encryptor.EncryptMoney(money)
 		if err != nil {
 			return err

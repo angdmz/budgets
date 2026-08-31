@@ -31,6 +31,39 @@ func NewCurrencyHandler(marketplace *currency.CurrencyMarketplace) *CurrencyHand
 // @Failure 401 {object} ErrorResponse
 // @Security BearerAuth
 // @Router /currency/convert [post]
+var currencyNames = map[domain.Currency]string{
+	domain.CurrencyUSD: "US Dollar",
+	domain.CurrencyEUR: "Euro",
+	domain.CurrencyGBP: "British Pound Sterling",
+	domain.CurrencyARS: "Argentine Peso",
+	domain.CurrencyBRL: "Brazilian Real",
+	domain.CurrencyMXN: "Mexican Peso",
+	domain.CurrencyCLP: "Chilean Peso",
+	domain.CurrencyCOP: "Colombian Peso",
+	domain.CurrencyPEN: "Peruvian Sol",
+	domain.CurrencyUYU: "Uruguayan Peso",
+}
+
+// ListCurrencies godoc
+// @Summary List all supported currencies
+// @Description Returns the list of all supported currencies with their codes and names
+// @Tags currency
+// @Produce json
+// @Success 200 {array} CurrencyResponse
+// @Router /currencies [get]
+func (h *CurrencyHandler) ListCurrencies(c *gin.Context) {
+	currencies := domain.SupportedCurrencies()
+	response := make([]CurrencyResponse, 0, len(currencies))
+	for _, curr := range currencies {
+		name := currencyNames[curr]
+		response = append(response, CurrencyResponse{
+			Code: string(curr),
+			Name: name,
+		})
+	}
+	c.JSON(http.StatusOK, response)
+}
+
 func (h *CurrencyHandler) Convert(c *gin.Context) {
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
@@ -109,12 +142,7 @@ func (h *CurrencyHandler) GetExchangeRates(c *gin.Context) {
 		return
 	}
 
-	targets := []domain.Currency{
-		domain.CurrencyUSD, domain.CurrencyEUR, domain.CurrencyGBP,
-		domain.CurrencyARS, domain.CurrencyBRL, domain.CurrencyMXN,
-		domain.CurrencyCLP, domain.CurrencyCOP, domain.CurrencyPEN,
-		domain.CurrencyUYU,
-	}
+	targets := domain.SupportedCurrencies()
 
 	var response []ExchangeRateResponse
 	for _, target := range targets {

@@ -128,6 +128,7 @@ func (s *Server) setupRoutes() {
 		public := api.Group("")
 		{
 			public.GET("/invitations/token/:token", invitationHandler.GetInvitationByToken)
+			public.GET("/currencies", currencyHandler.ListCurrencies)
 		}
 
 		protected := api.Group("")
