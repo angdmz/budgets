@@ -1,19 +1,20 @@
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import HttpBackend from 'i18next-http-backend';
 import { DEFAULT_LANGUAGE } from './languages';
+import en from '../locales/en/translation.json';
+import es from '../locales/es/translation.json';
 
 i18next
-  .use(HttpBackend)
   .use(initReactI18next)
   .init({
     lng: DEFAULT_LANGUAGE,
     fallbackLng: DEFAULT_LANGUAGE,
+    resources: {
+      en: { translation: en },
+      es: { translation: es },
+    },
     interpolation: {
       escapeValue: false,
-    },
-    backend: {
-      loadPath: '/app/locales/{{lng}}/{{ns}}.json',
     },
   });
 
