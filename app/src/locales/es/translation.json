@@ -27,7 +27,10 @@
     "expected": "Gastos Esperados"
   },
   "auth": {
-    "authenticating": "Autenticando..."
+    "authenticating": "Autenticando...",
+    "sessionExpiredTitle": "Sesión expirada",
+    "sessionExpiredMessage": "Tu sesión ha expirado. Por favor, inicia sesión nuevamente para continuar.",
+    "sessionExpiredAction": "Iniciar sesión nuevamente"
   },
   "dashboard": {
     "title": "Panel",

@@ -5,13 +5,19 @@ import { BrowserRouter, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './lib/i18n';
 import App from './App';
+import SessionExpiredDialog from './components/SessionExpiredDialog';
+import { SessionExpiredError } from './lib/session';
 import './index.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 1,
+      retry: (failureCount, error) =>
+        !(error instanceof SessionExpiredError) && failureCount < 1,
+    },
+    mutations: {
+      retry: false,
     },
   },
 });
@@ -48,6 +54,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <Auth0ProviderWithNavigate>
         <QueryClientProvider client={queryClient}>
           <App />
+          <SessionExpiredDialog />
         </QueryClientProvider>
       </Auth0ProviderWithNavigate>
     </BrowserRouter>
