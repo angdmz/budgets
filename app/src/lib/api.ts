@@ -1,26 +1,61 @@
 import axios from 'axios';
+import { notifySessionExpired, SessionExpiredError } from './session';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+
+const AUTH_ERROR_CODES = [
+  'login_required',
+  'consent_required',
+  'interaction_required',
+  'invalid_grant',
+  'missing_refresh_token',
+];
 
 type GetAccessTokenSilently = (options?: object) => Promise<string>;
 
 export async function createApiClient(getAccessTokenSilently: GetAccessTokenSilently) {
-  const token = await getAccessTokenSilently({
-    authorizationParams: {
-      audience: import.meta.env.VITE_AUTH0_AUDIENCE,
-    },
-  });
+  let token: string;
+  try {
+    token = await getAccessTokenSilently({
+      authorizationParams: {
+        audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+      },
+    });
+  } catch (error: any) {
+    if (
+      AUTH_ERROR_CODES.includes(error?.error) ||
+      error?.name === 'MissingRefreshTokenError'
+    ) {
+      notifySessionExpired();
+      throw new SessionExpiredError();
+    }
+    throw error;
+  }
 
-  return axios.create({
+  const client = axios.create({
     baseURL: API_BASE_URL,
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
   });
+
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        notifySessionExpired();
+        return Promise.reject(new SessionExpiredError());
+      }
+      return Promise.reject(error);
+    }
+  );
+
+  return client;
 }
 
 export function getErrorMessage(error: unknown): string | undefined {
+  if (error instanceof SessionExpiredError) return undefined;
   if (axios.isAxiosError(error)) {
     return error.response?.data?.message;
   }

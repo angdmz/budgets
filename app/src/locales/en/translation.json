@@ -27,7 +27,10 @@
     "expected": "Expected"
   },
   "auth": {
-    "authenticating": "Authenticating..."
+    "authenticating": "Authenticating...",
+    "sessionExpiredTitle": "Session expired",
+    "sessionExpiredMessage": "Your session has expired. Please sign in again to continue.",
+    "sessionExpiredAction": "Sign in again"
   },
   "dashboard": {
     "title": "Dashboard",
