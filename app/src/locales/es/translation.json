@@ -47,6 +47,7 @@
     "subtitle": "Administre sus grupos de presupuestos",
     "addGroup": "Agregar Grupo",
     "createGroup": "Crear Grupo",
+    "deleteGroup": "Eliminar Grupo",
     "invite": "Invitar",
     "inviteToGroup": "Invitar al Grupo",
     "inviteSubtitle": "Genere un enlace para invitar a alguien a unirse a este grupo.",
@@ -63,6 +64,9 @@
     "loadingBudgets": "Cargando presupuestos...",
     "noBudgets": "No se encontraron presupuestos para este grupo.",
     "createError": "Error al crear el grupo. Por favor, inténtelo de nuevo.",
+    "deleteError": "Error al eliminar el grupo. Por favor, inténtelo de nuevo.",
+    "inviteError": "Error al generar el enlace de invitación. Por favor, inténtelo de nuevo.",
+    "revokeError": "Error al revocar la invitación. Por favor, inténtelo de nuevo.",
     "created": "Creado",
     "period": "Período"
   },
@@ -75,7 +79,10 @@
     "deleteBudget": "Eliminar Presupuesto",
     "startDate": "Fecha de Inicio",
     "endDate": "Fecha de Fin",
-    "period": "Período"
+    "period": "Período",
+    "createError": "Error al crear el presupuesto. Por favor, inténtelo de nuevo.",
+    "updateError": "Error al actualizar el presupuesto. Por favor, inténtelo de nuevo.",
+    "deleteError": "Error al eliminar el presupuesto. Por favor, inténtelo de nuevo."
   },
   "categories": {
     "title": "Categorías",
@@ -88,7 +95,11 @@
     "noDescription": "Sin descripción",
     "selectCategory": "Seleccionar categoría",
     "searchCategories": "Buscar categorías...",
-    "noCategories": "No se encontraron categorías"
+    "noCategories": "No se encontraron categorías",
+    "categoryRequired": "Por favor, seleccione una categoría.",
+    "createError": "Error al crear la categoría. Por favor, inténtelo de nuevo.",
+    "updateError": "Error al actualizar la categoría. Por favor, inténtelo de nuevo.",
+    "deleteError": "Error al eliminar la categoría. Por favor, inténtelo de nuevo."
   },
   "expenses": {
     "title": "Gastos",
@@ -99,7 +110,10 @@
     "date": "Fecha",
     "amount": "Monto",
     "currency": "Moneda",
-    "category": "Categoría"
+    "category": "Categoría",
+    "createError": "Error al crear el gasto. Por favor, inténtelo de nuevo.",
+    "updateError": "Error al actualizar el gasto. Por favor, inténtelo de nuevo.",
+    "deleteError": "Error al eliminar el gasto. Por favor, inténtelo de nuevo."
   },
   "expectedExpenses": {
     "title": "Gastos Esperados",
@@ -109,7 +123,10 @@
     "deleteExpectedExpense": "Eliminar Gasto Esperado",
     "amount": "Monto",
     "currency": "Moneda",
-    "category": "Categoría"
+    "category": "Categoría",
+    "createError": "Error al crear el gasto esperado. Por favor, inténtelo de nuevo.",
+    "updateError": "Error al actualizar el gasto esperado. Por favor, inténtelo de nuevo.",
+    "deleteError": "Error al eliminar el gasto esperado. Por favor, inténtelo de nuevo."
   },
   "invitation": {
     "loading": "Cargando invitación...",

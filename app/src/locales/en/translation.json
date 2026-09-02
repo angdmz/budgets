@@ -47,6 +47,7 @@
     "subtitle": "Manage your budgeting groups",
     "addGroup": "Add Group",
     "createGroup": "Create Group",
+    "deleteGroup": "Delete Group",
     "invite": "Invite",
     "inviteToGroup": "Invite to Group",
     "inviteSubtitle": "Generate a link to invite someone to join this group.",
@@ -63,6 +64,9 @@
     "loadingBudgets": "Loading budgets...",
     "noBudgets": "No budgets found for this group.",
     "createError": "Failed to create group. Please try again.",
+    "deleteError": "Failed to delete group. Please try again.",
+    "inviteError": "Failed to generate invite link. Please try again.",
+    "revokeError": "Failed to revoke invitation. Please try again.",
     "created": "Created",
     "period": "Period"
   },
@@ -75,7 +79,10 @@
     "deleteBudget": "Delete Budget",
     "startDate": "Start Date",
     "endDate": "End Date",
-    "period": "Period"
+    "period": "Period",
+    "createError": "Failed to create budget. Please try again.",
+    "updateError": "Failed to update budget. Please try again.",
+    "deleteError": "Failed to delete budget. Please try again."
   },
   "categories": {
     "title": "Categories",
@@ -88,7 +95,11 @@
     "noDescription": "No description",
     "selectCategory": "Select category",
     "searchCategories": "Search categories...",
-    "noCategories": "No categories found"
+    "noCategories": "No categories found",
+    "categoryRequired": "Please select a category.",
+    "createError": "Failed to create category. Please try again.",
+    "updateError": "Failed to update category. Please try again.",
+    "deleteError": "Failed to delete category. Please try again."
   },
   "expenses": {
     "title": "Expenses",
@@ -99,7 +110,10 @@
     "date": "Date",
     "amount": "Amount",
     "currency": "Currency",
-    "category": "Category"
+    "category": "Category",
+    "createError": "Failed to create expense. Please try again.",
+    "updateError": "Failed to update expense. Please try again.",
+    "deleteError": "Failed to delete expense. Please try again."
   },
   "expectedExpenses": {
     "title": "Expected Expenses",
@@ -109,7 +123,10 @@
     "deleteExpectedExpense": "Delete Expected Expense",
     "amount": "Amount",
     "currency": "Currency",
-    "category": "Category"
+    "category": "Category",
+    "createError": "Failed to create expected expense. Please try again.",
+    "updateError": "Failed to update expected expense. Please try again.",
+    "deleteError": "Failed to delete expected expense. Please try again."
   },
   "invitation": {
     "loading": "Loading invitation...",

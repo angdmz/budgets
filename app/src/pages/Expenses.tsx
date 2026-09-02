@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
-import { createApiClient } from '../lib/api';
+import { createApiClient, getErrorMessage } from '../lib/api';
 import { formatDate, formatCurrency } from '../lib/format';
 import type { ActualExpense, Budget, Group, Category, CreateActualExpenseRequest, UpdateActualExpenseRequest } from '../lib/types';
 import CategoryCombobox from '../components/CategoryCombobox';
@@ -24,6 +24,7 @@ export default function Expenses() {
   });
   const [editingExpense, setEditingExpense] = useState<ActualExpense | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<ActualExpense | null>(null);
+  const [categoryError, setCategoryError] = useState(false);
 
   const { data: groups } = useQuery({
     queryKey: ['groups'],
@@ -109,6 +110,11 @@ export default function Expenses() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.category_id) {
+      setCategoryError(true);
+      return;
+    }
+    setCategoryError(false);
     createMutation.mutate(formData);
   };
 
@@ -296,17 +302,28 @@ export default function Expenses() {
                   <CategoryCombobox
                     groupId={selectedGroupId}
                     value={formData.category_id}
-                    onChange={(categoryId) => setFormData(prev => ({ ...prev, category_id: categoryId }))}
+                    onChange={(categoryId) => { setFormData(prev => ({ ...prev, category_id: categoryId })); setCategoryError(false); }}
                     getAccessTokenSilently={getAccessTokenSilently}
                   />
+                  {categoryError && (
+                    <p className="mt-1 text-sm text-red-600">{t('categories.categoryRequired')}</p>
+                  )}
                 </div>
               </div>
+              {createMutation.isError && (
+                <p className="mt-2 text-sm text-red-600">
+                  {t('expenses.createError')}
+                  {getErrorMessage(createMutation.error) && (
+                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(createMutation.error)}</span>
+                  )}
+                </p>
+              )}
               <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                <button type="button" onClick={() => { setIsModalOpen(false); createMutation.reset(); }} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                   {t('common.cancel')}
                 </button>
-                <button type="submit" className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">
-                  {t('common.create')}
+                <button type="submit" disabled={createMutation.isPending} className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50">
+                  {createMutation.isPending ? `${t('common.create')}...` : t('common.create')}
                 </button>
               </div>
             </form>
@@ -369,12 +386,20 @@ export default function Expenses() {
                   />
                 </div>
               </div>
+              {updateMutation.isError && (
+                <p className="mt-2 text-sm text-red-600">
+                  {t('expenses.updateError')}
+                  {getErrorMessage(updateMutation.error) && (
+                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(updateMutation.error)}</span>
+                  )}
+                </p>
+              )}
               <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => setEditingExpense(null)} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                <button type="button" onClick={() => { setEditingExpense(null); updateMutation.reset(); }} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                   {t('common.cancel')}
                 </button>
-                <button type="submit" className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">
-                  {t('common.update')}
+                <button type="submit" disabled={updateMutation.isPending} className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50">
+                  {updateMutation.isPending ? `${t('common.update')}...` : t('common.update')}
                 </button>
               </div>
             </form>
@@ -389,19 +414,28 @@ export default function Expenses() {
             <p className="text-sm text-gray-500 mb-4">
               {t('common.deleteConfirm', { name: deletingExpense.name }).replace(/\*\*/g, '')}
             </p>
+            {deleteMutation.isError && (
+              <p className="mb-4 text-sm text-red-600">
+                {t('expenses.deleteError')}
+                {getErrorMessage(deleteMutation.error) && (
+                  <span className="block text-xs mt-1 opacity-75">{getErrorMessage(deleteMutation.error)}</span>
+                )}
+              </p>
+            )}
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => setDeletingExpense(null)}
+                onClick={() => { setDeletingExpense(null); deleteMutation.reset(); }}
                 className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={handleDelete}
-                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+                disabled={deleteMutation.isPending}
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50"
               >
-                {t('common.delete')}
+                {deleteMutation.isPending ? `${t('common.delete')}...` : t('common.delete')}
               </button>
             </div>
           </div>

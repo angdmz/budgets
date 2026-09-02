@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
-import { createApiClient } from '../lib/api';
+import { createApiClient, getErrorMessage } from '../lib/api';
 import { formatDate } from '../lib/format';
 import type { Budget, Group, CreateBudgetRequest, UpdateBudgetRequest } from '../lib/types';
 
@@ -220,19 +220,28 @@ export default function Budgets() {
                   />
                 </div>
               </div>
+              {createMutation.isError && (
+                <p className="mt-2 text-sm text-red-600">
+                  {t('budgets.createError')}
+                  {getErrorMessage(createMutation.error) && (
+                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(createMutation.error)}</span>
+                  )}
+                </p>
+              )}
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => { setIsModalOpen(false); createMutation.reset(); }}
                   className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
+                  disabled={createMutation.isPending}
+                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
                 >
-                  {t('common.create')}
+                  {createMutation.isPending ? `${t('common.create')}...` : t('common.create')}
                 </button>
               </div>
             </form>
@@ -277,19 +286,28 @@ export default function Budgets() {
                   />
                 </div>
               </div>
+              {updateMutation.isError && (
+                <p className="mt-2 text-sm text-red-600">
+                  {t('budgets.updateError')}
+                  {getErrorMessage(updateMutation.error) && (
+                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(updateMutation.error)}</span>
+                  )}
+                </p>
+              )}
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => setEditingBudget(null)}
+                  onClick={() => { setEditingBudget(null); updateMutation.reset(); }}
                   className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
+                  disabled={updateMutation.isPending}
+                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
                 >
-                  {t('common.update')}
+                  {updateMutation.isPending ? `${t('common.update')}...` : t('common.update')}
                 </button>
               </div>
             </form>
@@ -304,19 +322,28 @@ export default function Budgets() {
             <p className="text-sm text-gray-500 mb-4">
               {t('common.deleteConfirm', { name: deletingBudget.name }).replace(/\*\*/g, '')}
             </p>
+            {deleteMutation.isError && (
+              <p className="mb-4 text-sm text-red-600">
+                {t('budgets.deleteError')}
+                {getErrorMessage(deleteMutation.error) && (
+                  <span className="block text-xs mt-1 opacity-75">{getErrorMessage(deleteMutation.error)}</span>
+                )}
+              </p>
+            )}
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => setDeletingBudget(null)}
+                onClick={() => { setDeletingBudget(null); deleteMutation.reset(); }}
                 className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={handleDelete}
-                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500"
+                disabled={deleteMutation.isPending}
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50"
               >
-                {t('common.delete')}
+                {deleteMutation.isPending ? `${t('common.delete')}...` : t('common.delete')}
               </button>
             </div>
           </div>

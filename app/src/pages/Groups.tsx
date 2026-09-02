@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
-import { createApiClient } from '../lib/api';
+import { createApiClient, getErrorMessage } from '../lib/api';
 import { formatDate } from '../lib/format';
 import type { Budget, Group, CreateGroupRequest, Invitation } from '../lib/types';
 
@@ -16,6 +16,7 @@ export default function Groups() {
   const [inviteModalGroupId, setInviteModalGroupId] = useState<string | null>(null);
   const [createdInviteLink, setCreatedInviteLink] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState<Group | null>(null);
 
   const { data: groups, isLoading } = useQuery({
     queryKey: ['groups'],
@@ -113,6 +114,7 @@ export default function Groups() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups'] });
+      setDeletingGroup(null);
     },
   });
 
@@ -185,7 +187,7 @@ export default function Groups() {
                           {t('groups.invite')}
                         </button>
                         <button
-                          onClick={() => deleteMutation.mutate(group.id)}
+                          onClick={() => { setDeletingGroup(group); deleteMutation.reset(); }}
                           className="text-red-600 hover:text-red-900"
                         >
                           {t('common.delete')}
@@ -261,13 +263,23 @@ export default function Groups() {
             <p className="text-sm text-gray-600 mb-4">{t('groups.inviteSubtitle')}</p>
 
             {!createdInviteLink ? (
-              <button
-                onClick={() => createInvitationMutation.mutate(inviteModalGroupId)}
-                disabled={createInvitationMutation.isPending}
-                className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
-              >
-                {createInvitationMutation.isPending ? t('groups.generating') : t('groups.generateLink')}
-              </button>
+              <div>
+                <button
+                  onClick={() => createInvitationMutation.mutate(inviteModalGroupId)}
+                  disabled={createInvitationMutation.isPending}
+                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
+                >
+                  {createInvitationMutation.isPending ? t('groups.generating') : t('groups.generateLink')}
+                </button>
+                {createInvitationMutation.isError && (
+                  <p className="mt-2 text-sm text-red-600">
+                    {t('groups.inviteError')}
+                    {getErrorMessage(createInvitationMutation.error) && (
+                      <span className="block text-xs mt-1 opacity-75">{getErrorMessage(createInvitationMutation.error)}</span>
+                    )}
+                  </p>
+                )}
+              </div>
             ) : (
               <div>
                 <p className="text-sm font-medium text-gray-700 mb-2">{t('groups.shareLinkLabel')}</p>
@@ -308,13 +320,18 @@ export default function Groups() {
                         </span>
                       </div>
                       {inv.status === 'pending' && (
-                        <button
-                          onClick={() => revokeInvitationMutation.mutate(inv.id)}
-                          disabled={revokeInvitationMutation.isPending}
-                          className="text-red-600 hover:text-red-900 text-xs font-medium disabled:opacity-50"
-                        >
-                          {t('groups.revoke')}
-                        </button>
+                        <div className="flex flex-col items-end gap-1">
+                          <button
+                            onClick={() => revokeInvitationMutation.mutate(inv.id)}
+                            disabled={revokeInvitationMutation.isPending}
+                            className="text-red-600 hover:text-red-900 text-xs font-medium disabled:opacity-50"
+                          >
+                            {t('groups.revoke')}
+                          </button>
+                          {revokeInvitationMutation.isError && revokeInvitationMutation.variables === inv.id && (
+                            <span className="text-xs text-red-600">{t('groups.revokeError')}</span>
+                          )}
+                        </div>
                       )}
                     </div>
                   ))}
@@ -328,6 +345,42 @@ export default function Groups() {
                 className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
               >
                 {t('common.close')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingGroup && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">{t('groups.deleteGroup')}</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              {t('common.deleteConfirm', { name: deletingGroup.name }).replace(/\*\*/g, '')}
+            </p>
+            {deleteMutation.isError && (
+              <p className="mb-4 text-sm text-red-600">
+                {t('groups.deleteError')}
+                {getErrorMessage(deleteMutation.error) && (
+                  <span className="block text-xs mt-1 opacity-75">{getErrorMessage(deleteMutation.error)}</span>
+                )}
+              </p>
+            )}
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => { setDeletingGroup(null); deleteMutation.reset(); }}
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(deletingGroup.id)}
+                disabled={deleteMutation.isPending}
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? `${t('common.delete')}...` : t('common.delete')}
               </button>
             </div>
           </div>
@@ -364,8 +417,8 @@ export default function Groups() {
               {createMutation.isError && (
                 <p className="mt-2 text-sm text-red-600">
                   {t('groups.createError')}
-                  {createMutation.error instanceof Error && (
-                    <span className="block text-xs mt-1 opacity-75">{createMutation.error.message}</span>
+                  {getErrorMessage(createMutation.error) && (
+                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(createMutation.error)}</span>
                   )}
                 </p>
               )}

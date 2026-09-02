@@ -60,7 +60,7 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
             <span>{selectedCategory.name}</span>
           </div>
         ) : (
-          <span className="text-gray-400">{t('categories.selectCategory')}</span>
+          <span className="text-gray-500">{t('categories.selectCategory')}</span>
         )}
       </button>
 
