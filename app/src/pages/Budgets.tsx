@@ -1,14 +1,21 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
 import { createApiClient, getErrorMessage } from '../lib/api';
 import { formatDate } from '../lib/format';
 import type { Budget, Group, CreateBudgetRequest, UpdateBudgetRequest } from '../lib/types';
+import type { BudgetPeriodType, MonthOption } from '../lib/budgetPeriod';
+import PeriodTypeFields from '../components/PeriodTypeFields';
+import MonthPicker from '../components/MonthPicker';
+import { useBudgetService } from '../hooks/useBudgetService';
+import type { CreateRecurringProgress, CreateBudgetsForMonthsProgress } from '../lib/services/budgetService';
 
 export default function Budgets() {
+  const navigate = useNavigate();
   const { getAccessTokenSilently } = useAuth0();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
@@ -18,8 +25,27 @@ export default function Budgets() {
     start_date: '',
     end_date: '',
   });
+  const [periodType, setPeriodType] = useState<BudgetPeriodType>('custom');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [numberOfPeriods, setNumberOfPeriods] = useState(3);
+  const [recurringProgress, setRecurringProgress] = useState<CreateRecurringProgress | null>(null);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [deletingBudget, setDeletingBudget] = useState<Budget | null>(null);
+  const [duplicatingBudget, setDuplicatingBudget] = useState<Budget | null>(null);
+  const [duplicateFormData, setDuplicateFormData] = useState<CreateBudgetRequest>({
+    name: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+  });
+  const [duplicatePeriodType, setDuplicatePeriodType] = useState<BudgetPeriodType>('custom');
+  const [duplicateCopyExpenses, setDuplicateCopyExpenses] = useState(true);
+  const [duplicateIsRecurring, setDuplicateIsRecurring] = useState(false);
+  const [duplicateNumberOfPeriods, setDuplicateNumberOfPeriods] = useState(3);
+  const [duplicateSelectedMonths, setDuplicateSelectedMonths] = useState<MonthOption[]>([]);
+  const [monthsProgress, setMonthsProgress] = useState<CreateBudgetsForMonthsProgress | null>(null);
+
+  const { duplicateBudget, createRecurringBudgets, createBudgetsForMonths } = useBudgetService();
 
   const { data: groups } = useQuery({
     queryKey: ['groups'],
@@ -48,10 +74,35 @@ export default function Budgets() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
-      setIsModalOpen(false);
-      setFormData({ name: '', description: '', start_date: '', end_date: '' });
+      closeCreateModal();
     },
   });
+
+  const closeCreateModal = () => {
+    setIsModalOpen(false);
+    setFormData({ name: '', description: '', start_date: '', end_date: '' });
+    setPeriodType('custom');
+    setIsRecurring(false);
+    setNumberOfPeriods(3);
+    setRecurringProgress(null);
+    createMutation.reset();
+    createRecurringBudgets.reset();
+  };
+
+  const closeDuplicateModal = () => {
+    setDuplicatingBudget(null);
+    setDuplicateFormData({ name: '', description: '', start_date: '', end_date: '' });
+    setDuplicatePeriodType('custom');
+    setDuplicateCopyExpenses(true);
+    setDuplicateIsRecurring(false);
+    setDuplicateNumberOfPeriods(3);
+    setDuplicateSelectedMonths([]);
+    setRecurringProgress(null);
+    setMonthsProgress(null);
+    duplicateBudget.reset();
+    createRecurringBudgets.reset();
+    createBudgetsForMonths.reset();
+  };
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateBudgetRequest }) => {
@@ -77,11 +128,99 @@ export default function Budgets() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isRecurring && periodType !== 'custom') {
+      createRecurringBudgets.mutate(
+        {
+          options: {
+            groupId: selectedGroupId,
+            baseName: formData.name,
+            description: formData.description,
+            periodType,
+            firstStartDate: formData.start_date,
+            firstEndDate: formData.end_date,
+            numberOfPeriods,
+            copyExpectedExpenses: false,
+          },
+          onProgress: setRecurringProgress,
+        },
+        { onSuccess: closeCreateModal }
+      );
+      return;
+    }
     createMutation.mutate(formData);
   };
 
   const handleEdit = (budget: Budget) => {
     setEditingBudget(budget);
+  };
+
+  const handleDuplicateClick = (budget: Budget) => {
+    setDuplicatingBudget(budget);
+    setDuplicateFormData({
+      name: `${budget.name} (Copy)`,
+      description: budget.description,
+      start_date: budget.start_date,
+      end_date: budget.end_date,
+    });
+    setDuplicateSelectedMonths([]);
+  };
+
+  const handleDuplicateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!duplicatingBudget) return;
+
+    if (duplicateIsRecurring && duplicatePeriodType === 'monthly') {
+      createBudgetsForMonths.mutate(
+        {
+          options: {
+            groupId: selectedGroupId,
+            baseName: duplicateFormData.name,
+            description: duplicateFormData.description,
+            months: duplicateSelectedMonths,
+            sourceBudgetId: duplicatingBudget.id,
+            copyExpectedExpenses: duplicateCopyExpenses,
+            locale: i18n.language,
+          },
+          onProgress: setMonthsProgress,
+        },
+        { onSuccess: closeDuplicateModal }
+      );
+      return;
+    }
+
+    if (duplicateIsRecurring && duplicatePeriodType !== 'custom') {
+      createRecurringBudgets.mutate(
+        {
+          options: {
+            groupId: selectedGroupId,
+            baseName: duplicateFormData.name,
+            description: duplicateFormData.description,
+            periodType: duplicatePeriodType,
+            firstStartDate: duplicateFormData.start_date,
+            firstEndDate: duplicateFormData.end_date,
+            numberOfPeriods: duplicateNumberOfPeriods,
+            sourceBudgetId: duplicatingBudget.id,
+            copyExpectedExpenses: duplicateCopyExpenses,
+          },
+          onProgress: setRecurringProgress,
+        },
+        { onSuccess: closeDuplicateModal }
+      );
+      return;
+    }
+
+    duplicateBudget.mutate(
+      {
+        sourceBudgetId: duplicatingBudget.id,
+        groupId: selectedGroupId,
+        name: duplicateFormData.name,
+        description: duplicateFormData.description,
+        startDate: duplicateFormData.start_date,
+        endDate: duplicateFormData.end_date,
+        copyExpectedExpenses: duplicateCopyExpenses,
+      },
+      { onSuccess: closeDuplicateModal }
+    );
   };
 
   const handleUpdate = (e: React.FormEvent) => {
@@ -110,11 +249,18 @@ export default function Budgets() {
           <h1 className="text-2xl font-semibold text-gray-900">{t('budgets.title')}</h1>
           <p className="mt-2 text-sm text-gray-700">{t('budgets.subtitle')}</p>
         </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex gap-2">
+          <button
+            onClick={() => navigate('/budgets/new')}
+            disabled={!selectedGroupId}
+            className="block rounded-md bg-primary-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
+          >
+            {t('budgetPlan.createPlan')}
+          </button>
           <button
             onClick={() => setIsModalOpen(true)}
             disabled={!selectedGroupId}
-            className="block rounded-md bg-primary-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
+            className="block rounded-md bg-white px-3 py-2 text-center text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
           >
             {t('budgets.addBudget')}
           </button>
@@ -155,7 +301,9 @@ export default function Budgets() {
                 {budgets?.map((budget) => (
                   <tr key={budget.id}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      {budget.name}
+                      <button onClick={() => navigate(`/budgets/${budget.id}`)} className="text-left hover:text-primary-600">
+                        {budget.name}
+                      </button>
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       {formatDate(budget.start_date)} - {formatDate(budget.end_date)}
@@ -167,6 +315,12 @@ export default function Budgets() {
                         className="text-blue-600 hover:text-blue-900 mr-4"
                       >
                         {t('common.edit')}
+                      </button>
+                      <button
+                        onClick={() => handleDuplicateClick(budget)}
+                        className="text-primary-600 hover:text-primary-900 mr-4"
+                      >
+                        {t('budgets.duplicate')}
                       </button>
                       <button
                         onClick={() => setDeletingBudget(budget)}
@@ -199,26 +353,39 @@ export default function Budgets() {
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('budgets.startDate')}</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('budgets.endDate')}</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.end_date}
-                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  />
-                </div>
+                <PeriodTypeFields
+                  periodType={periodType}
+                  onPeriodTypeChange={setPeriodType}
+                  startDate={formData.start_date}
+                  endDate={formData.end_date}
+                  onDatesChange={(start_date, end_date) => setFormData({ ...formData, start_date, end_date })}
+                />
+                {periodType !== 'custom' && (
+                  <div>
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={isRecurring}
+                        onChange={(e) => setIsRecurring(e.target.checked)}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      {t('budgets.createRecurring')}
+                    </label>
+                    {isRecurring && (
+                      <div className="mt-2">
+                        <label className="block text-sm font-medium text-gray-700">{t('budgets.numberOfPeriods')}</label>
+                        <input
+                          type="number"
+                          min={2}
+                          max={24}
+                          value={numberOfPeriods}
+                          onChange={(e) => setNumberOfPeriods(Number(e.target.value))}
+                          className="mt-1 block w-24 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               {createMutation.isError && (
                 <p className="mt-2 text-sm text-red-600">
@@ -228,20 +395,38 @@ export default function Budgets() {
                   )}
                 </p>
               )}
+              {createRecurringBudgets.isError && (
+                <p className="mt-2 text-sm text-red-600">
+                  {t('budgets.createError')}
+                  {getErrorMessage(createRecurringBudgets.error) && (
+                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(createRecurringBudgets.error)}</span>
+                  )}
+                </p>
+              )}
+              {recurringProgress && createRecurringBudgets.isPending && (
+                <p className="mt-2 text-sm text-gray-600">
+                  {t('budgets.recurringProgress', {
+                    current: recurringProgress.currentPeriod,
+                    total: recurringProgress.totalPeriods,
+                  })}
+                </p>
+              )}
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => { setIsModalOpen(false); createMutation.reset(); }}
+                  onClick={closeCreateModal}
                   className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
-                  disabled={createMutation.isPending}
+                  disabled={createMutation.isPending || createRecurringBudgets.isPending}
                   className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
                 >
-                  {createMutation.isPending ? `${t('common.create')}...` : t('common.create')}
+                  {createMutation.isPending || createRecurringBudgets.isPending
+                    ? `${t('common.create')}...`
+                    : t('common.create')}
                 </button>
               </div>
             </form>
@@ -308,6 +493,153 @@ export default function Budgets() {
                   className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
                 >
                   {updateMutation.isPending ? `${t('common.update')}...` : t('common.update')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {duplicatingBudget && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">{t('budgets.duplicateBudget')}</h2>
+            <form onSubmit={handleDuplicateSubmit}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
+                  <input
+                    type="text"
+                    required
+                    value={duplicateFormData.name}
+                    onChange={(e) => setDuplicateFormData({ ...duplicateFormData, name: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  />
+                </div>
+                <PeriodTypeFields
+                  periodType={duplicatePeriodType}
+                  onPeriodTypeChange={setDuplicatePeriodType}
+                  startDate={duplicateFormData.start_date}
+                  endDate={duplicateFormData.end_date}
+                  onDatesChange={(start_date, end_date) =>
+                    setDuplicateFormData({ ...duplicateFormData, start_date, end_date })
+                  }
+                />
+                <div>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={duplicateCopyExpenses}
+                      onChange={(e) => setDuplicateCopyExpenses(e.target.checked)}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    {t('budgets.copyExpectedExpenses')}
+                  </label>
+                </div>
+                {duplicatePeriodType !== 'custom' && (
+                  <div>
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={duplicateIsRecurring}
+                        onChange={(e) => setDuplicateIsRecurring(e.target.checked)}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      {t('budgets.createRecurring')}
+                    </label>
+                    {duplicateIsRecurring && duplicatePeriodType === 'monthly' && (
+                      <div className="mt-2">
+                        <MonthPicker
+                          year={
+                            duplicateFormData.start_date
+                              ? new Date(`${duplicateFormData.start_date}T00:00:00`).getFullYear()
+                              : new Date().getFullYear()
+                          }
+                          selectedMonths={duplicateSelectedMonths}
+                          onChange={setDuplicateSelectedMonths}
+                          referenceDate={
+                            duplicateFormData.start_date ? new Date(`${duplicateFormData.start_date}T00:00:00`) : undefined
+                          }
+                        />
+                      </div>
+                    )}
+                    {duplicateIsRecurring && duplicatePeriodType !== 'monthly' && (
+                      <div className="mt-2">
+                        <label className="block text-sm font-medium text-gray-700">{t('budgets.numberOfPeriods')}</label>
+                        <input
+                          type="number"
+                          min={2}
+                          max={24}
+                          value={duplicateNumberOfPeriods}
+                          onChange={(e) => setDuplicateNumberOfPeriods(Number(e.target.value))}
+                          className="mt-1 block w-24 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {duplicateBudget.isError && (
+                <p className="mt-2 text-sm text-red-600">
+                  {t('budgets.duplicateError')}
+                  {getErrorMessage(duplicateBudget.error) && (
+                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(duplicateBudget.error)}</span>
+                  )}
+                </p>
+              )}
+              {createRecurringBudgets.isError && (
+                <p className="mt-2 text-sm text-red-600">
+                  {t('budgets.duplicateError')}
+                  {getErrorMessage(createRecurringBudgets.error) && (
+                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(createRecurringBudgets.error)}</span>
+                  )}
+                </p>
+              )}
+              {createBudgetsForMonths.isError && (
+                <p className="mt-2 text-sm text-red-600">
+                  {t('budgets.duplicateError')}
+                  {getErrorMessage(createBudgetsForMonths.error) && (
+                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(createBudgetsForMonths.error)}</span>
+                  )}
+                </p>
+              )}
+              {recurringProgress && createRecurringBudgets.isPending && (
+                <p className="mt-2 text-sm text-gray-600">
+                  {t('budgets.recurringProgress', {
+                    current: recurringProgress.currentPeriod,
+                    total: recurringProgress.totalPeriods,
+                  })}
+                </p>
+              )}
+              {monthsProgress && createBudgetsForMonths.isPending && (
+                <p className="mt-2 text-sm text-gray-600">
+                  {t('budgets.recurringProgress', {
+                    current: monthsProgress.currentIndex,
+                    total: monthsProgress.totalMonths,
+                  })}
+                </p>
+              )}
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={closeDuplicateModal}
+                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    duplicateBudget.isPending ||
+                    createRecurringBudgets.isPending ||
+                    createBudgetsForMonths.isPending ||
+                    (duplicateIsRecurring && duplicatePeriodType === 'monthly' && duplicateSelectedMonths.length === 0)
+                  }
+                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
+                >
+                  {duplicateBudget.isPending || createRecurringBudgets.isPending || createBudgetsForMonths.isPending
+                    ? `${t('budgets.duplicate')}...`
+                    : t('budgets.duplicate')}
                 </button>
               </div>
             </form>
