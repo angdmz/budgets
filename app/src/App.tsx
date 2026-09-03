@@ -6,6 +6,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import Groups from './pages/Groups';
 import Budgets from './pages/Budgets';
+import CreateBudgetPlan from './pages/CreateBudgetPlan';
+import BudgetDetail from './pages/BudgetDetail';
 import Categories from './pages/Categories';
 import Expenses from './pages/Expenses';
 import ExpectedExpenses from './pages/ExpectedExpenses';
@@ -34,6 +36,8 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/budgets" element={<Budgets />} />
+          <Route path="/budgets/new" element={<CreateBudgetPlan />} />
+          <Route path="/budgets/:budgetId" element={<BudgetDetail />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/expected-expenses" element={<ExpectedExpenses />} />
