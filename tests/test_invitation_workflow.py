@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from conftest import dismiss_onboarding
 
 
 class TestInvitationWorkflow:
@@ -105,6 +106,7 @@ class TestInvitationWorkflow:
             )
         except TimeoutException:
             pytest.fail("Authenticated app layout did not appear after login.")
+        dismiss_onboarding(driver, base_url)
 
     def _go_to_groups(self, driver, base_url):
         """Navigate to Groups via the nav link."""

@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from conftest import dismiss_onboarding
 
 
 class TestThemePreference:
@@ -81,6 +82,7 @@ class TestThemePreference:
                 f"Page text snippet: {page_text}"
             )
         print("\n  ✓ Logged in")
+        dismiss_onboarding(driver, base_url)
 
     # Maps a Theme value to the aria-label used on its icon button.
     THEME_ARIA_LABELS = {

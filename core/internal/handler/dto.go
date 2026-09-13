@@ -211,3 +211,24 @@ type CurrencyResponse struct {
 	Code string `json:"code"`
 	Name string `json:"name"`
 }
+
+type CompleteStepRequest struct {
+	Data interface{} `json:"data"`
+}
+
+type OnboardingResponse struct {
+	ID          uuid.UUID               `json:"id"`
+	Status      string                  `json:"status"`
+	CurrentStep string                  `json:"current_step"`
+	Steps       []OnboardingStepResponse `json:"steps"`
+	CreatedAt   time.Time               `json:"created_at"`
+	UpdatedAt   time.Time               `json:"updated_at"`
+}
+
+type OnboardingStepResponse struct {
+	Step      string      `json:"step"`
+	Status    string      `json:"status"`
+	Data      interface{} `json:"data,omitempty"`
+	CreatedAt time.Time   `json:"created_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
+}

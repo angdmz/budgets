@@ -167,6 +167,8 @@
     "noDescription": "Sin descripción",
     "selectCategory": "Seleccionar categoría",
     "searchCategories": "Buscar categorías...",
+    "searchOrCreate": "Buscar o crear categoría...",
+    "typeToCreate": "Escribí un nombre para crear una categoría",
     "noCategories": "No se encontraron categorías",
     "categoryRequired": "Por favor, seleccione una categoría.",
     "createError": "Error al crear la categoría. Por favor, inténtelo de nuevo.",
@@ -222,5 +224,68 @@
     "errorAlreadyMember": "Ya es miembro de este grupo.",
     "errorExpiredOrRevoked": "Esta invitación ha caducado o ha sido revocada.",
     "errorAcceptFailed": "Error al aceptar la invitación. Por favor, inténtelo de nuevo."
+  },
+  "onboarding": {
+    "title": "Bienvenido a MiPlatita",
+    "skip": "Saltar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "start": "Comenzar",
+    "welcome": {
+      "title": "¡Bienvenido!",
+      "description": "Vamos a configurar tu primer período de gastos. Aprenderás a usar la app haciéndolo, paso a paso.",
+      "bullet1": "Primero, elegí qué querés organizar (un grupo).",
+      "bullet2": "Después, definí tus gastos esperados y registrá un gasto real.",
+      "bullet3": "Finalmente, compará lo que planeaste con lo que gastaste."
+    },
+    "chooseGroup": {
+      "title": "¿Qué querés organizar?",
+      "description": "Un grupo es donde viven tus presupuestos. Podés crear uno nuevo o elegir uno existente.",
+      "existing": "Grupo existente",
+      "createNew": "O crear uno nuevo",
+      "namePlaceholder": "ej. Gastos personales, Familia, etc."
+    },
+    "chooseCadence": {
+      "title": "Elegí la cadencia",
+      "description": "Cada cuánto querés que se repita tu presupuesto. Podés cambiar esto después."
+    },
+    "addExpectedExpenses": {
+      "title": "Definí tus gastos esperados",
+      "description": "Estimá cuánto planeás gastar en cada categoría. Esto define tu presupuesto.",
+      "add": "Agregar gasto esperado",
+      "needCategory": "Necesitás al menos una categoría para agregar gastos esperados.",
+      "createCategory": "Crear categoría",
+      "categoryName": "Nombre de la categoría"
+    },
+    "budgetSummary": {
+      "title": "Este es tu presupuesto",
+      "description": "El total de tus gastos esperados define tu presupuesto para este período.",
+      "totalExpected": "Total esperado"
+    },
+    "registerActualExpense": {
+      "title": "Registrá un gasto real",
+      "description": "Ahora que tenés tu presupuesto, registrá un gasto real para ver cómo funciona.",
+      "register": "Registrar gasto",
+      "done": "¡Gasto registrado! Ahora vamos a comparar.",
+      "skipActual": "No tengo gastos reales todavía"
+    },
+    "compareExpenses": {
+      "title": "Esperado vs. Real",
+      "description": "Acá podés ver la diferencia entre lo que planeaste y lo que gastaste.",
+      "explanation": "Si gastaste menos de lo esperado, vas a verlo en verde. Si gastaste más, en rojo. Esta es la idea central de MiPlatita.",
+      "noActual": "No registraste gastos reales todavía. ¡No pasa nada! Podés empezar a registrarlos cuando quieras desde el dashboard."
+    },
+    "dashboardTour": {
+      "title": "Conocé el panel",
+      "description": "El panel te muestra el resumen de todos tus presupuestos.",
+      "tip1": "Seleccioná un grupo y un presupuesto para ver el resumen.",
+      "tip2": "El gráfico te muestra esperado vs. real en un vistazo.",
+      "tip3": "La tabla de gastos recientes te muestra lo último que registraste."
+    },
+    "complete": {
+      "title": "¡Listo!",
+      "description": "Completaste el onboarding. Ya sabés cómo usar MiPlatita.",
+      "goToDashboard": "Ir al panel"
+    }
   }
 }

@@ -254,10 +254,65 @@ def driver():
     # Use chromedriver from PATH (installed in Docker)
     driver = webdriver.Chrome(options=chrome_options)
     driver.implicitly_wait(10)
-    
+
     yield driver
-    
+
     driver.quit()
+
+
+def dismiss_onboarding(driver, base_url, timeout=30):
+    """Skip through the onboarding wizard so the user can reach the main app.
+
+    The onboarding gate in Layout.tsx redirects any user with
+    status='in_progress' to /onboarding.  This helper clicks the
+    'Skip' button on each step until the onboarding is completed
+    (or skipped), at which point the gate is cleared.
+
+    Works by:
+    1. Navigating to /app (which may redirect to /onboarding).
+    2. Looping: if a 'Skip' button is visible, click it.
+       If 'Go to dashboard' is visible, click it.
+    3. Exiting once the URL no longer contains /onboarding.
+    """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+
+    driver.get(f"{base_url}/app")
+    time.sleep(2)
+
+    for _ in range(15):
+        if "/onboarding" not in driver.current_url:
+            return
+
+        try:
+            skip_btn = driver.find_element(
+                By.XPATH, "//button[normalize-space()='Skip']"
+            )
+            skip_btn.click()
+            time.sleep(1)
+            continue
+        except Exception:
+            pass
+
+        try:
+            go_btn = driver.find_element(
+                By.XPATH, "//button[normalize-space()='Go to dashboard']"
+            )
+            go_btn.click()
+            time.sleep(2)
+            continue
+        except Exception:
+            pass
+
+        # If on /onboarding but neither button is visible, wait a bit
+        time.sleep(1)
+
+    # Final check: if still on /onboarding, try navigating to /app/dashboard
+    if "/onboarding" in driver.current_url:
+        driver.get(f"{base_url}/app/dashboard")
+        time.sleep(2)
+
 
 @pytest.fixture(scope="function")
 def driver_visible():

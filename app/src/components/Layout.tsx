@@ -1,7 +1,8 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
 import { usePreferences } from '../lib/usePreferences';
+import { useOnboarding } from '../lib/useOnboarding';
 import { SUPPORTED_LANGUAGES } from '../lib/languages';
 
 export default function Layout() {
@@ -9,6 +10,14 @@ export default function Layout() {
   const location = useLocation();
   const { t } = useTranslation();
   const { theme, updateTheme, updateLanguage, currentLanguage } = usePreferences();
+  const { onboarding, isLoading: isOnboardingLoading } = useOnboarding();
+
+  const isOnOnboardingPage = location.pathname === '/onboarding';
+
+  // Redirect to onboarding if onboarding is in progress and user is not on the onboarding page
+  if (!isOnboardingLoading && onboarding && onboarding.status === 'in_progress' && !isOnOnboardingPage) {
+    return <Navigate to="/onboarding" replace />;
+  }
 
   const navigation = [
     { nameKey: 'nav.dashboard', href: '/dashboard' },

@@ -3,6 +3,7 @@ import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
+from conftest import dismiss_onboarding
 
 
 class TestActualExpensesWorkflow:
@@ -50,6 +51,7 @@ class TestActualExpensesWorkflow:
             )
         )
         driver.save_screenshot(f"{screenshots_dir}/ae_logged_in.png")
+        dismiss_onboarding(driver, base_url)
 
     def _nav(self, driver, link_text):
         """Click a top-nav link by its visible text."""

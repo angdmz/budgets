@@ -12,6 +12,7 @@ import Categories from './pages/Categories';
 import Expenses from './pages/Expenses';
 import ExpectedExpenses from './pages/ExpectedExpenses';
 import AcceptInvitation from './pages/AcceptInvitation';
+import Onboarding from './pages/Onboarding';
 
 function App() {
   const { isLoading } = useAuth0();
@@ -33,6 +34,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/budgets" element={<Budgets />} />
