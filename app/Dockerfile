@@ -9,9 +9,6 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
-# Copy source code
-COPY . .
-
 # Accept build arguments for Auth0 configuration
 ARG VITE_AUTH0_DOMAIN
 ARG VITE_AUTH0_CLIENT_ID
@@ -21,6 +18,9 @@ ARG VITE_AUTH0_AUDIENCE
 ENV VITE_AUTH0_DOMAIN=${VITE_AUTH0_DOMAIN}
 ENV VITE_AUTH0_CLIENT_ID=${VITE_AUTH0_CLIENT_ID}
 ENV VITE_AUTH0_AUDIENCE=${VITE_AUTH0_AUDIENCE}
+
+# Copy source code
+COPY . .
 
 # Build the application
 RUN npm run build

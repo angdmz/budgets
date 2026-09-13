@@ -167,6 +167,8 @@
     "noDescription": "No description",
     "selectCategory": "Select category",
     "searchCategories": "Search categories...",
+    "searchOrCreate": "Search or create category...",
+    "typeToCreate": "Type a name to create a new category",
     "noCategories": "No categories found",
     "categoryRequired": "Please select a category.",
     "createError": "Failed to create category. Please try again.",
@@ -222,5 +224,68 @@
     "errorAlreadyMember": "You are already a member of this group.",
     "errorExpiredOrRevoked": "This invitation has expired or been revoked.",
     "errorAcceptFailed": "Failed to accept invitation. Please try again."
+  },
+  "onboarding": {
+    "title": "Welcome to MiPlatita",
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "start": "Get Started",
+    "welcome": {
+      "title": "Welcome!",
+      "description": "Let's set up your first spending period. You'll learn how to use the app by doing, step by step.",
+      "bullet1": "First, choose what you want to organize (a group).",
+      "bullet2": "Then, define your expected expenses and register a real expense.",
+      "bullet3": "Finally, compare what you planned with what you actually spent."
+    },
+    "chooseGroup": {
+      "title": "What do you want to organize?",
+      "description": "A group is where your budgets live. You can create a new one or choose an existing one.",
+      "existing": "Existing group",
+      "createNew": "Or create a new one",
+      "namePlaceholder": "e.g. Personal expenses, Family, etc."
+    },
+    "chooseCadence": {
+      "title": "Choose the cadence",
+      "description": "How often do you want your budget to repeat. You can change this later."
+    },
+    "addExpectedExpenses": {
+      "title": "Define your expected expenses",
+      "description": "Estimate how much you plan to spend in each category. This defines your budget.",
+      "add": "Add expected expense",
+      "needCategory": "You need at least one category to add expected expenses.",
+      "createCategory": "Create category",
+      "categoryName": "Category name"
+    },
+    "budgetSummary": {
+      "title": "This is your budget",
+      "description": "The total of your expected expenses defines your budget for this period.",
+      "totalExpected": "Total expected"
+    },
+    "registerActualExpense": {
+      "title": "Register a real expense",
+      "description": "Now that you have your budget, register a real expense to see how it works.",
+      "register": "Register expense",
+      "done": "Expense registered! Now let's compare.",
+      "skipActual": "I don't have real expenses yet"
+    },
+    "compareExpenses": {
+      "title": "Expected vs. Actual",
+      "description": "Here you can see the difference between what you planned and what you spent.",
+      "explanation": "If you spent less than expected, you'll see it in green. If you spent more, in red. This is the core idea of MiPlatita.",
+      "noActual": "You haven't registered any real expenses yet. No worries! You can start tracking them from the dashboard whenever you're ready."
+    },
+    "dashboardTour": {
+      "title": "Get to know the dashboard",
+      "description": "The dashboard shows you a summary of all your budgets.",
+      "tip1": "Select a group and a budget to see the summary.",
+      "tip2": "The chart shows expected vs. actual at a glance.",
+      "tip3": "The recent expenses table shows what you last registered."
+    },
+    "complete": {
+      "title": "All done!",
+      "description": "You've completed onboarding. You now know how to use MiPlatita.",
+      "goToDashboard": "Go to dashboard"
+    }
   }
 }

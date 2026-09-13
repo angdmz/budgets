@@ -26,6 +26,7 @@ type Dependencies struct {
 	PreferenceHandler  *handler.PreferenceHandler
 	CurrencyHandler    *handler.CurrencyHandler
 	InvitationHandler  *handler.InvitationHandler
+	OnboardingHandler  *handler.OnboardingHandler
 	UserResolver       middleware.UserResolver
 }
 
@@ -48,6 +49,7 @@ func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor) Dependenci
 		PreferenceHandler:  handler.NewPreferenceHandler(pool),
 		CurrencyHandler:    handler.NewCurrencyHandler(marketplace),
 		InvitationHandler:  handler.NewInvitationHandler(pool),
+		OnboardingHandler:  handler.NewOnboardingHandler(pool),
 		UserResolver:       userResolver,
 	}
 }
@@ -109,6 +111,7 @@ func (s *Server) setupRoutes() {
 	preferenceHandler := s.deps.PreferenceHandler
 	currencyHandler := s.deps.CurrencyHandler
 	invitationHandler := s.deps.InvitationHandler
+	onboardingHandler := s.deps.OnboardingHandler
 	userResolver := s.deps.UserResolver
 
 	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -183,6 +186,13 @@ func (s *Server) setupRoutes() {
 			protected.GET("/groups/:id/invitations", invitationHandler.ListInvitations)
 			protected.DELETE("/invitations/:id", invitationHandler.RevokeInvitation)
 			protected.POST("/invitations/token/:token/accept", invitationHandler.AcceptInvitation)
+
+			// Onboarding
+			protected.GET("/onboarding", onboardingHandler.GetOnboarding)
+			protected.POST("/onboarding/steps/:step/complete", onboardingHandler.CompleteStep)
+			protected.POST("/onboarding/steps/:step/skip", onboardingHandler.SkipStep)
+			protected.POST("/onboarding/steps/:step/back", onboardingHandler.GoBack)
+			protected.POST("/onboarding/reset", onboardingHandler.ResetOnboarding)
 		}
 	}
 }

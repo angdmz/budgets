@@ -166,6 +166,8 @@ func (ts *TestSuite) CleanupTestData(t *testing.T) {
 		"expected_expenses",
 		"budgets",
 		"expense_categories",
+		"user_onboarding_steps",
+		"user_onboardings",
 		"user_preferences",
 		"group_invitations",
 		"user_participants",

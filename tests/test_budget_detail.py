@@ -4,6 +4,7 @@ import uuid
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
+from conftest import dismiss_onboarding
 
 
 class TestBudgetDetail:
@@ -54,6 +55,7 @@ class TestBudgetDetail:
             )
         )
         driver.save_screenshot(f"{screenshots_dir}/bd_logged_in.png")
+        dismiss_onboarding(driver, base_url)
 
     def _nav(self, driver, link_text):
         self._wait(driver).until(

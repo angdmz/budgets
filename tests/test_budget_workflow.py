@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from conftest import dismiss_onboarding
 
 
 class TestBudgetWorkflow:
@@ -96,6 +97,7 @@ class TestBudgetWorkflow:
             )
         driver.save_screenshot(f"{screenshots_dir}/wf_01_logged_in.png")
         print("\n  ✓ Logged in")
+        dismiss_onboarding(driver, base_url)
 
     def _nav(self, driver, link_text):
         """Click a top-nav link by its visible text and wait for the page to settle."""

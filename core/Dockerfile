@@ -11,8 +11,6 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
-COPY . .
-
 # =============================================================================
 # Test stage - for running tests
 # =============================================================================
@@ -23,6 +21,7 @@ RUN apk add --no-cache gcc musl-dev
 RUN go install gotest.tools/gotestsum@v1.12.0
 
 ENV CGO_ENABLED=1
+COPY . .
 CMD ["gotestsum", "--junitfile", "/tmp/test-results/junit.xml", "--", "-v", "-race", "-coverprofile=/tmp/test-results/coverage.out", "-covermode=atomic", "./..."]
 
 # =============================================================================
@@ -32,6 +31,8 @@ FROM base AS builder
 
 # Install swag for Swagger generation
 RUN go install github.com/swaggo/swag/cmd/swag@latest
+
+COPY . .
 
 # Generate Swagger docs and build
 RUN swag init -g main.go -o docs --parseDependency --parseInternal || true

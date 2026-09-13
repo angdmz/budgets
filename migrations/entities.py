@@ -22,7 +22,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import declarative_base, relationship
 
 from encryption import Encryptor, EncryptedMoney
@@ -419,6 +419,109 @@ class UserPreference(BaseModelWithID):
 
     __table_args__ = (
         Index("ix_user_preferences_user", "user_id", unique=True),
+    )
+
+
+class OnboardingStatus(PyEnum):
+    """Onboarding status values."""
+    in_progress = "in_progress"
+    completed = "completed"
+    skipped = "skipped"
+
+
+class OnboardingStep(PyEnum):
+    """Onboarding step values, ordered by flow sequence."""
+    welcome = "welcome"
+    choose_group = "choose_group"
+    choose_cadence = "choose_cadence"
+    add_expected_expenses = "add_expected_expenses"
+    budget_summary = "budget_summary"
+    register_actual_expense = "register_actual_expense"
+    compare_expenses = "compare_expenses"
+    dashboard_tour = "dashboard_tour"
+    complete = "complete"
+
+
+class OnboardingStepStatus(PyEnum):
+    """Onboarding step status values."""
+    pending = "pending"
+    completed = "completed"
+    skipped = "skipped"
+
+
+class UserOnboarding(BaseModelWithID):
+    """
+    Stores the global onboarding state for a user.
+    One row per user (unique constraint on user_id where not revoked).
+    """
+    __tablename__ = "user_onboardings"
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    status = Column(
+        Enum(OnboardingStatus),
+        nullable=False,
+        default=OnboardingStatus.in_progress,
+        server_default="in_progress",
+    )
+    current_step = Column(
+        Enum(OnboardingStep),
+        nullable=False,
+        default=OnboardingStep.welcome,
+        server_default="welcome",
+    )
+
+    user = relationship("User")
+    steps = relationship("UserOnboardingStep", back_populates="onboarding")
+
+    __table_args__ = (
+        Index(
+            "ix_user_onboardings_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+    )
+
+
+class UserOnboardingStep(BaseModelWithID):
+    """
+    Stores per-step onboarding data.
+    The `data` JSONB column holds step-specific payload.
+    """
+    __tablename__ = "user_onboarding_steps"
+
+    user_onboarding_id = Column(
+        Integer,
+        ForeignKey("user_onboardings.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    step = Column(
+        Enum(OnboardingStep),
+        nullable=False,
+    )
+    status = Column(
+        Enum(OnboardingStepStatus),
+        nullable=False,
+        default=OnboardingStepStatus.pending,
+        server_default="pending",
+    )
+    data = Column(JSONB, nullable=True)
+
+    onboarding = relationship("UserOnboarding", back_populates="steps")
+
+    __table_args__ = (
+        Index(
+            "ix_user_onboarding_steps_onboarding_step",
+            "user_onboarding_id",
+            "step",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+        Index("ix_user_onboarding_steps_onboarding", "user_onboarding_id"),
     )
 
 

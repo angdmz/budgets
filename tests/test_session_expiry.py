@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from conftest import dismiss_onboarding
 
 from settings import settings
 
@@ -75,6 +76,7 @@ class TestSessionExpiry:
             pytest.fail("Authenticated app layout did not appear after login.")
         driver.save_screenshot(f"{screenshots_dir}/session_02_logged_in.png")
         print("\n  ✓ Logged in")
+        dismiss_onboarding(driver, base_url)
 
     def _nav(self, driver, link_text):
         """Click a top-nav link by its visible text and wait for the page to settle."""
