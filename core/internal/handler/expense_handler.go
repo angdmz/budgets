@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -60,15 +59,8 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	amount, err := decimal.NewFromString(req.Amount.Amount)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount", Message: "Invalid amount format"})
-		return
-	}
-
-	currency := domain.Currency(req.Amount.Currency)
-	if !currency.IsValid() {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_currency", Message: "Unsupported currency"})
+	amount, currency, ok := validateMoneyRequest(c, req.Amount)
+	if !ok {
 		return
 	}
 
@@ -100,15 +92,7 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 			return err
 		}
 
-		response = ExpectedExpenseResponse{
-			ID:          persistedExpense.ExternalID(),
-			Name:        persistedExpense.Name(),
-			Description: persistedExpense.Description(),
-			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
-			CategoryID:  persistedExpense.CategoryExternalID(),
-			CreatedAt:   persistedExpense.CreatedAt(),
-			UpdatedAt:   persistedExpense.UpdatedAt(),
-		}
+		response = toExpectedExpenseResponse(persistedExpense, decryptedMoney)
 		return nil
 	})
 
@@ -164,15 +148,7 @@ func (h *ExpenseHandler) GetExpectedExpense(c *gin.Context) {
 			return err
 		}
 
-		response = ExpectedExpenseResponse{
-			ID:          expense.ExternalID(),
-			Name:        expense.Name(),
-			Description: expense.Description(),
-			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
-			CategoryID:  expense.CategoryExternalID(),
-			CreatedAt:   expense.CreatedAt(),
-			UpdatedAt:   expense.UpdatedAt(),
-		}
+		response = toExpectedExpenseResponse(expense, decryptedMoney)
 		return nil
 	})
 
@@ -229,15 +205,7 @@ func (h *ExpenseHandler) GetExpectedExpenses(c *gin.Context) {
 				return err
 			}
 
-			response[i] = ExpectedExpenseResponse{
-				ID:          e.ExternalID(),
-				Name:        e.Name(),
-				Description: e.Description(),
-				Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
-				CategoryID:  e.CategoryExternalID(),
-				CreatedAt:   e.CreatedAt(),
-				UpdatedAt:   e.UpdatedAt(),
-			}
+			response[i] = toExpectedExpenseResponse(&e, decryptedMoney)
 		}
 		return nil
 	})
@@ -284,15 +252,8 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	amount, err := decimal.NewFromString(req.Amount.Amount)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount", Message: "Invalid amount format"})
-		return
-	}
-
-	currency := domain.Currency(req.Amount.Currency)
-	if !currency.IsValid() {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_currency", Message: "Unsupported currency"})
+	amount, currency, ok := validateMoneyRequest(c, req.Amount)
+	if !ok {
 		return
 	}
 
@@ -328,15 +289,7 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 			return err
 		}
 
-		response = ExpectedExpenseResponse{
-			ID:          expense.ExternalID(),
-			Name:        expense.Name(),
-			Description: expense.Description(),
-			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
-			CategoryID:  expense.CategoryExternalID(),
-			CreatedAt:   expense.CreatedAt(),
-			UpdatedAt:   expense.UpdatedAt(),
-		}
+		response = toExpectedExpenseResponse(expense, decryptedMoney)
 		return nil
 	})
 
@@ -429,21 +382,13 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 		return
 	}
 
-	amount, err := decimal.NewFromString(req.Amount.Amount)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount", Message: "Invalid amount format"})
+	amount, currency, ok := validateMoneyRequest(c, req.Amount)
+	if !ok {
 		return
 	}
 
-	currency := domain.Currency(req.Amount.Currency)
-	if !currency.IsValid() {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_currency", Message: "Unsupported currency"})
-		return
-	}
-
-	expenseDate, err := time.Parse("2006-01-02", req.ExpenseDate)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_expense_date", Message: "Date must be in YYYY-MM-DD format"})
+	expenseDate, ok := parseExpenseDate(c, req.ExpenseDate)
+	if !ok {
 		return
 	}
 
@@ -475,16 +420,7 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 			return err
 		}
 
-		response = ActualExpenseResponse{
-			ID:          persistedExpense.ExternalID(),
-			Name:        persistedExpense.Name(),
-			Description: persistedExpense.Description(),
-			ExpenseDate: persistedExpense.ExpenseDate().Format("2006-01-02"),
-			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
-			CategoryID:  persistedExpense.CategoryExternalID(),
-			CreatedAt:   persistedExpense.CreatedAt(),
-			UpdatedAt:   persistedExpense.UpdatedAt(),
-		}
+		response = toActualExpenseResponse(persistedExpense, decryptedMoney)
 		return nil
 	})
 
@@ -540,16 +476,7 @@ func (h *ExpenseHandler) GetActualExpense(c *gin.Context) {
 			return err
 		}
 
-		response = ActualExpenseResponse{
-			ID:          expense.ExternalID(),
-			Name:        expense.Name(),
-			Description: expense.Description(),
-			ExpenseDate: expense.ExpenseDate().Format("2006-01-02"),
-			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
-			CategoryID:  expense.CategoryExternalID(),
-			CreatedAt:   expense.CreatedAt(),
-			UpdatedAt:   expense.UpdatedAt(),
-		}
+		response = toActualExpenseResponse(expense, decryptedMoney)
 		return nil
 	})
 
@@ -606,16 +533,7 @@ func (h *ExpenseHandler) GetActualExpenses(c *gin.Context) {
 				return err
 			}
 
-			response[i] = ActualExpenseResponse{
-				ID:          e.ExternalID(),
-				Name:        e.Name(),
-				Description: e.Description(),
-				ExpenseDate: e.ExpenseDate().Format("2006-01-02"),
-				Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
-				CategoryID:  e.CategoryExternalID(),
-				CreatedAt:   e.CreatedAt(),
-				UpdatedAt:   e.UpdatedAt(),
-			}
+			response[i] = toActualExpenseResponse(&e, decryptedMoney)
 		}
 		return nil
 	})
@@ -662,21 +580,13 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 		return
 	}
 
-	amount, err := decimal.NewFromString(req.Amount.Amount)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_amount", Message: "Invalid amount format"})
+	amount, currency, ok := validateMoneyRequest(c, req.Amount)
+	if !ok {
 		return
 	}
 
-	currency := domain.Currency(req.Amount.Currency)
-	if !currency.IsValid() {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_currency", Message: "Unsupported currency"})
-		return
-	}
-
-	expenseDate, err := time.Parse("2006-01-02", req.ExpenseDate)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_expense_date", Message: "Date must be in YYYY-MM-DD format"})
+	expenseDate, ok := parseExpenseDate(c, req.ExpenseDate)
+	if !ok {
 		return
 	}
 
@@ -713,16 +623,7 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 			return err
 		}
 
-		response = ActualExpenseResponse{
-			ID:          expense.ExternalID(),
-			Name:        expense.Name(),
-			Description: expense.Description(),
-			ExpenseDate: expense.ExpenseDate().Format("2006-01-02"),
-			Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
-			CategoryID:  expense.CategoryExternalID(),
-			CreatedAt:   expense.CreatedAt(),
-			UpdatedAt:   expense.UpdatedAt(),
-		}
+		response = toActualExpenseResponse(expense, decryptedMoney)
 		return nil
 	})
 
@@ -795,4 +696,91 @@ func handleServiceError(c *gin.Context, err error) {
 		return
 	}
 	SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
+}
+
+// GetBudgetSummary godoc
+// @Summary Get budget summary
+// @Description Get expected total, actual total, and difference for a budget
+// @Tags budgets
+// @Produce json
+// @Param budget_id path string true "Budget ID (UUID)"
+// @Success 200 {object} BudgetSummaryResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /budgets/{budget_id}/summary [get]
+func (h *ExpenseHandler) GetBudgetSummary(c *gin.Context) {
+	budgetIDStr := c.Param("budget_id")
+	budgetID, err := uuid.Parse(budgetIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_budget_id", Message: "Invalid UUID format"})
+		return
+	}
+
+	user := middleware.GetDBUserFromContext(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
+		return
+	}
+
+	var response BudgetSummaryResponse
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		guard := domain.NewSecurityGuard(user.ID)
+		if err := guard.AuthorizeBudgetAccess(ctx, p, budgetID); err != nil {
+			return err
+		}
+
+		expectedExpenses, err := domain.PersistedExpectedExpensesForBudget(ctx, budgetID, p)
+		if err != nil {
+			return err
+		}
+
+		actualExpenses, err := domain.PersistedActualExpensesForBudget(ctx, budgetID, p)
+		if err != nil {
+			return err
+		}
+
+		expectedTotal := decimal.Zero
+		expectedCurrency := ""
+		for _, e := range expectedExpenses {
+			decrypted, err := h.encryptor.DecryptMoney(e.EncryptedAmount())
+			if err != nil {
+				return err
+			}
+			if expectedCurrency == "" {
+				expectedCurrency = decrypted.Currency
+			}
+			expectedTotal = expectedTotal.Add(decrypted.Amount)
+		}
+
+		actualTotal := decimal.Zero
+		actualCurrency := ""
+		for _, e := range actualExpenses {
+			decrypted, err := h.encryptor.DecryptMoney(e.EncryptedAmount())
+			if err != nil {
+				return err
+			}
+			if actualCurrency == "" {
+				actualCurrency = decrypted.Currency
+			}
+			actualTotal = actualTotal.Add(decrypted.Amount)
+		}
+
+		diff := expectedTotal.Sub(actualTotal)
+		response = BudgetSummaryResponse{
+			BudgetID: budgetID,
+			ExpectedTotal: MoneyResponse{Amount: expectedTotal.String(), Currency: expectedCurrency},
+			ActualTotal:   MoneyResponse{Amount: actualTotal.String(), Currency: actualCurrency},
+			Difference:    MoneyResponse{Amount: diff.String(), Currency: expectedCurrency},
+		}
+		return nil
+	})
+
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
 }

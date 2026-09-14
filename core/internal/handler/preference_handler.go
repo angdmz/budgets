@@ -44,7 +44,7 @@ func (h *PreferenceHandler) GetPreferences(c *gin.Context) {
 			if !errors.Is(err, domain.ErrNotFound) {
 				return err
 			}
-			persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.ThemeLight, domain.LanguageEN, domain.CurrencyUSD)
+			persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.ThemeLight, domain.LanguageEN, domain.CurrencyUSD, domain.QuoteOfficial)
 			if err != nil {
 				return err
 			}
@@ -55,9 +55,10 @@ func (h *PreferenceHandler) GetPreferences(c *gin.Context) {
 		}
 
 		response = PreferenceResponse{
-			Theme:           string(pref.Theme()),
-			Language:        string(pref.Language()),
-			DisplayCurrency: string(pref.DisplayCurrency()),
+			Theme:              string(pref.Theme()),
+			Language:           string(pref.Language()),
+			DisplayCurrency:    string(pref.DisplayCurrency()),
+			PreferredQuoteType: string(pref.PreferredQuoteType()),
 		}
 		return nil
 	})
@@ -97,7 +98,7 @@ func (h *PreferenceHandler) UpdatePreferences(c *gin.Context) {
 
 	var response PreferenceResponse
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.Theme(req.Theme), domain.Language(req.Language), domain.Currency(req.DisplayCurrency))
+		persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.Theme(req.Theme), domain.Language(req.Language), domain.Currency(req.DisplayCurrency), domain.QuoteType(req.PreferredQuoteType))
 		if err != nil {
 			return err
 		}
@@ -108,9 +109,10 @@ func (h *PreferenceHandler) UpdatePreferences(c *gin.Context) {
 		}
 
 		response = PreferenceResponse{
-			Theme:           string(pref.Theme()),
-			Language:        string(pref.Language()),
-			DisplayCurrency: string(pref.DisplayCurrency()),
+			Theme:              string(pref.Theme()),
+			Language:           string(pref.Language()),
+			DisplayCurrency:    string(pref.DisplayCurrency()),
+			PreferredQuoteType: string(pref.PreferredQuoteType()),
 		}
 		return nil
 	})
@@ -146,7 +148,7 @@ func (h *PreferenceHandler) PatchPreferences(c *gin.Context) {
 		return
 	}
 
-	if req.Theme == nil && req.Language == nil && req.DisplayCurrency == nil {
+	if req.Theme == nil && req.Language == nil && req.DisplayCurrency == nil && req.PreferredQuoteType == nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "empty_request", Message: "At least one field must be provided"})
 		return
 	}
@@ -164,7 +166,7 @@ func (h *PreferenceHandler) PatchPreferences(c *gin.Context) {
 			if !errors.Is(err, domain.ErrNotFound) {
 				return err
 			}
-			persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.ThemeLight, domain.LanguageEN, domain.CurrencyUSD)
+			persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.ThemeLight, domain.LanguageEN, domain.CurrencyUSD, domain.QuoteOfficial)
 			if err != nil {
 				return err
 			}
@@ -189,15 +191,21 @@ func (h *PreferenceHandler) PatchPreferences(c *gin.Context) {
 				return err
 			}
 		}
+		if req.PreferredQuoteType != nil {
+			if err := pref.UpdatePreferredQuoteType(domain.QuoteType(*req.PreferredQuoteType)); err != nil {
+				return err
+			}
+		}
 
 		if err := pref.UpdateIn(ctx, p); err != nil {
 			return err
 		}
 
 		response = PreferenceResponse{
-			Theme:           string(pref.Theme()),
-			Language:        string(pref.Language()),
-			DisplayCurrency: string(pref.DisplayCurrency()),
+			Theme:              string(pref.Theme()),
+			Language:           string(pref.Language()),
+			DisplayCurrency:    string(pref.DisplayCurrency()),
+			PreferredQuoteType: string(pref.PreferredQuoteType()),
 		}
 		return nil
 	})

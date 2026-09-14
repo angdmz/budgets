@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
-import { usePreferences } from '../lib/usePreferences';
+import { usePreferences, SUPPORTED_CURRENCIES, SUPPORTED_QUOTE_TYPES } from '../lib/usePreferences';
 import { useOnboarding } from '../lib/useOnboarding';
 import { SUPPORTED_LANGUAGES } from '../lib/languages';
 import Dialog from './Dialog';
@@ -11,7 +11,7 @@ export default function Layout() {
   const { user, logout } = useAuth0();
   const location = useLocation();
   const { t } = useTranslation();
-  const { theme, updateTheme, updateLanguage, currentLanguage } = usePreferences();
+  const { theme, updateTheme, updateLanguage, currentLanguage, preferences, updateDisplayCurrency, updatePreferredQuoteType } = usePreferences();
   const { onboarding, isLoading: isOnboardingLoading } = useOnboarding();
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -101,6 +101,30 @@ export default function Layout() {
                 {SUPPORTED_LANGUAGES.map((lang) => (
                   <option key={lang.code} value={lang.code}>
                     {lang.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={preferences?.display_currency ?? 'USD'}
+                onChange={(e) => updateDisplayCurrency(e.target.value as any)}
+                aria-label="Display currency"
+                className="bg-white text-gray-700 dark:text-gray-300 dark:bg-gray-800 px-2 py-1 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.value}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={preferences?.preferred_quote_type ?? 'OFFICIAL'}
+                onChange={(e) => updatePreferredQuoteType(e.target.value as any)}
+                aria-label="Quote type"
+                className="bg-white text-gray-700 dark:text-gray-300 dark:bg-gray-800 px-2 py-1 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {SUPPORTED_QUOTE_TYPES.map((q) => (
+                  <option key={q.value} value={q.value}>
+                    {q.label}
                   </option>
                 ))}
               </select>
@@ -284,6 +308,30 @@ export default function Layout() {
                 {SUPPORTED_LANGUAGES.map((lang) => (
                   <option key={lang.code} value={lang.code}>
                     {lang.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={preferences?.display_currency ?? 'USD'}
+                onChange={(e) => updateDisplayCurrency(e.target.value as any)}
+                aria-label="Display currency"
+                className="w-full bg-white text-gray-700 dark:text-gray-300 dark:bg-gray-800 px-3 py-2 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[44px]"
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={preferences?.preferred_quote_type ?? 'OFFICIAL'}
+                onChange={(e) => updatePreferredQuoteType(e.target.value as any)}
+                aria-label="Quote type"
+                className="w-full bg-white text-gray-700 dark:text-gray-300 dark:bg-gray-800 px-3 py-2 rounded-md text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 min-h-[44px]"
+              >
+                {SUPPORTED_QUOTE_TYPES.map((q) => (
+                  <option key={q.value} value={q.value}>
+                    {q.label}
                   </option>
                 ))}
               </select>

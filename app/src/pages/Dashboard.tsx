@@ -18,6 +18,7 @@ export default function Dashboard() {
     expectedTotal,
     actualTotal,
     difference,
+    currency,
   } = useBudgetSelection();
 
   const chartData = [
@@ -84,7 +85,7 @@ export default function Dashboard() {
         <>
           {/* Summary Cards */}
           <div className="mt-6">
-            <BudgetSummary expectedTotal={expectedTotal} actualTotal={actualTotal} difference={difference} />
+            <BudgetSummary expectedTotal={expectedTotal} actualTotal={actualTotal} difference={difference} currency={currency} />
           </div>
 
           {/* Chart */}

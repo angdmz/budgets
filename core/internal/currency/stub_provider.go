@@ -38,13 +38,19 @@ func (p *StubExchangeRateProvider) ProviderName() string {
 	return "stub"
 }
 
-func (p *StubExchangeRateProvider) GetRate(ctx context.Context, from, to domain.Currency) (*ExchangeRate, error) {
+func (p *StubExchangeRateProvider) Supports(quote domain.QuoteType) bool {
+	// The stub provider supports all quote types with the same rates
+	return true
+}
+
+func (p *StubExchangeRateProvider) GetRate(ctx context.Context, from, to domain.Currency, quote domain.QuoteType) (*ExchangeRate, error) {
 	key := fmt.Sprintf("%s_%s", from, to)
 	
 	if rate, ok := p.rates[key]; ok {
 		return &ExchangeRate{
 			FromCurrency: from,
 			ToCurrency:   to,
+			Quote:        quote,
 			Rate:         rate,
 			Timestamp:    time.Now(),
 			Source:       p.ProviderName(),
@@ -63,6 +69,7 @@ func (p *StubExchangeRateProvider) GetRate(ctx context.Context, from, to domain.
 		return &ExchangeRate{
 			FromCurrency: from,
 			ToCurrency:   to,
+			Quote:        quote,
 			Rate:         rate,
 			Timestamp:    time.Now(),
 			Source:       p.ProviderName(),
@@ -72,10 +79,10 @@ func (p *StubExchangeRateProvider) GetRate(ctx context.Context, from, to domain.
 	return nil, fmt.Errorf("exchange rate not available for %s to %s", from, to)
 }
 
-func (p *StubExchangeRateProvider) GetRates(ctx context.Context, base domain.Currency, targets []domain.Currency) ([]ExchangeRate, error) {
+func (p *StubExchangeRateProvider) GetRates(ctx context.Context, base domain.Currency, targets []domain.Currency, quote domain.QuoteType) ([]ExchangeRate, error) {
 	var rates []ExchangeRate
 	for _, target := range targets {
-		rate, err := p.GetRate(ctx, base, target)
+		rate, err := p.GetRate(ctx, base, target, quote)
 		if err != nil {
 			continue
 		}
@@ -84,9 +91,9 @@ func (p *StubExchangeRateProvider) GetRates(ctx context.Context, base domain.Cur
 	return rates, nil
 }
 
-func (p *StubExchangeRateProvider) GetHistoricalRate(ctx context.Context, from, to domain.Currency, date time.Time) (*ExchangeRate, error) {
+func (p *StubExchangeRateProvider) GetHistoricalRate(ctx context.Context, from, to domain.Currency, quote domain.QuoteType, date time.Time) (*ExchangeRate, error) {
 	// Stub returns current rate for historical queries
-	return p.GetRate(ctx, from, to)
+	return p.GetRate(ctx, from, to, quote)
 }
 
 func (p *StubExchangeRateProvider) SetRate(from, to domain.Currency, rate decimal.Decimal) {

@@ -31,10 +31,16 @@ type Dependencies struct {
 }
 
 // BuildDependencies creates the Dependencies struct with all handlers and middleware.
-func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor) Dependencies {
+func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor, cfg *config.Config) Dependencies {
 	userRepo := repository.NewUserRepository()
 
-	exchangeProvider := currency.NewStubExchangeRateProvider()
+	var exchangeProvider currency.ExchangeRateProvider
+	switch cfg.Exchange.Provider {
+	case "stub", "":
+		exchangeProvider = currency.NewStubExchangeRateProvider()
+	default:
+		exchangeProvider = currency.NewStubExchangeRateProvider()
+	}
 	exchangeCache := currency.NewInMemoryCache()
 	marketplace := currency.NewCurrencyMarketplace(exchangeProvider, exchangeCache)
 
@@ -161,6 +167,7 @@ func (s *Server) setupRoutes() {
 			protected.GET("/budgets/:budget_id", budgetHandler.GetBudget)
 			protected.PUT("/budgets/:budget_id", budgetHandler.UpdateBudget)
 			protected.DELETE("/budgets/:budget_id", budgetHandler.DeleteBudget)
+			protected.GET("/budgets/:budget_id/summary", expenseHandler.GetBudgetSummary)
 
 			// Expected Expenses
 			protected.GET("/expected-expenses/:id", expenseHandler.GetExpectedExpense)

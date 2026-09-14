@@ -59,7 +59,7 @@ func main() {
 		log.Fatalf("Failed to initialize encryptor: %v", err)
 	}
 
-	deps := server.BuildDependencies(db.Pool, encryptor)
+	deps := server.BuildDependencies(db.Pool, encryptor, cfg)
 	srv := server.New(cfg, db, deps)
 
 	httpServer := &http.Server{

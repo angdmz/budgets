@@ -226,6 +226,7 @@ export default function BudgetDetail() {
 
   const expectedTotal = expectedExpenses?.reduce((s, e) => s + parseFloat(e.amount.amount), 0) ?? 0;
   const actualTotal = actualExpenses?.reduce((s, e) => s + parseFloat(e.amount.amount), 0) ?? 0;
+  const currency = expectedExpenses?.[0]?.amount.currency ?? actualExpenses?.[0]?.amount.currency ?? 'USD';
 
   return (
     <div className="px-4 sm:px-6 lg:px-8">
@@ -248,7 +249,7 @@ export default function BudgetDetail() {
 
       {/* Summary cards */}
       <div className="mt-6">
-        <BudgetSummary expectedTotal={expectedTotal} actualTotal={actualTotal} difference={expectedTotal - actualTotal} />
+        <BudgetSummary expectedTotal={expectedTotal} actualTotal={actualTotal} difference={expectedTotal - actualTotal} currency={currency} />
       </div>
 
       {/* Expected Expenses section */}

@@ -77,6 +77,13 @@ type BudgetResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type BudgetSummaryResponse struct {
+	BudgetID     uuid.UUID     `json:"budget_id"`
+	ExpectedTotal MoneyResponse `json:"expected_total"`
+	ActualTotal   MoneyResponse `json:"actual_total"`
+	Difference    MoneyResponse `json:"difference"`
+}
+
 type MoneyRequest struct {
 	Amount   string `json:"amount" binding:"required"`
 	Currency string `json:"currency" binding:"required"`
@@ -85,6 +92,7 @@ type MoneyRequest struct {
 type MoneyResponse struct {
 	Amount   string `json:"amount"`
 	Currency string `json:"currency"`
+	Converted bool   `json:"converted,omitempty"`
 }
 
 type CreateExpectedExpenseRequest struct {
@@ -145,39 +153,45 @@ type AuthCallbackResponse struct {
 }
 
 type UpdatePreferenceRequest struct {
-	Theme           string `json:"theme" binding:"required"`
-	Language        string `json:"language" binding:"required"`
-	DisplayCurrency string `json:"display_currency" binding:"required"`
+	Theme              string `json:"theme" binding:"required"`
+	Language           string `json:"language" binding:"required"`
+	DisplayCurrency    string `json:"display_currency" binding:"required"`
+	PreferredQuoteType string `json:"preferred_quote_type"`
 }
 
 type PatchPreferenceRequest struct {
-	Theme           *string `json:"theme"`
-	Language        *string `json:"language"`
-	DisplayCurrency *string `json:"display_currency"`
+	Theme              *string `json:"theme"`
+	Language           *string `json:"language"`
+	DisplayCurrency    *string `json:"display_currency"`
+	PreferredQuoteType *string `json:"preferred_quote_type"`
 }
 
 type PreferenceResponse struct {
-	Theme           string `json:"theme"`
-	Language        string `json:"language"`
-	DisplayCurrency string `json:"display_currency"`
+	Theme              string `json:"theme"`
+	Language           string `json:"language"`
+	DisplayCurrency    string `json:"display_currency"`
+	PreferredQuoteType string `json:"preferred_quote_type"`
 }
 
 type ConvertCurrencyRequest struct {
 	Amount       string `json:"amount" binding:"required"`
 	FromCurrency string `json:"from_currency" binding:"required"`
 	ToCurrency   string `json:"to_currency" binding:"required"`
+	QuoteType    string `json:"quote_type"`
 }
 
 type ConvertCurrencyResponse struct {
-	OriginalAmount   MoneyResponse `json:"original_amount"`
-	ConvertedAmount  MoneyResponse `json:"converted_amount"`
-	ExchangeRate     string        `json:"exchange_rate"`
-	Provider         string        `json:"provider"`
+	OriginalAmount  MoneyResponse `json:"original_amount"`
+	ConvertedAmount MoneyResponse `json:"converted_amount"`
+	ExchangeRate    string        `json:"exchange_rate"`
+	Provider        string        `json:"provider"`
+	QuoteType       string        `json:"quote_type,omitempty"`
 }
 
 type ExchangeRateResponse struct {
 	FromCurrency string `json:"from_currency"`
 	ToCurrency   string `json:"to_currency"`
+	QuoteType    string `json:"quote_type,omitempty"`
 	Rate         string `json:"rate"`
 	Provider     string `json:"provider"`
 }

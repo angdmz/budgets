@@ -19,9 +19,11 @@ from sqlalchemy import (
     Date,
     Index,
     Enum,
+    Numeric,
     func,
     text,
 )
+
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -72,6 +74,15 @@ class InvitationStatus(str, PyEnum):
     accepted = "accepted"
     revoked = "revoked"
     expired = "expired"
+
+
+class QuoteType(PyEnum):
+    """Exchange rate quote types for ARS/USD and similar pairs."""
+    OFFICIAL = "OFFICIAL"
+    BLUE = "BLUE"
+    MEP = "MEP"
+    CCL = "CCL"
+    CRYPTO = "CRYPTO"
 
 
 def _get_encryptor():
@@ -394,7 +405,6 @@ class UserPreference(BaseModelWithID):
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        unique=True,
     )
     theme = Column(
         Enum(Theme),
@@ -414,11 +424,48 @@ class UserPreference(BaseModelWithID):
         default=Currency.USD,
         server_default="USD",
     )
+    preferred_quote_type = Column(
+        Enum(QuoteType),
+        nullable=False,
+        default=QuoteType.OFFICIAL,
+        server_default="OFFICIAL",
+    )
 
     user = relationship("User")
 
     __table_args__ = (
-        Index("ix_user_preferences_user", "user_id", unique=True),
+        Index(
+            "ix_user_preferences_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+    )
+
+
+class ExchangeRate(BaseModelWithID):
+    """
+    Stores observed exchange rates between currency pairs for different quote types.
+    """
+    __tablename__ = "exchange_rates"
+
+    from_currency = Column(Enum(Currency), nullable=False)
+    to_currency = Column(Enum(Currency), nullable=False)
+    quote = Column(Enum(QuoteType), nullable=False)
+    rate = Column(Numeric(20, 10), nullable=False)
+    provider = Column(String(50), nullable=False)
+    observed_at = Column(TIMESTAMP(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index(
+            "ix_exchange_rates_pair_quote",
+            "from_currency",
+            "to_currency",
+            "quote",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+        Index("ix_exchange_rates_observed", "observed_at"),
     )
 
 

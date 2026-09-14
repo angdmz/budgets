@@ -54,6 +54,7 @@ export function useBudgetSelection() {
   const expectedTotal = expectedExpenses?.reduce((s, e) => s + parseFloat(e.amount.amount), 0) ?? 0;
   const actualTotal = actualExpenses?.reduce((s, e) => s + parseFloat(e.amount.amount), 0) ?? 0;
   const difference = expectedTotal - actualTotal;
+  const currency = expectedExpenses?.[0]?.amount.currency ?? actualExpenses?.[0]?.amount.currency ?? 'USD';
 
   return {
     selectedGroupId,
@@ -67,5 +68,6 @@ export function useBudgetSelection() {
     expectedTotal,
     actualTotal,
     difference,
+    currency,
   };
 }

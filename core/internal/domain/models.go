@@ -39,6 +39,29 @@ func SupportedCurrencies() []Currency {
 	}
 }
 
+// QuoteType represents an exchange rate quote type
+type QuoteType string
+
+const (
+	QuoteOfficial QuoteType = "OFFICIAL"
+	QuoteBlue     QuoteType = "BLUE"
+	QuoteMEP      QuoteType = "MEP"
+	QuoteCCL      QuoteType = "CCL"
+	QuoteCrypto   QuoteType = "CRYPTO"
+)
+
+func (q QuoteType) IsValid() bool {
+	switch q {
+	case QuoteOfficial, QuoteBlue, QuoteMEP, QuoteCCL, QuoteCrypto:
+		return true
+	}
+	return false
+}
+
+func SupportedQuoteTypes() []QuoteType {
+	return []QuoteType{QuoteOfficial, QuoteBlue, QuoteMEP, QuoteCCL, QuoteCrypto}
+}
+
 // AuthProvider represents supported authentication providers
 type AuthProvider string
 

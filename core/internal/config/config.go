@@ -12,6 +12,7 @@ type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	Auth     AuthConfig
+	Exchange ExchangeConfig
 }
 
 type ServerConfig struct {
@@ -42,6 +43,21 @@ type AuthConfig struct {
 	Auth0ClientSecret SecretString
 	JWTSecret         SecretString
 	EncryptionKey     SecretString
+}
+
+// ExchangeConfig configures the exchange rate provider.
+type ExchangeConfig struct {
+	Provider string
+	APIKey   SecretString
+	APIURL   string
+	Timeout  int
+}
+
+func (e ExchangeConfig) TimeoutSeconds() int {
+	if e.Timeout > 0 {
+		return e.Timeout
+	}
+	return 10
 }
 
 func (d DatabaseConfig) ConnectionString() string {
@@ -119,6 +135,12 @@ func Load(provider secrets.SecretsProvider) (*Config, error) {
 			Auth0ClientSecret: NewSecretString(auth0ClientSecret),
 			JWTSecret:         NewSecretString(jwtSecret),
 			EncryptionKey:     NewSecretString(encryptionKey),
+		},
+		Exchange: ExchangeConfig{
+			Provider: getEnvOrDefault("EXCHANGE_PROVIDER", "stub"),
+			APIKey:   NewSecretString(getSecretOrDefault(provider, "exchange_api_key", "")),
+			APIURL:   getEnvOrDefault("EXCHANGE_API_URL", ""),
+			Timeout:  getEnvOrDefaultInt("EXCHANGE_TIMEOUT_SECONDS", 10),
 		},
 	}
 
