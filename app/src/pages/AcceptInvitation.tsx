@@ -13,7 +13,7 @@ export default function AcceptInvitation() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, loginWithRedirect, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, isLoading: isAuthLoading, loginWithRedirect, getAccessTokenSilently } = useAuth0();
   const { t } = useTranslation();
 
   const [detail, setDetail] = useState<InvitationDetail | null>(null);
@@ -77,7 +77,7 @@ export default function AcceptInvitation() {
     }
   };
 
-  if (loading) {
+  if (loading || isAuthLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

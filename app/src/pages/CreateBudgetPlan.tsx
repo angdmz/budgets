@@ -257,7 +257,7 @@ export default function CreateBudgetPlan() {
       )}
 
       {/* Stepper */}
-      <div className="mt-6 flex items-center gap-2">
+      <div className="mt-6 flex items-center gap-2 overflow-x-auto pb-2">
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-2">
             <div
@@ -540,7 +540,7 @@ export default function CreateBudgetPlan() {
               {validTemplateExpenses.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">{t('budgetPlan.noExpenses')}</p>
               ) : (
-                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg dark:ring-white/10">
+                <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg dark:ring-white/10">
                   <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-900/50">
                       <tr>

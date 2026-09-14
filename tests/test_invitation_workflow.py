@@ -47,6 +47,19 @@ class TestInvitationWorkflow:
     def _wait(self, driver):
         return WebDriverWait(driver, self.TIMEOUT)
 
+    @staticmethod
+    def _set_react_input(driver, element, value):
+        """Set a React-controlled input using native value setter + events."""
+        driver.execute_script(
+            "var setter = Object.getOwnPropertyDescriptor("
+            "  window.HTMLInputElement.prototype, 'value').set;"
+            "setter.call(arguments[0], arguments[1]);"
+            "arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
+            "arguments[0].dispatchEvent(new Event('change', {bubbles: true}));",
+            element,
+            value,
+        )
+
     def _login(self, driver, base_url, credentials):
         """Navigate to /app and complete Auth0 Universal Login if redirected."""
         driver.get(f"{base_url}/app")
@@ -142,8 +155,7 @@ class TestInvitationWorkflow:
         group_name_input = self._wait(driver).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='text'][required]"))
         )
-        group_name_input.clear()
-        group_name_input.send_keys("Invitation Test Group")
+        self._set_react_input(driver, group_name_input, "Invitation Test Group")
         driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
         time.sleep(2)
 
@@ -212,7 +224,7 @@ class TestInvitationWorkflow:
         group_name_input = self._wait(driver).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='text'][required]"))
         )
-        group_name_input.send_keys("Revocation Test Group")
+        self._set_react_input(driver, group_name_input, "Revocation Test Group")
         driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
         time.sleep(2)
 
@@ -268,7 +280,7 @@ class TestInvitationWorkflow:
         group_name_input = self._wait(driver).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='text'][required]"))
         )
-        group_name_input.send_keys("Budget Access Test")
+        self._set_react_input(driver, group_name_input, "Budget Access Test")
         driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
         time.sleep(2)
 
@@ -315,7 +327,7 @@ class TestInvitationWorkflow:
         budget_name_input = self._wait(driver).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='text']"))
         )
-        budget_name_input.send_keys("Test Budget")
+        self._set_react_input(driver, budget_name_input, "Test Budget")
 
         date_inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='date']")
         for inp, val in zip(date_inputs[:2], ["2025-01-01", "2025-12-31"]):

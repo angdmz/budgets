@@ -1,20 +1,28 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
 import { createApiClient, getErrorMessage } from '../lib/api';
-import { formatDate, formatCurrency } from '../lib/format';
-import type { ActualExpense, Budget, Group, Category, CreateActualExpenseRequest, UpdateActualExpenseRequest } from '../lib/types';
-import CategoryCombobox from '../components/CategoryCombobox';
-import CurrencySelect from '../components/CurrencySelect';
+import type { ActualExpense, Category, CreateActualExpenseRequest, UpdateActualExpenseRequest } from '../lib/types';
+import Dialog from '../components/Dialog';
+import ExpenseFormDialog from '../components/ExpenseFormDialog';
+import ExpenseList from '../components/ExpenseList';
+import { useBudgetSelection } from '../hooks/useBudgetSelection';
 
 export default function Expenses() {
   const { getAccessTokenSilently } = useAuth0();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedGroupId, setSelectedGroupId] = useState('');
-  const [selectedBudgetId, setSelectedBudgetId] = useState('');
+  const {
+    selectedGroupId,
+    selectedBudgetId,
+    setSelectedGroupId,
+    setSelectedBudgetId,
+    groups,
+    budgets,
+    actualExpenses: expenses,
+  } = useBudgetSelection();
   const [formData, setFormData] = useState<CreateActualExpenseRequest>({
     name: '',
     description: '',
@@ -25,37 +33,6 @@ export default function Expenses() {
   const [editingExpense, setEditingExpense] = useState<ActualExpense | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<ActualExpense | null>(null);
   const [categoryError, setCategoryError] = useState(false);
-
-  const { data: groups } = useQuery({
-    queryKey: ['groups'],
-    queryFn: async () => {
-      const api = await createApiClient(getAccessTokenSilently);
-      const response = await api.get<Group[]>('/groups');
-      return response.data;
-    },
-  });
-
-  const { data: budgets } = useQuery({
-    queryKey: ['budgets', selectedGroupId],
-    queryFn: async () => {
-      if (!selectedGroupId) return [];
-      const api = await createApiClient(getAccessTokenSilently);
-      const response = await api.get<Budget[]>(`/groups/${selectedGroupId}/budgets`);
-      return response.data;
-    },
-    enabled: !!selectedGroupId,
-  });
-
-  const { data: expenses } = useQuery({
-    queryKey: ['actual-expenses', selectedBudgetId],
-    queryFn: async () => {
-      if (!selectedBudgetId) return [];
-      const api = await createApiClient(getAccessTokenSilently);
-      const response = await api.get<ActualExpense[]>(`/budgets/${selectedBudgetId}/actual-expenses`);
-      return response.data;
-    },
-    enabled: !!selectedBudgetId,
-  });
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', selectedGroupId],
@@ -191,255 +168,108 @@ export default function Expenses() {
       </div>
 
       {selectedBudgetId && (
-        <div className="mt-8 flow-root">
-          <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-300">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">{t('common.name')}</th>
-                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('expenses.date')}</th>
-                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('expenses.amount')}</th>
-                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('expenses.category')}</th>
-                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('common.description')}</th>
-                  <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                    <span className="sr-only">{t('common.actions')}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {expenses?.map((expense) => {
-                  const category = categories.find(c => c.id === expense.category_id);
-                  return (
-                  <tr key={expense.id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      {expense.name}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {formatDate(expense.expense_date)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {formatCurrency(expense.amount.amount, expense.amount.currency)}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-500">
-                      {category ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }}></div>
-                          <span>{category.name}</span>
-                        </div>
-                      ) : '-'}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-gray-500">{expense.description || '-'}</td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <button
-                        onClick={() => handleEdit(expense)}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
-                      >
-                        {t('common.edit')}
-                      </button>
-                      <button
-                        onClick={() => setDeletingExpense(expense)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        {t('common.delete')}
-                      </button>
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        <div className="mt-8">
+          <ExpenseList
+            expenses={expenses ?? []}
+            categories={categories}
+            showDate
+            showCategory
+            showDescription
+            showActions
+            onEdit={handleEdit}
+            onDelete={(expense) => setDeletingExpense(expense)}
+          />
         </div>
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('expenses.addExpense')}</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('expenses.amount')}</label>
-                  <div className="mt-1 flex gap-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={formData.amount.amount}
-                      onChange={(e) => setFormData(prev => ({ ...prev, amount: { ...prev.amount, amount: e.target.value } }))}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    />
-                    <div className="w-28">
-                      <CurrencySelect
-                        value={formData.amount.currency}
-                        onChange={(currency) => setFormData(prev => ({ ...prev, amount: { ...prev.amount, currency } }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('expenses.date')}</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.expense_date}
-                    onChange={(e) => setFormData(prev => ({ ...prev, expense_date: e.target.value }))}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('expenses.category')}</label>
-                  <CategoryCombobox
-                    groupId={selectedGroupId}
-                    value={formData.category_id}
-                    onChange={(categoryId) => { setFormData(prev => ({ ...prev, category_id: categoryId })); setCategoryError(false); }}
-                    getAccessTokenSilently={getAccessTokenSilently}
-                  />
-                  {categoryError && (
-                    <p className="mt-1 text-sm text-red-600">{t('categories.categoryRequired')}</p>
-                  )}
-                </div>
-              </div>
-              {createMutation.isError && (
-                <p className="mt-2 text-sm text-red-600">
-                  {t('expenses.createError')}
-                  {getErrorMessage(createMutation.error) && (
-                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(createMutation.error)}</span>
-                  )}
-                </p>
-              )}
-              <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => { setIsModalOpen(false); createMutation.reset(); }} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                  {t('common.cancel')}
-                </button>
-                <button type="submit" disabled={createMutation.isPending} className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50">
-                  {createMutation.isPending ? `${t('common.create')}...` : t('common.create')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ExpenseFormDialog
+          title={t('expenses.addExpense')}
+          onClose={() => { setIsModalOpen(false); createMutation.reset(); }}
+          onSubmit={handleSubmit}
+          name={formData.name}
+          amount={formData.amount.amount}
+          currency={formData.amount.currency}
+          description={formData.description}
+          categoryId={formData.category_id}
+          groupId={selectedGroupId}
+          expenseDate={formData.expense_date}
+          showDate
+          categoryError={categoryError}
+          isPending={createMutation.isPending}
+          error={createMutation.isError ? t('expenses.createError') : undefined}
+          errorMessageDetail={createMutation.isError ? getErrorMessage(createMutation.error) : undefined}
+          submitLabel={t('common.create')}
+          submitPendingLabel={`${t('common.create')}...`}
+          getAccessTokenSilently={getAccessTokenSilently}
+          onNameChange={(name) => setFormData(prev => ({ ...prev, name }))}
+          onAmountChange={(amount) => setFormData(prev => ({ ...prev, amount: { ...prev.amount, amount } }))}
+          onCurrencyChange={(currency) => setFormData(prev => ({ ...prev, amount: { ...prev.amount, currency } }))}
+          onDescriptionChange={(description) => setFormData(prev => ({ ...prev, description }))}
+          onCategoryIdChange={(categoryId) => setFormData(prev => ({ ...prev, category_id: categoryId }))}
+          onExpenseDateChange={(expense_date) => setFormData(prev => ({ ...prev, expense_date }))}
+          onCategoryErrorClear={() => setCategoryError(false)}
+        />
       )}
 
       {editingExpense && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('expenses.editExpense')}</h2>
-            <form onSubmit={handleUpdate}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
-                  <input
-                    type="text"
-                    required
-                    value={editingExpense.name}
-                    onChange={(e) => setEditingExpense(prev => prev ? { ...prev, name: e.target.value } : null)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('expenses.amount')}</label>
-                  <div className="mt-1 flex gap-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      value={editingExpense.amount.amount}
-                      onChange={(e) => setEditingExpense(prev => prev ? { ...prev, amount: { ...prev.amount, amount: e.target.value } } : null)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    />
-                    <div className="w-28">
-                      <CurrencySelect
-                        value={editingExpense.amount.currency}
-                        onChange={(currency) => setEditingExpense(prev => prev ? { ...prev, amount: { ...prev.amount, currency } } : null)}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('expenses.date')}</label>
-                  <input
-                    type="date"
-                    required
-                    value={editingExpense.expense_date}
-                    onChange={(e) => setEditingExpense(prev => prev ? { ...prev, expense_date: e.target.value } : null)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('expenses.category')}</label>
-                  <CategoryCombobox
-                    groupId={selectedGroupId}
-                    value={editingExpense.category_id}
-                    onChange={(categoryId) => setEditingExpense(prev => prev ? { ...prev, category_id: categoryId } : null)}
-                    getAccessTokenSilently={getAccessTokenSilently}
-                  />
-                </div>
-              </div>
-              {updateMutation.isError && (
-                <p className="mt-2 text-sm text-red-600">
-                  {t('expenses.updateError')}
-                  {getErrorMessage(updateMutation.error) && (
-                    <span className="block text-xs mt-1 opacity-75">{getErrorMessage(updateMutation.error)}</span>
-                  )}
-                </p>
-              )}
-              <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => { setEditingExpense(null); updateMutation.reset(); }} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                  {t('common.cancel')}
-                </button>
-                <button type="submit" disabled={updateMutation.isPending} className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50">
-                  {updateMutation.isPending ? `${t('common.update')}...` : t('common.update')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ExpenseFormDialog
+          title={t('expenses.editExpense')}
+          onClose={() => { setEditingExpense(null); updateMutation.reset(); }}
+          onSubmit={handleUpdate}
+          name={editingExpense.name}
+          amount={editingExpense.amount.amount}
+          currency={editingExpense.amount.currency}
+          description={editingExpense.description}
+          categoryId={editingExpense.category_id}
+          groupId={selectedGroupId}
+          expenseDate={editingExpense.expense_date}
+          showDate
+          isPending={updateMutation.isPending}
+          error={updateMutation.isError ? t('expenses.updateError') : undefined}
+          errorMessageDetail={updateMutation.isError ? getErrorMessage(updateMutation.error) : undefined}
+          submitLabel={t('common.update')}
+          submitPendingLabel={`${t('common.update')}...`}
+          getAccessTokenSilently={getAccessTokenSilently}
+          onNameChange={(name) => setEditingExpense(prev => prev ? { ...prev, name } : null)}
+          onAmountChange={(amount) => setEditingExpense(prev => prev ? { ...prev, amount: { ...prev.amount, amount } } : null)}
+          onCurrencyChange={(currency) => setEditingExpense(prev => prev ? { ...prev, amount: { ...prev.amount, currency } } : null)}
+          onDescriptionChange={(description) => setEditingExpense(prev => prev ? { ...prev, description } : null)}
+          onCategoryIdChange={(categoryId) => setEditingExpense(prev => prev ? { ...prev, category_id: categoryId } : null)}
+          onExpenseDateChange={(expense_date) => setEditingExpense(prev => prev ? { ...prev, expense_date } : null)}
+        />
       )}
 
       {deletingExpense && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('expenses.deleteExpense')}</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              {t('common.deleteConfirm', { name: deletingExpense.name }).replace(/\*\*/g, '')}
+        <Dialog title={t('expenses.deleteExpense')} onClose={() => { setDeletingExpense(null); deleteMutation.reset(); }}>
+          <p className="text-sm text-gray-500 mb-4">
+            {t('common.deleteConfirm', { name: deletingExpense.name }).replace(/\*\*/g, '')}
+          </p>
+          {deleteMutation.isError && (
+            <p className="mb-4 text-sm text-red-600">
+              {t('expenses.deleteError')}
+              {getErrorMessage(deleteMutation.error) && (
+                <span className="block text-xs mt-1 opacity-75">{getErrorMessage(deleteMutation.error)}</span>
+              )}
             </p>
-            {deleteMutation.isError && (
-              <p className="mb-4 text-sm text-red-600">
-                {t('expenses.deleteError')}
-                {getErrorMessage(deleteMutation.error) && (
-                  <span className="block text-xs mt-1 opacity-75">{getErrorMessage(deleteMutation.error)}</span>
-                )}
-              </p>
-            )}
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => { setDeletingExpense(null); deleteMutation.reset(); }}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleteMutation.isPending}
-                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50"
-              >
-                {deleteMutation.isPending ? `${t('common.delete')}...` : t('common.delete')}
-              </button>
-            </div>
+          )}
+          <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
+            <button
+              type="button"
+              onClick={() => { setDeletingExpense(null); deleteMutation.reset(); }}
+              className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+              className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50 min-h-[44px]"
+            >
+              {deleteMutation.isPending ? `${t('common.delete')}...` : t('common.delete')}
+            </button>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

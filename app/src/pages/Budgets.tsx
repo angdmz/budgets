@@ -11,6 +11,7 @@ import PeriodTypeFields from '../components/PeriodTypeFields';
 import MonthPicker from '../components/MonthPicker';
 import { useBudgetService } from '../hooks/useBudgetService';
 import type { CreateRecurringProgress, CreateBudgetsForMonthsProgress } from '../lib/services/budgetService';
+import Dialog from '../components/Dialog';
 
 export default function Budgets() {
   const navigate = useNavigate();
@@ -249,7 +250,7 @@ export default function Budgets() {
           <h1 className="text-2xl font-semibold text-gray-900">{t('budgets.title')}</h1>
           <p className="mt-2 text-sm text-gray-700">{t('budgets.subtitle')}</p>
         </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex gap-2">
+        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex flex-wrap gap-2">
           <button
             onClick={() => navigate('/budgets/new')}
             disabled={!selectedGroupId}
@@ -285,7 +286,7 @@ export default function Budgets() {
 
       {selectedGroupId && (
         <div className="mt-8 flow-root">
-          <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+          <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
             <table className="min-w-full divide-y divide-gray-300">
               <thead className="bg-gray-50">
                 <tr>
@@ -312,19 +313,19 @@ export default function Budgets() {
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
                         onClick={() => handleEdit(budget)}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
+                        className="text-blue-600 hover:text-blue-900 mr-4 min-h-[44px]"
                       >
                         {t('common.edit')}
                       </button>
                       <button
                         onClick={() => handleDuplicateClick(budget)}
-                        className="text-primary-600 hover:text-primary-900 mr-4"
+                        className="text-primary-600 hover:text-primary-900 mr-4 min-h-[44px]"
                       >
                         {t('budgets.duplicate')}
                       </button>
                       <button
                         onClick={() => setDeletingBudget(budget)}
-                        className="text-red-600 hover:text-red-900"
+                        className="text-red-600 hover:text-red-900 min-h-[44px]"
                       >
                         {t('common.delete')}
                       </button>
@@ -338,9 +339,7 @@ export default function Budgets() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('budgets.createBudget')}</h2>
+        <Dialog title={t('budgets.createBudget')} onClose={closeCreateModal}>
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
@@ -411,18 +410,18 @@ export default function Budgets() {
                   })}
                 </p>
               )}
-              <div className="mt-6 flex justify-end space-x-3">
+              <div className="mt-6 flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
                 <button
                   type="button"
                   onClick={closeCreateModal}
-                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending || createRecurringBudgets.isPending}
-                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
+                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50 min-h-[44px]"
                 >
                   {createMutation.isPending || createRecurringBudgets.isPending
                     ? `${t('common.create')}...`
@@ -430,14 +429,11 @@ export default function Budgets() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {editingBudget && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('budgets.editBudget')}</h2>
+        <Dialog title={t('budgets.editBudget')} onClose={() => { setEditingBudget(null); updateMutation.reset(); }}>
             <form onSubmit={handleUpdate}>
               <div className="space-y-4">
                 <div>
@@ -479,31 +475,28 @@ export default function Budgets() {
                   )}
                 </p>
               )}
-              <div className="mt-6 flex justify-end space-x-3">
+              <div className="mt-6 flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
                 <button
                   type="button"
                   onClick={() => { setEditingBudget(null); updateMutation.reset(); }}
-                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
+                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50 min-h-[44px]"
                 >
                   {updateMutation.isPending ? `${t('common.update')}...` : t('common.update')}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {duplicatingBudget && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('budgets.duplicateBudget')}</h2>
+        <Dialog title={t('budgets.duplicateBudget')} onClose={closeDuplicateModal}>
             <form onSubmit={handleDuplicateSubmit}>
               <div className="space-y-4">
                 <div>
@@ -619,11 +612,11 @@ export default function Budgets() {
                   })}
                 </p>
               )}
-              <div className="mt-6 flex justify-end space-x-3">
+              <div className="mt-6 flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
                 <button
                   type="button"
                   onClick={closeDuplicateModal}
-                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
                 >
                   {t('common.cancel')}
                 </button>
@@ -635,7 +628,7 @@ export default function Budgets() {
                     createBudgetsForMonths.isPending ||
                     (duplicateIsRecurring && duplicatePeriodType === 'monthly' && duplicateSelectedMonths.length === 0)
                   }
-                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
+                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50 min-h-[44px]"
                 >
                   {duplicateBudget.isPending || createRecurringBudgets.isPending || createBudgetsForMonths.isPending
                     ? `${t('budgets.duplicate')}...`
@@ -643,14 +636,11 @@ export default function Budgets() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {deletingBudget && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('budgets.deleteBudget')}</h2>
+        <Dialog title={t('budgets.deleteBudget')} onClose={() => { setDeletingBudget(null); deleteMutation.reset(); }}>
             <p className="text-sm text-gray-500 mb-4">
               {t('common.deleteConfirm', { name: deletingBudget.name }).replace(/\*\*/g, '')}
             </p>
@@ -662,24 +652,23 @@ export default function Budgets() {
                 )}
               </p>
             )}
-            <div className="flex justify-end space-x-3">
+            <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
               <button
                 type="button"
                 onClick={() => { setDeletingBudget(null); deleteMutation.reset(); }}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleteMutation.isPending}
-                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50"
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50 min-h-[44px]"
               >
                 {deleteMutation.isPending ? `${t('common.delete')}...` : t('common.delete')}
               </button>
             </div>
-          </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { createApiClient, getErrorMessage } from '../lib/api';
 import { formatDate } from '../lib/format';
 import type { Budget, Group, CreateGroupRequest, Invitation } from '../lib/types';
+import Dialog from '../components/Dialog';
 
 export default function Groups() {
   const { getAccessTokenSilently } = useAuth0();
@@ -257,9 +258,7 @@ export default function Groups() {
 
       {/* Invite Modal */}
       {inviteModalGroupId && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-lg w-full">
-            <h2 className="text-lg font-semibold mb-1">{t('groups.inviteToGroup')}</h2>
+        <Dialog title={t('groups.inviteToGroup')} onClose={closeInviteModal}>
             <p className="text-sm text-gray-600 mb-4">{t('groups.inviteSubtitle')}</p>
 
             {!createdInviteLink ? (
@@ -283,16 +282,16 @@ export default function Groups() {
             ) : (
               <div>
                 <p className="text-sm font-medium text-gray-700 mb-2">{t('groups.shareLinkLabel')}</p>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     type="text"
                     readOnly
                     value={createdInviteLink}
-                    className="flex-1 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                    className="flex-1 min-w-0 rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700"
                   />
                   <button
                     onClick={handleCopyLink}
-                    className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
+                    className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 min-h-[44px]"
                   >
                     {copySuccess ? t('groups.copied') : t('groups.copy')}
                   </button>
@@ -305,7 +304,7 @@ export default function Groups() {
                 <h3 className="text-sm font-medium text-gray-700 mb-2">{t('groups.existingInvitations')}</h3>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {invitations.map((inv) => (
-                    <div key={inv.id} className="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2">
+                    <div key={inv.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-md bg-gray-50 px-3 py-2">
                       <div className="flex items-center gap-2 text-sm">
                         <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${
                           inv.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -320,11 +319,11 @@ export default function Groups() {
                         </span>
                       </div>
                       {inv.status === 'pending' && (
-                        <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-end gap-1 self-end sm:self-auto">
                           <button
                             onClick={() => revokeInvitationMutation.mutate(inv.id)}
                             disabled={revokeInvitationMutation.isPending}
-                            className="text-red-600 hover:text-red-900 text-xs font-medium disabled:opacity-50"
+                            className="text-red-600 hover:text-red-900 text-xs font-medium disabled:opacity-50 min-h-[44px] px-2"
                           >
                             {t('groups.revoke')}
                           </button>
@@ -342,20 +341,17 @@ export default function Groups() {
             <div className="mt-6 flex justify-end">
               <button
                 onClick={closeInviteModal}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
               >
                 {t('common.close')}
               </button>
             </div>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {/* Delete Confirmation Modal */}
       {deletingGroup && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('groups.deleteGroup')}</h2>
+        <Dialog title={t('groups.deleteGroup')} onClose={() => { setDeletingGroup(null); deleteMutation.reset(); }}>
             <p className="text-sm text-gray-500 mb-4">
               {t('common.deleteConfirm', { name: deletingGroup.name }).replace(/\*\*/g, '')}
             </p>
@@ -367,31 +363,28 @@ export default function Groups() {
                 )}
               </p>
             )}
-            <div className="flex justify-end space-x-3">
+            <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
               <button
                 type="button"
                 onClick={() => { setDeletingGroup(null); deleteMutation.reset(); }}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={() => deleteMutation.mutate(deletingGroup.id)}
                 disabled={deleteMutation.isPending}
-                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50"
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50 min-h-[44px]"
               >
                 {deleteMutation.isPending ? `${t('common.delete')}...` : t('common.delete')}
               </button>
             </div>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {/* Create Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('groups.createGroup')}</h2>
+        <Dialog title={t('groups.createGroup')} onClose={() => { setIsModalOpen(false); createMutation.reset(); }}>
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
@@ -422,25 +415,24 @@ export default function Groups() {
                   )}
                 </p>
               )}
-              <div className="mt-6 flex justify-end space-x-3">
+              <div className="mt-6 flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
                 <button
                   type="button"
                   onClick={() => { setIsModalOpen(false); createMutation.reset(); }}
-                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
                 >
                   {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50"
+                  className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50 min-h-[44px]"
                 >
                   {createMutation.isPending ? `${t('common.create')}...` : t('common.create')}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );
