@@ -1,69 +1,24 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { createApiClient } from '../lib/api';
-import { formatDate, formatCurrency } from '../lib/format';
-import type { Budget, Group, ExpectedExpense, ActualExpense } from '../lib/types';
+import { formatDate } from '../lib/format';
+import { useBudgetSelection } from '../hooks/useBudgetSelection';
+import BudgetSummary from '../components/BudgetSummary';
+import ExpenseList from '../components/ExpenseList';
 
 export default function Dashboard() {
-  const { getAccessTokenSilently } = useAuth0();
   const { t } = useTranslation();
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
-  const [selectedBudgetId, setSelectedBudgetId] = useState<string>('');
-
-  const { data: groups } = useQuery({
-    queryKey: ['groups'],
-    queryFn: async () => {
-      const api = await createApiClient(getAccessTokenSilently);
-      const response = await api.get<Group[]>('/groups');
-      return response.data;
-    },
-  });
-
-  const { data: budgets } = useQuery({
-    queryKey: ['budgets', selectedGroupId],
-    queryFn: async () => {
-      if (!selectedGroupId) return [];
-      const api = await createApiClient(getAccessTokenSilently);
-      const response = await api.get<Budget[]>(`/groups/${selectedGroupId}/budgets`);
-      return response.data;
-    },
-    enabled: !!selectedGroupId,
-  });
-
-  const { data: expectedExpenses } = useQuery({
-    queryKey: ['expected-expenses', selectedBudgetId],
-    queryFn: async () => {
-      if (!selectedBudgetId) return [];
-      const api = await createApiClient(getAccessTokenSilently);
-      const response = await api.get<ExpectedExpense[]>(`/budgets/${selectedBudgetId}/expected-expenses`);
-      return response.data;
-    },
-    enabled: !!selectedBudgetId,
-  });
-
-  const { data: actualExpenses } = useQuery({
-    queryKey: ['actual-expenses', selectedBudgetId],
-    queryFn: async () => {
-      if (!selectedBudgetId) return [];
-      const api = await createApiClient(getAccessTokenSilently);
-      const response = await api.get<ActualExpense[]>(`/budgets/${selectedBudgetId}/actual-expenses`);
-      return response.data;
-    },
-    enabled: !!selectedBudgetId,
-  });
-
-  const calculateTotals = () => {
-    const expectedTotal = expectedExpenses?.reduce((sum, exp) => sum + parseFloat(exp.amount.amount), 0) || 0;
-    const actualTotal = actualExpenses?.reduce((sum, exp) => sum + parseFloat(exp.amount.amount), 0) || 0;
-    const difference = expectedTotal - actualTotal;
-
-    return { expectedTotal, actualTotal, difference };
-  };
-
-  const { expectedTotal, actualTotal, difference } = calculateTotals();
+  const {
+    selectedGroupId,
+    selectedBudgetId,
+    setSelectedGroupId,
+    setSelectedBudgetId,
+    groups,
+    budgets,
+    actualExpenses,
+    expectedTotal,
+    actualTotal,
+    difference,
+  } = useBudgetSelection();
 
   const chartData = [
     {
@@ -128,60 +83,8 @@ export default function Dashboard() {
       {selectedBudgetId && (
         <>
           {/* Summary Cards */}
-          <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">💰</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">{t('dashboard.expected')}</dt>
-                      <dd className="text-lg font-semibold text-gray-900">
-                        ${expectedTotal.toFixed(2)}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">💸</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">{t('dashboard.actual')}</dt>
-                      <dd className="text-lg font-semibold text-gray-900">
-                        ${actualTotal.toFixed(2)}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <span className="text-2xl">{difference >= 0 ? '✅' : '⚠️'}</span>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">{t('dashboard.difference')}</dt>
-                      <dd className={`text-lg font-semibold ${difference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ${Math.abs(difference).toFixed(2)} {t(difference >= 0 ? 'dashboard.under' : 'dashboard.over')}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="mt-6">
+            <BudgetSummary expectedTotal={expectedTotal} actualTotal={actualTotal} difference={difference} />
           </div>
 
           {/* Chart */}
@@ -203,38 +106,11 @@ export default function Dashboard() {
           {/* Recent Expenses */}
           <div className="mt-6 bg-white shadow rounded-lg p-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4">{t('dashboard.recentExpenses')}</h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('common.name')}
-                    </th>
-                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('dashboard.date')}
-                    </th>
-                    <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('dashboard.amount')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {actualExpenses?.slice(0, 5).map((expense) => (
-                    <tr key={expense.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {expense.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(expense.expense_date)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatCurrency(expense.amount.amount, expense.amount.currency)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ExpenseList
+              expenses={actualExpenses ?? []}
+              showDate
+              maxRows={5}
+            />
           </div>
         </>
       )}

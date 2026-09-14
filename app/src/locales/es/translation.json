@@ -24,7 +24,9 @@
     "budgets": "Presupuestos",
     "categories": "Categorías",
     "expenses": "Gastos Hechos",
-    "expected": "Gastos Esperados"
+    "expected": "Gastos Esperados",
+    "add": "Agregar",
+    "more": "Más"
   },
   "auth": {
     "authenticating": "Autenticando...",
@@ -155,6 +157,14 @@
     "actualExpenses": "Gastos Reales",
     "noExpectedExpenses": "No hay gastos esperados aún.",
     "noActualExpenses": "No hay gastos reales aún."
+  },
+  "summary": {
+    "remaining": "Restante",
+    "expected": "Esperado",
+    "spent": "Gastado",
+    "overBudgetBy": "Sobre presupuesto por",
+    "remainingOf": "de",
+    "noBudgetSelected": "Seleccione un presupuesto para ver su resumen"
   },
   "categories": {
     "title": "Categorías",

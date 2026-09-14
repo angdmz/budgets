@@ -84,7 +84,10 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md text-left bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-label={t('expenses.category')}
+        className="w-full px-3 py-2 min-h-[44px] border border-gray-300 rounded-md text-left bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600"
       >
         {selectedCategory ? (
           <div className="flex items-center gap-2">
@@ -97,7 +100,7 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg dark:bg-gray-800 dark:border-gray-600">
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg dark:bg-gray-800 dark:border-gray-600" role="listbox">
           <div className="p-2 border-b border-gray-200 dark:border-gray-700">
             <input
               type="text"
@@ -105,6 +108,7 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && canCreate) { e.preventDefault(); handleCreate(); } }}
               placeholder={allowCreate ? t('categories.searchOrCreate') : t('categories.searchCategories')}
+              aria-label={t('categories.searchCategories')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               onClick={(e) => e.stopPropagation()}
               autoFocus
@@ -115,6 +119,8 @@ export default function CategoryCombobox({ groupId, value, onChange, getAccessTo
               <button
                 key={category.id}
                 type="button"
+                role="option"
+                aria-selected={category.id === value}
                 onClick={() => {
                   onChange(category.id);
                   setIsOpen(false);

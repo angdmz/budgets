@@ -4,6 +4,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
 import { createApiClient, getErrorMessage } from '../lib/api';
 import type { Category, Group, CreateCategoryRequest, UpdateCategoryRequest } from '../lib/types';
+import Dialog from '../components/Dialog';
 
 export default function Categories() {
   const { getAccessTokenSilently } = useAuth0();
@@ -140,13 +141,13 @@ export default function Categories() {
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleEdit(category)}
-                    className="text-blue-600 hover:text-blue-800"
+                    className="text-blue-600 hover:text-blue-800 min-h-[44px] px-2"
                   >
                     {t('common.edit')}
                   </button>
                   <button
                     onClick={() => setDeletingCategory(category)}
-                    className="text-red-600 hover:text-red-800"
+                    className="text-red-600 hover:text-red-800 min-h-[44px] px-2"
                   >
                     {t('common.delete')}
                   </button>
@@ -158,9 +159,7 @@ export default function Categories() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('categories.createCategory')}</h2>
+        <Dialog title={t('categories.createCategory')} onClose={() => { setIsModalOpen(false); createMutation.reset(); }}>
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
@@ -191,23 +190,20 @@ export default function Categories() {
                   )}
                 </p>
               )}
-              <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => { setIsModalOpen(false); createMutation.reset(); }} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+              <div className="mt-6 flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
+                <button type="button" onClick={() => { setIsModalOpen(false); createMutation.reset(); }} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]">
                   {t('common.cancel')}
                 </button>
-                <button type="submit" disabled={createMutation.isPending} className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50">
+                <button type="submit" disabled={createMutation.isPending} className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50 min-h-[44px]">
                   {createMutation.isPending ? `${t('common.create')}...` : t('common.create')}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {editingCategory && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('categories.editCategory')}</h2>
+        <Dialog title={t('categories.editCategory')} onClose={() => { setEditingCategory(null); updateMutation.reset(); }}>
             <form onSubmit={handleUpdate}>
               <div className="space-y-4">
                 <div>
@@ -238,23 +234,20 @@ export default function Categories() {
                   )}
                 </p>
               )}
-              <div className="mt-6 flex justify-end space-x-3">
-                <button type="button" onClick={() => { setEditingCategory(null); updateMutation.reset(); }} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+              <div className="mt-6 flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
+                <button type="button" onClick={() => { setEditingCategory(null); updateMutation.reset(); }} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]">
                   {t('common.cancel')}
                 </button>
-                <button type="submit" disabled={updateMutation.isPending} className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50">
+                <button type="submit" disabled={updateMutation.isPending} className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50 min-h-[44px]">
                   {updateMutation.isPending ? `${t('common.update')}...` : t('common.update')}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {deletingCategory && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-lg font-semibold mb-4">{t('categories.deleteCategory')}</h2>
+        <Dialog title={t('categories.deleteCategory')} onClose={() => { setDeletingCategory(null); deleteMutation.reset(); }}>
             <p className="text-sm text-gray-500 mb-4">
               {t('common.deleteConfirm', { name: deletingCategory.name }).replace(/\*\*/g, '')}
             </p>
@@ -266,24 +259,23 @@ export default function Categories() {
                 )}
               </p>
             )}
-            <div className="flex justify-end space-x-3">
+            <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
               <button
                 type="button"
                 onClick={() => { setDeletingCategory(null); deleteMutation.reset(); }}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
               >
                 {t('common.cancel')}
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleteMutation.isPending}
-                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50"
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50 min-h-[44px]"
               >
                 {deleteMutation.isPending ? `${t('common.delete')}...` : t('common.delete')}
               </button>
             </div>
-          </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

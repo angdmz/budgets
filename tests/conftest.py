@@ -277,9 +277,26 @@ def dismiss_onboarding(driver, base_url, timeout=30):
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
+    from selenium.common.exceptions import TimeoutException as SeleniumTimeout
 
     driver.get(f"{base_url}/app")
-    time.sleep(2)
+
+    # Wait for the React app to fully load: either the onboarding redirect
+    # happens (URL contains /onboarding) or the main app renders (nav appears).
+    # The Layout component shows a loading spinner while the onboarding query
+    # is fetching, so the nav won't appear until the onboarding check is done.
+    try:
+        WebDriverWait(driver, timeout).until(
+            lambda d: "/onboarding" in d.current_url
+            or bool(d.execute_script(
+                "return document.querySelector('nav') !== null"
+            ))
+        )
+    except SeleniumTimeout:
+        return  # App didn't load in time; nothing more we can do
+
+    if "/onboarding" not in driver.current_url:
+        return  # Onboarding not in progress; no dismissal needed
 
     for _ in range(15):
         if "/onboarding" not in driver.current_url:
@@ -314,6 +331,102 @@ def dismiss_onboarding(driver, base_url, timeout=30):
         time.sleep(2)
 
 
+def assert_no_horizontal_overflow(driver, label=""):
+    """Assert that the page has no unintended horizontal overflow.
+
+    Usage:
+        assert_no_horizontal_overflow(driver, label="dashboard")
+
+    This checks that document.documentElement.scrollWidth does not exceed
+    the viewport innerWidth. A 1px tolerance is allowed for sub-pixel
+    rounding in headless Chromium.
+    """
+    scroll_width = driver.execute_script("return document.documentElement.scrollWidth")
+    inner_width = driver.execute_script("return window.innerWidth")
+    assert scroll_width <= inner_width + 1, (
+        f"Horizontal overflow detected{f' ({label})' if label else ''}: "
+        f"scrollWidth={scroll_width} > innerWidth={inner_width}"
+    )
+
+
+@pytest.fixture(scope="function")
+def driver_mobile():
+    """Create a mobile Chrome WebDriver instance (390x844 with mobile emulation).
+
+    Uses Chrome's mobile emulation mode so that dvh, touch events, and
+    viewport meta tags behave realistically — not just a narrow window.
+    """
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-software-rasterizer")
+    base = os.getenv("TEST_BASE_URL", "http://localhost:8000")
+    chrome_options.add_argument(f"--unsafely-treat-insecure-origin-as-secure={base}")
+
+    # Mobile emulation: 390x844 (modern phone), deviceScaleFactor=3, mobile UA
+    mobile_emulation = {
+        "deviceMetrics": {
+            "width": 390,
+            "height": 844,
+            "pixelRatio": 3.0,
+            "touch": True,
+            "mobile": True,
+        }
+    }
+    chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
+
+    # Use Chromium binary (for Docker compatibility)
+    chrome_options.binary_location = "/usr/bin/chromium"
+
+    driver = webdriver.Chrome(options=chrome_options)
+    driver.implicitly_wait(10)
+
+    yield driver
+
+    driver.quit()
+
+
+@pytest.fixture(scope="function")
+def driver_mobile_narrow():
+    """Create a narrow mobile Chrome WebDriver instance (320x568).
+
+    Used specifically for narrow-screen overflow validation at the
+    smallest common viewport width.
+    """
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-software-rasterizer")
+    base = os.getenv("TEST_BASE_URL", "http://localhost:8000")
+    chrome_options.add_argument(f"--unsafely-treat-insecure-origin-as-secure={base}")
+
+    mobile_emulation = {
+        "deviceMetrics": {
+            "width": 320,
+            "height": 568,
+            "pixelRatio": 2.0,
+            "touch": True,
+            "mobile": True,
+        }
+    }
+    chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
+
+    chrome_options.binary_location = "/usr/bin/chromium"
+
+    driver = webdriver.Chrome(options=chrome_options)
+    driver.implicitly_wait(10)
+
+    yield driver
+
+    driver.quit()
+
+
 @pytest.fixture(scope="function")
 def driver_visible():
     """Create a visible Chrome WebDriver instance for debugging"""
@@ -321,10 +434,10 @@ def driver_visible():
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-    
+
     driver = webdriver.Chrome(options=chrome_options)
     driver.implicitly_wait(10)
-    
+
     yield driver
-    
+
     driver.quit()

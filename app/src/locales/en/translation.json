@@ -24,7 +24,9 @@
     "budgets": "Budgets",
     "categories": "Categories",
     "expenses": "Expenses",
-    "expected": "Expected"
+    "expected": "Expected",
+    "add": "Add",
+    "more": "More"
   },
   "auth": {
     "authenticating": "Authenticating...",
@@ -155,6 +157,14 @@
     "actualExpenses": "Actual Expenses",
     "noExpectedExpenses": "No expected expenses yet.",
     "noActualExpenses": "No actual expenses yet."
+  },
+  "summary": {
+    "remaining": "Remaining",
+    "expected": "Expected",
+    "spent": "Spent",
+    "overBudgetBy": "Over budget by",
+    "remainingOf": "of",
+    "noBudgetSelected": "Select a budget to see your summary"
   },
   "categories": {
     "title": "Categories",

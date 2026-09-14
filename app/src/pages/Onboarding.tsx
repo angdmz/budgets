@@ -328,9 +328,9 @@ export default function Onboarding() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       {/* Progress bar */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
             {t('onboarding.title')}
           </h1>
           <span className="text-sm text-gray-500">
@@ -346,7 +346,7 @@ export default function Onboarding() {
       </div>
 
       {/* Step content */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6">
         {viewStep === 'welcome' && (
           <WelcomeStep onNext={handleCompleteWelcome} onSkip={handleSkip} onBack={canGoBack ? handleBack : undefined} isPending={isPending} />
         )}
@@ -670,7 +670,7 @@ function AddExpectedExpensesStep({
     >
       {draftExpenses.map((expense, idx) => (
         <div key={idx} className="mb-3 p-3 border border-gray-200 dark:border-gray-600 rounded-md">
-          <div className="flex gap-2 mb-2">
+          <div className="flex flex-col gap-2 mb-2 sm:flex-row">
             <input
               type="text"
               value={expense.name}
@@ -680,12 +680,12 @@ function AddExpectedExpensesStep({
             />
             <button
               onClick={() => removeExpense(idx)}
-              className="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-md"
+              className="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-md self-end sm:self-auto"
             >
               ✕
             </button>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <input
               type="number"
               value={expense.amount}
@@ -696,7 +696,7 @@ function AddExpectedExpensesStep({
             <select
               value={expense.currency}
               onChange={(e) => updateExpense(idx, 'currency', e.target.value)}
-              className="w-24 px-3 py-2 border border-gray-300 rounded-md bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full sm:w-24 px-3 py-2 border border-gray-300 rounded-md bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
               {['USD', 'EUR', 'GBP', 'ARS', 'BRL', 'MXN'].map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -904,7 +904,7 @@ function CompareExpensesStep({
     >
       {hasActualExpenses ? (
         <>
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-3">
             <div className="text-center p-4 bg-blue-50 dark:bg-blue-900 rounded-md">
               <p className="text-sm text-gray-500">{t('dashboard.expected')}</p>
               <p className="text-xl font-bold text-blue-600 dark:text-blue-400">

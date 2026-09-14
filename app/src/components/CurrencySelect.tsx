@@ -23,6 +23,7 @@ export default function CurrencySelect({ value, onChange }: CurrencySelectProps)
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      aria-label="Currency"
       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
       data-testid="currency-select"
     >
