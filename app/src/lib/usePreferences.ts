@@ -101,24 +101,21 @@ export function usePreferences() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['preferences'], data);
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['expected-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['actual-expenses'] });
     },
   });
 
   const updateTheme = useCallback((theme: Theme) => {
     const previousTheme = preferences?.theme ?? readCachedTheme() ?? 'LIGHT';
     applyThemeClass(theme);
-    queryClient.setQueryData(['preferences'], (old: UserPreferences | undefined) =>
-      old ? { ...old, theme } : { theme, language: 'EN', display_currency: 'USD' }
-    );
     patchMutation.mutate({ theme }, {
       onError: () => {
         applyThemeClass(previousTheme);
-        queryClient.setQueryData(['preferences'], (old: UserPreferences | undefined) =>
-          old ? { ...old, theme: previousTheme } : undefined
-        );
       },
     });
-  }, [patchMutation, preferences?.theme, queryClient]);
+  }, [patchMutation, preferences?.theme]);
 
   const updateLanguage = useCallback((languageCode: LanguageCode) => {
     i18n.changeLanguage(languageCode);

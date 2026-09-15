@@ -110,13 +110,14 @@ type UpdateExpectedExpenseRequest struct {
 }
 
 type ExpectedExpenseResponse struct {
-	ID          uuid.UUID     `json:"id"`
-	Name        string        `json:"name"`
-	Description string        `json:"description,omitempty"`
-	Amount      MoneyResponse `json:"amount"`
-	CategoryID  uuid.UUID     `json:"category_id"`
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   time.Time     `json:"updated_at"`
+	ID             uuid.UUID      `json:"id"`
+	Name           string         `json:"name"`
+	Description    string         `json:"description,omitempty"`
+	Amount         MoneyResponse  `json:"amount"`
+	ConvertedAmount *MoneyResponse `json:"converted_amount,omitempty"`
+	CategoryID     uuid.UUID      `json:"category_id"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 }
 
 type CreateActualExpenseRequest struct {
@@ -138,14 +139,15 @@ type UpdateActualExpenseRequest struct {
 }
 
 type ActualExpenseResponse struct {
-	ID          uuid.UUID     `json:"id"`
-	Name        string        `json:"name"`
-	Description string        `json:"description,omitempty"`
-	ExpenseDate string        `json:"expense_date"`
-	Amount      MoneyResponse `json:"amount"`
-	CategoryID  uuid.UUID     `json:"category_id"`
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   time.Time     `json:"updated_at"`
+	ID             uuid.UUID      `json:"id"`
+	Name           string         `json:"name"`
+	Description    string         `json:"description,omitempty"`
+	ExpenseDate    string         `json:"expense_date"`
+	Amount         MoneyResponse  `json:"amount"`
+	ConvertedAmount *MoneyResponse `json:"converted_amount,omitempty"`
+	CategoryID     uuid.UUID      `json:"category_id"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 }
 
 type AuthCallbackResponse struct {

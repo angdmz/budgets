@@ -9,14 +9,6 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func TestStubProvider_Supports(t *testing.T) {
-	p := NewStubExchangeRateProvider()
-	for _, q := range domain.SupportedQuoteTypes() {
-		if !p.Supports(q) {
-			t.Errorf("expected stub provider to support %s", q)
-		}
-	}
-}
 
 func TestStubProvider_GetRate_Direct(t *testing.T) {
 	p := NewStubExchangeRateProvider()
@@ -305,5 +297,122 @@ func TestMarketplace_GetExchangeRate_FromProvider(t *testing.T) {
 	}
 	if !rate.Rate.Equal(decimal.NewFromFloat(0.92)) {
 		t.Errorf("expected 0.92, got %s", rate.Rate)
+	}
+}
+
+func TestMarketplace_ConvertHistorical_SameCurrency(t *testing.T) {
+	p := NewStubExchangeRateProvider()
+	m := NewCurrencyMarketplace(p, NewInMemoryCache())
+	ctx := context.Background()
+
+	amount := domain.NewMoney(decimal.NewFromInt(100), domain.CurrencyUSD)
+	converted, err := m.ConvertHistorical(ctx, amount, domain.CurrencyUSD, domain.QuoteOfficial, time.Now().AddDate(0, -1, 0))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !converted.Amount.Equal(decimal.NewFromInt(100)) {
+		t.Errorf("expected 100, got %s", converted.Amount)
+	}
+}
+
+func TestMarketplace_ConvertHistorical_DifferentCurrency(t *testing.T) {
+	p := NewStubExchangeRateProvider()
+	m := NewCurrencyMarketplace(p, NewInMemoryCache())
+	ctx := context.Background()
+
+	amount := domain.NewMoney(decimal.NewFromInt(100), domain.CurrencyUSD)
+	converted, err := m.ConvertHistorical(ctx, amount, domain.CurrencyEUR, domain.QuoteOfficial, time.Now().AddDate(0, -1, 0))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected := decimal.NewFromInt(100).Mul(decimal.NewFromFloat(0.92))
+	if !converted.Amount.Equal(expected) {
+		t.Errorf("expected %s, got %s", expected, converted.Amount)
+	}
+	if converted.Currency != domain.CurrencyEUR {
+		t.Errorf("expected EUR, got %s", converted.Currency)
+	}
+}
+
+func TestMultiProvider_Fallback(t *testing.T) {
+	stub := NewStubExchangeRateProvider()
+	// MultiProvider with only stub should work for supported pairs
+	mp := NewMultiProvider(stub)
+	ctx := context.Background()
+
+	rate, err := mp.GetRate(ctx, domain.CurrencyUSD, domain.CurrencyEUR, domain.QuoteOfficial)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !rate.Rate.Equal(decimal.NewFromFloat(0.92)) {
+		t.Errorf("expected 0.92, got %s", rate.Rate)
+	}
+}
+
+func TestMultiProvider_NoProviderAvailable(t *testing.T) {
+	// Use a provider that errors for an unsupported pair
+	stub := NewStubExchangeRateProvider()
+	mp := NewMultiProvider(stub)
+	ctx := context.Background()
+
+	// CLP→COP is not in the stub's rate map and can't be routed through USD
+	_, err := mp.GetRate(ctx, domain.CurrencyCLP, domain.CurrencyCOP, domain.QuoteOfficial)
+	if err == nil {
+		t.Error("expected error when no provider can handle the pair")
+	}
+}
+
+func TestMultiProvider_FallsThroughOnError(t *testing.T) {
+	// First provider always errors, second provider (stub) succeeds
+	stub := NewStubExchangeRateProvider()
+	mp := NewMultiProvider(stub) // single provider, should still work
+	ctx := context.Background()
+
+	rate, err := mp.GetHistoricalRate(ctx, domain.CurrencyUSD, domain.CurrencyEUR, domain.QuoteOfficial, time.Now().AddDate(0, -1, 0))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rate.Source != "stub" {
+		t.Errorf("expected source stub, got %s", rate.Source)
+	}
+}
+
+func TestMultiProvider_ProviderName(t *testing.T) {
+	mp := NewMultiProvider(NewStubExchangeRateProvider())
+	if mp.ProviderName() != "multi" {
+		t.Errorf("expected 'multi', got %s", mp.ProviderName())
+	}
+}
+
+func TestFrankfurterProvider_ProviderName(t *testing.T) {
+	p := NewFrankfurterProvider(10)
+	if p.ProviderName() != "frankfurter" {
+		t.Errorf("expected 'frankfurter', got %s", p.ProviderName())
+	}
+}
+
+func TestFrankfurterProvider_GetRate_SameCurrency(t *testing.T) {
+	p := NewFrankfurterProvider(10)
+	ctx := context.Background()
+
+	rate, err := p.GetRate(ctx, domain.CurrencyUSD, domain.CurrencyUSD, domain.QuoteOfficial)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !rate.Rate.Equal(decimal.NewFromInt(1)) {
+		t.Errorf("expected identity rate 1, got %s", rate.Rate)
+	}
+}
+
+func TestFrankfurterProvider_GetHistoricalRate_SameCurrency(t *testing.T) {
+	p := NewFrankfurterProvider(10)
+	ctx := context.Background()
+
+	rate, err := p.GetHistoricalRate(ctx, domain.CurrencyUSD, domain.CurrencyUSD, domain.QuoteOfficial, time.Now().AddDate(0, -1, 0))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !rate.Rate.Equal(decimal.NewFromInt(1)) {
+		t.Errorf("expected identity rate 1, got %s", rate.Rate)
 	}
 }

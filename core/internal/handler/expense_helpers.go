@@ -43,29 +43,31 @@ func parseExpenseDate(c *gin.Context, dateStr string) (time.Time, bool) {
 
 // toExpectedExpenseResponse builds an ExpectedExpenseResponse from a persisted
 // expected expense and its decrypted money.
-func toExpectedExpenseResponse(expense *domain.PersistedExpectedExpense, decryptedMoney encryption.Money) ExpectedExpenseResponse {
+func toExpectedExpenseResponse(expense *domain.PersistedExpectedExpense, decryptedMoney encryption.Money, convertedAmount *MoneyResponse) ExpectedExpenseResponse {
 	return ExpectedExpenseResponse{
-		ID:          expense.ExternalID(),
-		Name:        expense.Name(),
-		Description: expense.Description(),
-		Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
-		CategoryID:  expense.CategoryExternalID(),
-		CreatedAt:   expense.CreatedAt(),
-		UpdatedAt:   expense.UpdatedAt(),
+		ID:              expense.ExternalID(),
+		Name:            expense.Name(),
+		Description:     expense.Description(),
+		Amount:          MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+		ConvertedAmount: convertedAmount,
+		CategoryID:      expense.CategoryExternalID(),
+		CreatedAt:       expense.CreatedAt(),
+		UpdatedAt:       expense.UpdatedAt(),
 	}
 }
 
 // toActualExpenseResponse builds an ActualExpenseResponse from a persisted
 // actual expense and its decrypted money.
-func toActualExpenseResponse(expense *domain.PersistedActualExpense, decryptedMoney encryption.Money) ActualExpenseResponse {
+func toActualExpenseResponse(expense *domain.PersistedActualExpense, decryptedMoney encryption.Money, convertedAmount *MoneyResponse) ActualExpenseResponse {
 	return ActualExpenseResponse{
-		ID:          expense.ExternalID(),
-		Name:        expense.Name(),
-		Description: expense.Description(),
-		ExpenseDate: expense.ExpenseDate().Format("2006-01-02"),
-		Amount:      MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
-		CategoryID:  expense.CategoryExternalID(),
-		CreatedAt:   expense.CreatedAt(),
-		UpdatedAt:   expense.UpdatedAt(),
+		ID:              expense.ExternalID(),
+		Name:            expense.Name(),
+		Description:     expense.Description(),
+		ExpenseDate:     expense.ExpenseDate().Format("2006-01-02"),
+		Amount:          MoneyResponse{Amount: decryptedMoney.Amount.String(), Currency: decryptedMoney.Currency},
+		ConvertedAmount: convertedAmount,
+		CategoryID:      expense.CategoryExternalID(),
+		CreatedAt:       expense.CreatedAt(),
+		UpdatedAt:       expense.UpdatedAt(),
 	}
 }

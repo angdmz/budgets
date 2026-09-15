@@ -29,5 +29,5 @@ export function formatCurrency(amount: string | number, currency: string): strin
     return `${amount} ${currency}`;
   }
   const locale = CURRENCY_LOCALE[currency] || LOCALE_MAP[i18n.language] || 'en-US';
-  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(numeric);
+  return new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'code' }).format(numeric);
 }

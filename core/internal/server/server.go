@@ -36,8 +36,12 @@ func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor, cfg *confi
 
 	var exchangeProvider currency.ExchangeRateProvider
 	switch cfg.Exchange.Provider {
-	case "stub", "":
-		exchangeProvider = currency.NewStubExchangeRateProvider()
+	case "frankfurter":
+		exchangeProvider = currency.NewFrankfurterProvider(cfg.Exchange.TimeoutSeconds())
+	case "multi":
+		exchangeProvider = currency.NewMultiProvider(
+			currency.NewFrankfurterProvider(cfg.Exchange.TimeoutSeconds()),
+		)
 	default:
 		exchangeProvider = currency.NewStubExchangeRateProvider()
 	}
@@ -51,7 +55,7 @@ func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor, cfg *confi
 		GroupHandler:       handler.NewGroupHandler(pool),
 		CategoryHandler:    handler.NewCategoryHandler(pool),
 		BudgetHandler:      handler.NewBudgetHandler(pool),
-		ExpenseHandler:     handler.NewExpenseHandler(pool, enc),
+		ExpenseHandler:     handler.NewExpenseHandler(pool, enc, marketplace),
 		PreferenceHandler:  handler.NewPreferenceHandler(pool),
 		CurrencyHandler:    handler.NewCurrencyHandler(marketplace),
 		InvitationHandler:  handler.NewInvitationHandler(pool),

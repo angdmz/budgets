@@ -29,9 +29,6 @@ type ExchangeRateProvider interface {
 	// GetHistoricalRate returns the exchange rate at a specific date
 	GetHistoricalRate(ctx context.Context, from, to domain.Currency, quote domain.QuoteType, date time.Time) (*ExchangeRate, error)
 
-	// Supports returns true if the provider can serve the given quote type
-	Supports(quote domain.QuoteType) bool
-
 	// ProviderName returns the name of this provider
 	ProviderName() string
 }
@@ -79,6 +76,21 @@ func (m *CurrencyMarketplace) Convert(ctx context.Context, amount domain.Money, 
 	// Cache the rate
 	if m.cache != nil {
 		m.cache.Set(*rate, 5*time.Minute)
+	}
+
+	convertedAmount := amount.Amount.Mul(rate.Rate)
+	return domain.NewMoney(convertedAmount, to), nil
+}
+
+// ConvertHistorical converts an amount using the historical exchange rate at the given date
+func (m *CurrencyMarketplace) ConvertHistorical(ctx context.Context, amount domain.Money, to domain.Currency, quote domain.QuoteType, date time.Time) (domain.Money, error) {
+	if amount.Currency == to {
+		return amount, nil
+	}
+
+	rate, err := m.provider.GetHistoricalRate(ctx, amount.Currency, to, quote, date)
+	if err != nil {
+		return domain.Money{}, err
 	}
 
 	convertedAmount := amount.Amount.Mul(rate.Rate)

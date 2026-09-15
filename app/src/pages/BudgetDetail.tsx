@@ -15,6 +15,7 @@ import type {
   UpdateExpectedExpenseRequest,
   CreateActualExpenseRequest,
   UpdateActualExpenseRequest,
+  BudgetSummary as BudgetSummaryData,
 } from '../lib/types';
 import Dialog from '../components/Dialog';
 import ExpenseFormDialog from '../components/ExpenseFormDialog';
@@ -110,6 +111,7 @@ export default function BudgetDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expected-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
       setEeModalOpen(false);
       setEeForm({ name: '', description: '', amount: { amount: '', currency: 'USD' }, category_id: '' });
     },
@@ -122,6 +124,7 @@ export default function BudgetDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expected-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
       setEeEditing(null);
     },
   });
@@ -133,6 +136,7 @@ export default function BudgetDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expected-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
       setEeDeleting(null);
     },
   });
@@ -145,6 +149,7 @@ export default function BudgetDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['actual-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
       setAeModalOpen(false);
       setAeForm({
         name: '',
@@ -163,6 +168,7 @@ export default function BudgetDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['actual-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
       setAeEditing(null);
     },
   });
@@ -174,6 +180,7 @@ export default function BudgetDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['actual-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
       setAeDeleting(null);
     },
   });
@@ -224,9 +231,21 @@ export default function BudgetDetail() {
     }
   };
 
-  const expectedTotal = expectedExpenses?.reduce((s, e) => s + parseFloat(e.amount.amount), 0) ?? 0;
-  const actualTotal = actualExpenses?.reduce((s, e) => s + parseFloat(e.amount.amount), 0) ?? 0;
-  const currency = expectedExpenses?.[0]?.amount.currency ?? actualExpenses?.[0]?.amount.currency ?? 'USD';
+  const { data: summary } = useQuery({
+    queryKey: ['budget-summary', budgetId],
+    queryFn: async () => {
+      if (!budgetId) return null;
+      const api = await createApiClient(getAccessTokenSilently);
+      const response = await api.get<BudgetSummaryData>(`/budgets/${budgetId}/summary`);
+      return response.data;
+    },
+    enabled: !!budgetId,
+  });
+
+  const expectedTotal = summary ? parseFloat(summary.expected_total.amount) : 0;
+  const actualTotal = summary ? parseFloat(summary.actual_total.amount) : 0;
+  const difference = summary ? parseFloat(summary.difference.amount) : 0;
+  const currency = summary?.expected_total.currency ?? 'USD';
 
   return (
     <div className="px-4 sm:px-6 lg:px-8">
@@ -235,12 +254,12 @@ export default function BudgetDetail() {
         <div className="sm:flex-auto">
           <button
             onClick={() => navigate('/budgets')}
-            className="text-sm text-primary-600 hover:text-primary-900 mb-2"
+            className="text-sm text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300 mb-2"
           >
             ← {t('budgetDetail.backToBudgets')}
           </button>
-          <h1 className="text-2xl font-semibold text-gray-900">{budgetInfo?.budget.name ?? '...'}</h1>
-          <p className="mt-1 text-sm text-gray-700">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{budgetInfo?.budget.name ?? '...'}</h1>
+          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
             {budgetInfo && `${formatDate(budgetInfo.budget.start_date)} - ${formatDate(budgetInfo.budget.end_date)}`}
             {budgetInfo?.budget.description && ` · ${budgetInfo.budget.description}`}
           </p>
@@ -249,13 +268,13 @@ export default function BudgetDetail() {
 
       {/* Summary cards */}
       <div className="mt-6">
-        <BudgetSummary expectedTotal={expectedTotal} actualTotal={actualTotal} difference={expectedTotal - actualTotal} currency={currency} />
+        <BudgetSummary expectedTotal={expectedTotal} actualTotal={actualTotal} difference={difference} currency={currency} />
       </div>
 
       {/* Expected Expenses section */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">{t('budgetDetail.expectedExpenses')}</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('budgetDetail.expectedExpenses')}</h2>
           <button
             onClick={() => setEeModalOpen(true)}
             className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
@@ -280,7 +299,7 @@ export default function BudgetDetail() {
       {/* Actual Expenses section */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">{t('budgetDetail.actualExpenses')}</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('budgetDetail.actualExpenses')}</h2>
           <button
             onClick={() => setAeModalOpen(true)}
             className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
@@ -362,7 +381,7 @@ export default function BudgetDetail() {
       {/* ── Expected Expense Delete Modal ── */}
       {eeDeleting && (
         <Dialog title={t('expectedExpenses.deleteExpectedExpense')} onClose={() => { setEeDeleting(null); eeDeleteMut.reset(); }}>
-            <p className="text-sm text-gray-500 mb-4">{t('common.deleteConfirm', { name: eeDeleting.name }).replace(/\*\*/g, '')}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('common.deleteConfirm', { name: eeDeleting.name }).replace(/\*\*/g, '')}</p>
             {eeDeleteMut.isError && (
               <p className="mb-4 text-sm text-red-600">{t('expectedExpenses.deleteError')}
                 {getErrorMessage(eeDeleteMut.error) && <span className="block text-xs mt-1 opacity-75">{getErrorMessage(eeDeleteMut.error)}</span>}
@@ -370,7 +389,7 @@ export default function BudgetDetail() {
             )}
             <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
               <button type="button" onClick={() => { setEeDeleting(null); eeDeleteMut.reset(); }}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]">{t('common.cancel')}</button>
+                className="rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px]">{t('common.cancel')}</button>
               <button type="button" onClick={() => eeDeleteMut.mutate(eeDeleting.id)} disabled={eeDeleteMut.isPending}
                 className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50 min-h-[44px]">
                 {eeDeleteMut.isPending ? `${t('common.delete')}...` : t('common.delete')}
@@ -442,7 +461,7 @@ export default function BudgetDetail() {
       {/* ── Actual Expense Delete Modal ── */}
       {aeDeleting && (
         <Dialog title={t('expenses.deleteExpense')} onClose={() => { setAeDeleting(null); aeDeleteMut.reset(); }}>
-            <p className="text-sm text-gray-500 mb-4">{t('common.deleteConfirm', { name: aeDeleting.name }).replace(/\*\*/g, '')}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('common.deleteConfirm', { name: aeDeleting.name }).replace(/\*\*/g, '')}</p>
             {aeDeleteMut.isError && (
               <p className="mb-4 text-sm text-red-600">{t('expenses.deleteError')}
                 {getErrorMessage(aeDeleteMut.error) && <span className="block text-xs mt-1 opacity-75">{getErrorMessage(aeDeleteMut.error)}</span>}
@@ -450,7 +469,7 @@ export default function BudgetDetail() {
             )}
             <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
               <button type="button" onClick={() => { setAeDeleting(null); aeDeleteMut.reset(); }}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]">{t('common.cancel')}</button>
+                className="rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px]">{t('common.cancel')}</button>
               <button type="button" onClick={() => aeDeleteMut.mutate(aeDeleting.id)} disabled={aeDeleteMut.isPending}
                 className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50 min-h-[44px]">
                 {aeDeleteMut.isPending ? `${t('common.delete')}...` : t('common.delete')}

@@ -34,12 +34,12 @@ export default function MonthPicker({ year, selectedMonths, onChange, referenceD
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700">{t('budgets.selectMonths')}</label>
+      <label className="form-label">{t('budgets.selectMonths')}</label>
       <div className="mt-1 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => onChange(sortMonths(remainingMonthsOfYear(referenceDate)))}
-          className="rounded-md px-2 py-1 text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+          className="rounded-md px-2 py-1 text-xs font-medium border bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
         >
           {t('budgets.restOfYear')}
         </button>
@@ -48,7 +48,7 @@ export default function MonthPicker({ year, selectedMonths, onChange, referenceD
             key={q}
             type="button"
             onClick={() => onChange(sortMonths(quarterMonths(q, year)))}
-            className="rounded-md px-2 py-1 text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+            className="rounded-md px-2 py-1 text-xs font-medium border bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
           >
             {t('budgets.quarter', { quarter: q })}
           </button>
@@ -56,7 +56,7 @@ export default function MonthPicker({ year, selectedMonths, onChange, referenceD
         <button
           type="button"
           onClick={() => onChange([])}
-          className="rounded-md px-2 py-1 text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+          className="rounded-md px-2 py-1 text-xs font-medium border bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
         >
           {t('budgets.clearMonths')}
         </button>
@@ -74,7 +74,7 @@ export default function MonthPicker({ year, selectedMonths, onChange, referenceD
               className={`rounded-md px-3 py-2 text-sm font-medium border ${
                 selected
                   ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
               }`}
             >
               {t(`budgets.months.${name}`)}
@@ -82,7 +82,7 @@ export default function MonthPicker({ year, selectedMonths, onChange, referenceD
           );
         })}
       </div>
-      <p className="mt-2 text-sm text-gray-500">
+      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
         {t('budgets.monthsSelectedCount', { count: selectedMonths.length })}
       </p>
     </div>

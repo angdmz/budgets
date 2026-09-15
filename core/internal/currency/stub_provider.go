@@ -38,11 +38,6 @@ func (p *StubExchangeRateProvider) ProviderName() string {
 	return "stub"
 }
 
-func (p *StubExchangeRateProvider) Supports(quote domain.QuoteType) bool {
-	// The stub provider supports all quote types with the same rates
-	return true
-}
-
 func (p *StubExchangeRateProvider) GetRate(ctx context.Context, from, to domain.Currency, quote domain.QuoteType) (*ExchangeRate, error) {
 	key := fmt.Sprintf("%s_%s", from, to)
 	

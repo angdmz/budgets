@@ -96,9 +96,14 @@ func (h *PreferenceHandler) UpdatePreferences(c *gin.Context) {
 		return
 	}
 
+	quoteType := domain.QuoteType(req.PreferredQuoteType)
+	if quoteType == "" {
+		quoteType = domain.QuoteOfficial
+	}
+
 	var response PreferenceResponse
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.Theme(req.Theme), domain.Language(req.Language), domain.Currency(req.DisplayCurrency), domain.QuoteType(req.PreferredQuoteType))
+		persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.Theme(req.Theme), domain.Language(req.Language), domain.Currency(req.DisplayCurrency), quoteType)
 		if err != nil {
 			return err
 		}

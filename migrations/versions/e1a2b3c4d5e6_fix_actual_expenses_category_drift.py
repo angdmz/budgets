@@ -26,7 +26,7 @@ def upgrade() -> None:
     #   SELECT count(*) FROM actual_expenses WHERE category_id IS NULL;
     # If any are found, backfill or delete them first.
 
-    op.drop_constraint(None, 'actual_expenses', type_='foreignkey')
+    op.drop_constraint('actual_expenses_category_id_fkey', 'actual_expenses', type_='foreignkey')
     op.create_foreign_key(
         'actual_expenses_category_id_fkey',
         'actual_expenses',

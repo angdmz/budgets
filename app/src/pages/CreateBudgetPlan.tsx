@@ -284,11 +284,11 @@ export default function CreateBudgetPlan() {
         {step === 1 && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('common.selectGroup')}</label>
+              <label className="form-label">{t('common.selectGroup')}</label>
               <select
                 value={selectedGroupId}
                 onChange={(e) => setSelectedGroupId(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className="form-select"
               >
                 <option value="">{t('common.selectGroupPlaceholder')}</option>
                 {groups?.map((group) => (
@@ -298,29 +298,29 @@ export default function CreateBudgetPlan() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('common.name')}</label>
+              <label className="form-label">{t('common.name')}</label>
               <input
                 type="text"
                 required
                 value={baseName}
                 onChange={(e) => setBaseName(e.target.value)}
                 placeholder={t('budgetPlan.namePlaceholder')}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className="form-input"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('common.description')}</label>
+              <label className="form-label">{t('common.description')}</label>
               <input
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className="form-input"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('budgetPlan.cadence')}</label>
+              <label className="form-label">{t('budgetPlan.cadence')}</label>
               <div className="mt-1 grid grid-cols-3 gap-2">
                 {CADENCE_OPTIONS.map((option) => (
                   <button
@@ -341,24 +341,24 @@ export default function CreateBudgetPlan() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('budgets.startDate')}</label>
+                <label className="form-label">{t('budgets.startDate')}</label>
                 <input
                   type="date"
                   required
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="form-input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('budgetPlan.numberOfPeriods')}</label>
+                <label className="form-label">{t('budgetPlan.numberOfPeriods')}</label>
                 <input
                   type="number"
                   min={1}
                   max={52}
                   value={numberOfPeriods}
                   onChange={(e) => setNumberOfPeriods(Math.max(1, Number(e.target.value)))}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  className="form-input"
                 />
               </div>
             </div>
@@ -413,24 +413,24 @@ export default function CreateBudgetPlan() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('common.name')}</label>
+                  <label className="form-label">{t('common.name')}</label>
                   <input
                     type="text"
                     value={row.name}
                     onChange={(e) => updateExpenseRow(row.id, { name: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    className="form-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('expectedExpenses.amount')}</label>
+                  <label className="form-label">{t('expectedExpenses.amount')}</label>
                   <div className="mt-1 flex gap-2">
                     <input
                       type="number"
                       step="0.01"
                       value={row.amount}
                       onChange={(e) => updateExpenseRow(row.id, { amount: e.target.value })}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      className="form-input"
                     />
                     <div className="w-28">
                       <CurrencySelect
@@ -442,17 +442,17 @@ export default function CreateBudgetPlan() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('common.description')}</label>
+                  <label className="form-label">{t('common.description')}</label>
                   <input
                     type="text"
                     value={row.description}
                     onChange={(e) => updateExpenseRow(row.id, { description: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    className="form-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('expectedExpenses.category')}</label>
+                  <label className="form-label">{t('expectedExpenses.category')}</label>
                   <CategoryCombobox
                     groupId={selectedGroupId}
                     value={row.category_id}

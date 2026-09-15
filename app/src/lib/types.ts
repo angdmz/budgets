@@ -41,6 +41,7 @@ export interface ExpectedExpense {
   name: string;
   description: string;
   amount: Money;
+  converted_amount?: Money;
   category_id: string;
   budget_id: string;
   created_at: string;
@@ -52,6 +53,7 @@ export interface ActualExpense {
   name: string;
   description: string;
   amount: Money;
+  converted_amount?: Money;
   expense_date: string;
   category_id: string;
   budget_id: string;
@@ -192,4 +194,11 @@ export interface OnboardingResponse {
 
 export interface CompleteStepRequest {
   data?: OnboardingStepData;
+}
+
+export interface BudgetSummary {
+  budget_id: string;
+  expected_total: Money;
+  actual_total: Money;
+  difference: Money;
 }

@@ -13,21 +13,21 @@ export default function BudgetSummary({ expectedTotal, actualTotal, difference, 
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-gray-200">
-        <p className="text-sm font-medium text-gray-500">{t('budgetDetail.expectedTotal')}</p>
-        <p className="mt-1 text-xl font-semibold text-gray-900 sm:text-2xl">
+      <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow-sm ring-1 ring-gray-200 dark:ring-gray-700">
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('budgetDetail.expectedTotal')}</p>
+        <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white sm:text-2xl">
           {formatCurrency(String(expectedTotal), currency)}
         </p>
       </div>
-      <div className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-gray-200">
-        <p className="text-sm font-medium text-gray-500">{t('budgetDetail.actualTotal')}</p>
-        <p className="mt-1 text-xl font-semibold text-gray-900 sm:text-2xl">
+      <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow-sm ring-1 ring-gray-200 dark:ring-gray-700">
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('budgetDetail.actualTotal')}</p>
+        <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white sm:text-2xl">
           {formatCurrency(String(actualTotal), currency)}
         </p>
       </div>
-      <div className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-gray-200">
-        <p className="text-sm font-medium text-gray-500">{t('budgetDetail.difference')}</p>
-        <p className={`mt-1 text-xl font-semibold sm:text-2xl ${difference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+      <div className="rounded-lg bg-white dark:bg-gray-800 p-4 shadow-sm ring-1 ring-gray-200 dark:ring-gray-700">
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('budgetDetail.difference')}</p>
+        <p className={`mt-1 text-xl font-semibold sm:text-2xl ${difference >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
           {formatCurrency(String(difference), currency)}
         </p>
       </div>

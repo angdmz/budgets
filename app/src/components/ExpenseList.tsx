@@ -7,6 +7,7 @@ export interface ExpenseListItem {
   name: string;
   description: string;
   amount: Money;
+  converted_amount?: Money;
   category_id: string;
   expense_date?: string;
 }
@@ -41,20 +42,20 @@ export default function ExpenseList<T extends ExpenseListItem>({
   const colCount = 1 + (showDate ? 1 : 0) + 1 + (showCategory ? 1 : 0) + (showDescription ? 1 : 0) + (showActions ? 1 : 0);
 
   return (
-    <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-      <table className="min-w-full divide-y divide-gray-300">
-        <thead className="bg-gray-50">
+    <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 dark:ring-white/10 sm:rounded-lg">
+      <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
+        <thead className="bg-gray-50 dark:bg-gray-900/50">
           <tr>
-            <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">{t('common.name')}</th>
+            <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">{t('common.name')}</th>
             {showDate && (
-              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('expenses.date')}</th>
+              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('expenses.date')}</th>
             )}
-            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('expenses.amount')}</th>
+            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('expenses.amount')}</th>
             {showCategory && (
-              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('expenses.category')}</th>
+              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('expenses.category')}</th>
             )}
             {showDescription && (
-              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('common.description')}</th>
+              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('common.description')}</th>
             )}
             {showActions && (
               <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
@@ -63,24 +64,29 @@ export default function ExpenseList<T extends ExpenseListItem>({
             )}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200 bg-white">
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
           {rows.map((expense) => {
             const category = categories.find((c) => c.id === expense.category_id);
             return (
               <tr key={expense.id}>
-                <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
                   {expense.name}
                 </td>
                 {showDate && (
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                     {expense.expense_date ? formatDate(expense.expense_date) : '-'}
                   </td>
                 )}
-                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                  {formatCurrency(expense.amount.amount, expense.amount.currency)}
+                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                  <div>{formatCurrency(expense.amount.amount, expense.amount.currency)}</div>
+                  {expense.converted_amount && expense.converted_amount.currency !== expense.amount.currency && (
+                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                      {formatCurrency(expense.converted_amount.amount, expense.converted_amount.currency)}
+                    </div>
+                  )}
                 </td>
                 {showCategory && (
-                  <td className="px-3 py-4 text-sm text-gray-500">
+                  <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                     {category ? (
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }}></div>
@@ -90,21 +96,21 @@ export default function ExpenseList<T extends ExpenseListItem>({
                   </td>
                 )}
                 {showDescription && (
-                  <td className="px-3 py-4 text-sm text-gray-500">{expense.description || '-'}</td>
+                  <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{expense.description || '-'}</td>
                 )}
                 {showActions && (
                   <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                     <button
                       onClick={() => onEdit?.(expense)}
                       aria-label={`${t('common.edit')} ${expense.name}`}
-                      className="text-blue-600 hover:text-blue-900 mr-4 min-h-[44px]"
+                      className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4 min-h-[44px]"
                     >
                       {t('common.edit')}
                     </button>
                     <button
                       onClick={() => onDelete?.(expense)}
                       aria-label={`${t('common.delete')} ${expense.name}`}
-                      className="text-red-600 hover:text-red-900 min-h-[44px]"
+                      className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 min-h-[44px]"
                     >
                       {t('common.delete')}
                     </button>
@@ -115,7 +121,7 @@ export default function ExpenseList<T extends ExpenseListItem>({
           })}
           {rows.length === 0 && emptyMessage && (
             <tr>
-              <td colSpan={colCount} className="py-6 text-center text-sm text-gray-500">{emptyMessage}</td>
+              <td colSpan={colCount} className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">{emptyMessage}</td>
             </tr>
           )}
         </tbody>
