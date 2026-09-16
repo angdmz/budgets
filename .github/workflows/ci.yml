@@ -163,6 +163,10 @@ jobs:
           DB_HOSTNAME=db
           DB_PORT=5432
           DB_HOST_PORT=5432
+          DB_SSLMODE=disable
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+          POSTGRES_DB=budgets
           API_PORT=8080
           SERVER_ENV=test
           AUTH0_DOMAIN=ci.placeholder.auth0.com
