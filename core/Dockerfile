@@ -45,6 +45,5 @@ FROM scratch AS production
 
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /out/main /main
-USER 65534:65534
 EXPOSE 8080
 ENTRYPOINT ["/main"]
