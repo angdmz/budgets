@@ -8,8 +8,9 @@ import (
 )
 
 type cacheKey struct {
-	from domain.Currency
-	to   domain.Currency
+	from  domain.Currency
+	to    domain.Currency
+	quote domain.QuoteType
 }
 
 type cacheEntry struct {
@@ -29,11 +30,11 @@ func NewInMemoryCache() *InMemoryCache {
 	}
 }
 
-func (c *InMemoryCache) Get(from, to domain.Currency) (*ExchangeRate, bool) {
+func (c *InMemoryCache) Get(from, to domain.Currency, quote domain.QuoteType) (*ExchangeRate, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	key := cacheKey{from: from, to: to}
+	key := cacheKey{from: from, to: to, quote: quote}
 	entry, ok := c.entries[key]
 	if !ok {
 		return nil, false
@@ -50,7 +51,7 @@ func (c *InMemoryCache) Set(rate ExchangeRate, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	key := cacheKey{from: rate.FromCurrency, to: rate.ToCurrency}
+	key := cacheKey{from: rate.FromCurrency, to: rate.ToCurrency, quote: rate.Quote}
 	c.entries[key] = cacheEntry{
 		rate:      rate,
 		expiresAt: time.Now().Add(ttl),

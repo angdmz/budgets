@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, type ReactNode } from 'react';
+import { useEffect, useRef, useCallback, useId, type ReactNode } from 'react';
 
 interface DialogProps {
   titleId?: string;
@@ -48,27 +48,41 @@ export default function Dialog({
     [dismissible, onClose]
   );
 
+  // Keep latest handler in a ref so the mount-only effect doesn't re-run
+  const handlerRef = useRef(handleKeyDown);
+  handlerRef.current = handleKeyDown;
+
   useEffect(() => {
     previouslyFocused.current = document.activeElement as HTMLElement;
     document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', handleKeyDown);
 
-    // Move focus into the panel
+    const listener = (e: KeyboardEvent) => handlerRef.current(e);
+    document.addEventListener('keydown', listener);
+
+    // Move focus into the panel — prefer form fields over the close button
     if (panelRef.current) {
-      const focusable = panelRef.current.querySelector<HTMLElement>(
-        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+      const formField = panelRef.current.querySelector<HTMLElement>(
+        'textarea, input, select'
       );
-      focusable?.focus();
+      if (formField) {
+        formField.focus();
+      } else {
+        const focusable = panelRef.current.querySelector<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        focusable?.focus();
+      }
     }
 
     return () => {
       document.body.style.overflow = '';
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', listener);
       previouslyFocused.current?.focus();
     };
-  }, [handleKeyDown]);
+  }, []);
 
-  const generatedTitleId = titleId || (title ? `dialog-title-${Math.random().toString(36).slice(2, 9)}` : undefined);
+  const reactId = useId();
+  const generatedTitleId = titleId || (title ? reactId : undefined);
 
   return (
     <div

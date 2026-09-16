@@ -9,12 +9,15 @@ export type Theme = 'LIGHT' | 'DIM' | 'DARK';
 
 export type Currency = 'USD' | 'EUR' | 'GBP' | 'ARS' | 'BRL' | 'MXN' | 'CLP' | 'COP' | 'PEN' | 'UYU';
 
+export type QuoteType = 'OFFICIAL' | 'BLUE' | 'MEP' | 'CCL' | 'CRYPTO';
+
 const THEME_STORAGE_KEY = 'budgets.theme';
 
 export interface UserPreferences {
   theme: Theme;
   language: string;
   display_currency: Currency;
+  preferred_quote_type: QuoteType;
 }
 
 export const SUPPORTED_THEMES: { value: Theme; label: string }[] = [
@@ -33,6 +36,14 @@ export const SUPPORTED_CURRENCIES: { value: Currency; label: string }[] = [
   { value: 'COP', label: 'COP - Colombian Peso' },
   { value: 'PEN', label: 'PEN - Peruvian Sol' },
   { value: 'UYU', label: 'UYU - Uruguayan Peso' },
+];
+
+export const SUPPORTED_QUOTE_TYPES: { value: QuoteType; label: string }[] = [
+  { value: 'OFFICIAL', label: 'Official' },
+  { value: 'BLUE', label: 'Blue' },
+  { value: 'MEP', label: 'MEP' },
+  { value: 'CCL', label: 'CCL' },
+  { value: 'CRYPTO', label: 'Crypto' },
 ];
 
 function readCachedTheme(): Theme | null {
@@ -83,31 +94,28 @@ export function usePreferences() {
   }, [preferences?.language]);
 
   const patchMutation = useMutation({
-    mutationFn: async (patch: Partial<Pick<UserPreferences, 'theme' | 'language' | 'display_currency'>>) => {
+    mutationFn: async (patch: Partial<Pick<UserPreferences, 'theme' | 'language' | 'display_currency' | 'preferred_quote_type'>>) => {
       const api = await createApiClient(getAccessTokenSilently);
       const response = await api.patch<UserPreferences>('/preferences', patch);
       return response.data;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['preferences'], data);
+      queryClient.invalidateQueries({ queryKey: ['budget-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['expected-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['actual-expenses'] });
     },
   });
 
   const updateTheme = useCallback((theme: Theme) => {
     const previousTheme = preferences?.theme ?? readCachedTheme() ?? 'LIGHT';
     applyThemeClass(theme);
-    queryClient.setQueryData(['preferences'], (old: UserPreferences | undefined) =>
-      old ? { ...old, theme } : { theme, language: 'EN', display_currency: 'USD' }
-    );
     patchMutation.mutate({ theme }, {
       onError: () => {
         applyThemeClass(previousTheme);
-        queryClient.setQueryData(['preferences'], (old: UserPreferences | undefined) =>
-          old ? { ...old, theme: previousTheme } : undefined
-        );
       },
     });
-  }, [patchMutation, preferences?.theme, queryClient]);
+  }, [patchMutation, preferences?.theme]);
 
   const updateLanguage = useCallback((languageCode: LanguageCode) => {
     i18n.changeLanguage(languageCode);
@@ -118,12 +126,17 @@ export function usePreferences() {
     patchMutation.mutate({ display_currency: currency });
   }, [patchMutation]);
 
+  const updatePreferredQuoteType = useCallback((quoteType: QuoteType) => {
+    patchMutation.mutate({ preferred_quote_type: quoteType });
+  }, [patchMutation]);
+
   return {
     preferences,
     theme: preferences?.theme ?? readCachedTheme() ?? 'LIGHT',
     updateTheme,
     updateLanguage,
     updateDisplayCurrency,
+    updatePreferredQuoteType,
     currentLanguage: i18n.language as LanguageCode,
     isUpdating: patchMutation.isPending,
   };

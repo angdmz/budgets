@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { createApiClient } from '../lib/api';
+import { createApiClient, type GetAccessTokenSilently } from '../lib/api';
 import type { Category, CreateCategoryRequest } from '../lib/types';
 
 interface CategoryComboboxProps {
   groupId: string;
   value: string;
   onChange: (categoryId: string) => void;
-  getAccessTokenSilently: () => Promise<string>;
+  getAccessTokenSilently: GetAccessTokenSilently;
   allowCreate?: boolean;
   placeholder?: string;
 }

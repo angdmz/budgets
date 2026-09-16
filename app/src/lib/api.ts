@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuth0 } from '@auth0/auth0-react';
 import { notifySessionExpired, SessionExpiredError } from './session';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
@@ -11,7 +12,7 @@ const AUTH_ERROR_CODES = [
   'missing_refresh_token',
 ];
 
-type GetAccessTokenSilently = (options?: object) => Promise<string>;
+export type GetAccessTokenSilently = ReturnType<typeof useAuth0>['getAccessTokenSilently'];
 
 export async function createApiClient(getAccessTokenSilently: GetAccessTokenSilently) {
   let token: string;
@@ -20,7 +21,7 @@ export async function createApiClient(getAccessTokenSilently: GetAccessTokenSile
       authorizationParams: {
         audience: import.meta.env.VITE_AUTH0_AUDIENCE,
       },
-    });
+    }) as string;
   } catch (error: any) {
     if (
       AUTH_ERROR_CODES.includes(error?.error) ||

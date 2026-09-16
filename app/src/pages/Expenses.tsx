@@ -123,8 +123,8 @@ export default function Expenses() {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">{t('expenses.title')}</h1>
-          <p className="mt-2 text-sm text-gray-700">{t('expenses.subtitle')}</p>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('expenses.title')}</h1>
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{t('expenses.subtitle')}</p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
           <button
@@ -139,11 +139,11 @@ export default function Expenses() {
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700">{t('common.selectGroup')}</label>
+          <label className="form-label">{t('common.selectGroup')}</label>
           <select
             value={selectedGroupId}
             onChange={(e) => { setSelectedGroupId(e.target.value); setSelectedBudgetId(''); }}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            className="form-select"
           >
             <option value="">{t('common.selectGroupPlaceholder')}</option>
             {groups?.map((group) => (
@@ -152,12 +152,12 @@ export default function Expenses() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">{t('common.selectBudget')}</label>
+          <label className="form-label">{t('common.selectBudget')}</label>
           <select
             value={selectedBudgetId}
             onChange={(e) => setSelectedBudgetId(e.target.value)}
             disabled={!selectedGroupId}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm disabled:opacity-50"
+            className="form-select disabled:opacity-50"
           >
             <option value="">{t('common.selectBudgetPlaceholder')}</option>
             {budgets?.map((budget) => (
@@ -242,7 +242,7 @@ export default function Expenses() {
 
       {deletingExpense && (
         <Dialog title={t('expenses.deleteExpense')} onClose={() => { setDeletingExpense(null); deleteMutation.reset(); }}>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             {t('common.deleteConfirm', { name: deletingExpense.name }).replace(/\*\*/g, '')}
           </p>
           {deleteMutation.isError && (
@@ -257,7 +257,7 @@ export default function Expenses() {
             <button
               type="button"
               onClick={() => { setDeletingExpense(null); deleteMutation.reset(); }}
-              className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
+              className="rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px]"
             >
               {t('common.cancel')}
             </button>

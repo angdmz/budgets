@@ -18,6 +18,7 @@ export default function Dashboard() {
     expectedTotal,
     actualTotal,
     difference,
+    currency,
   } = useBudgetSelection();
 
   const chartData = [
@@ -32,8 +33,8 @@ export default function Dashboard() {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">{t('dashboard.title')}</h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('dashboard.title')}</h1>
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
             {t('dashboard.subtitle')}
           </p>
         </div>
@@ -41,14 +42,14 @@ export default function Dashboard() {
 
       {/* Group Selector */}
       <div className="mt-6">
-        <label htmlFor="group" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="group" className="form-label">
           {t('common.selectGroup')}
         </label>
         <select
           id="group"
           value={selectedGroupId}
           onChange={(e) => { setSelectedGroupId(e.target.value); setSelectedBudgetId(''); }}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+          className="form-select"
         >
           <option value="">{t('common.selectGroupPlaceholder')}</option>
           {groups?.map((group) => (
@@ -61,7 +62,7 @@ export default function Dashboard() {
 
       {/* Budget Selector */}
       <div className="mt-4">
-        <label htmlFor="budget" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="budget" className="form-label">
           {t('common.selectBudget')}
         </label>
         <select
@@ -69,7 +70,7 @@ export default function Dashboard() {
           value={selectedBudgetId}
           onChange={(e) => setSelectedBudgetId(e.target.value)}
           disabled={!selectedGroupId}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm disabled:opacity-50"
+          className="form-select disabled:opacity-50"
         >
           <option value="">{t('common.selectBudgetPlaceholder')}</option>
           {budgets?.map((budget) => (
@@ -84,12 +85,12 @@ export default function Dashboard() {
         <>
           {/* Summary Cards */}
           <div className="mt-6">
-            <BudgetSummary expectedTotal={expectedTotal} actualTotal={actualTotal} difference={difference} />
+            <BudgetSummary expectedTotal={expectedTotal} actualTotal={actualTotal} difference={difference} currency={currency} />
           </div>
 
           {/* Chart */}
-          <div className="mt-6 bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">{t('dashboard.budgetVsActual')}</h2>
+          <div className="mt-6 bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('dashboard.budgetVsActual')}</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -104,8 +105,8 @@ export default function Dashboard() {
           </div>
 
           {/* Recent Expenses */}
-          <div className="mt-6 bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">{t('dashboard.recentExpenses')}</h2>
+          <div className="mt-6 bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('dashboard.recentExpenses')}</h2>
             <ExpenseList
               expenses={actualExpenses ?? []}
               showDate

@@ -247,8 +247,8 @@ export default function Budgets() {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">{t('budgets.title')}</h1>
-          <p className="mt-2 text-sm text-gray-700">{t('budgets.subtitle')}</p>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('budgets.title')}</h1>
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{t('budgets.subtitle')}</p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none flex flex-wrap gap-2">
           <button
@@ -261,7 +261,7 @@ export default function Budgets() {
           <button
             onClick={() => setIsModalOpen(true)}
             disabled={!selectedGroupId}
-            className="block rounded-md bg-white px-3 py-2 text-center text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
+            className="block rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-center text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
           >
             {t('budgets.addBudget')}
           </button>
@@ -269,11 +269,11 @@ export default function Budgets() {
       </div>
 
       <div className="mt-6">
-        <label className="block text-sm font-medium text-gray-700">{t('common.selectGroup')}</label>
+        <label className="form-label">{t('common.selectGroup')}</label>
         <select
           value={selectedGroupId}
           onChange={(e) => setSelectedGroupId(e.target.value)}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+          className="form-select"
         >
           <option value="">{t('common.selectGroupPlaceholder')}</option>
           {groups?.map((group) => (
@@ -286,46 +286,46 @@ export default function Budgets() {
 
       {selectedGroupId && (
         <div className="mt-8 flow-root">
-          <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-300">
-              <thead className="bg-gray-50">
+          <div className="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 dark:ring-white/10 sm:rounded-lg">
+            <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-900/50">
                 <tr>
-                  <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">{t('common.name')}</th>
-                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('budgets.period')}</th>
-                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">{t('common.description')}</th>
+                  <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">{t('common.name')}</th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('budgets.period')}</th>
+                  <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('common.description')}</th>
                   <th className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                     <span className="sr-only">{t('common.actions')}</span>
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                 {budgets?.map((budget) => (
                   <tr key={budget.id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      <button onClick={() => navigate(`/budgets/${budget.id}`)} className="text-left hover:text-primary-600">
+                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
+                      <button onClick={() => navigate(`/budgets/${budget.id}`)} className="text-left hover:text-primary-600 dark:hover:text-primary-400">
                         {budget.name}
                       </button>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {formatDate(budget.start_date)} - {formatDate(budget.end_date)}
                     </td>
-                    <td className="px-3 py-4 text-sm text-gray-500">{budget.description || '-'}</td>
+                    <td className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{budget.description || '-'}</td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
                         onClick={() => handleEdit(budget)}
-                        className="text-blue-600 hover:text-blue-900 mr-4 min-h-[44px]"
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4 min-h-[44px]"
                       >
                         {t('common.edit')}
                       </button>
                       <button
                         onClick={() => handleDuplicateClick(budget)}
-                        className="text-primary-600 hover:text-primary-900 mr-4 min-h-[44px]"
+                        className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300 mr-4 min-h-[44px]"
                       >
                         {t('budgets.duplicate')}
                       </button>
                       <button
                         onClick={() => setDeletingBudget(budget)}
-                        className="text-red-600 hover:text-red-900 min-h-[44px]"
+                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 min-h-[44px]"
                       >
                         {t('common.delete')}
                       </button>
@@ -343,13 +343,13 @@ export default function Budgets() {
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
+                  <label className="form-label">{t('common.name')}</label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    className="form-input"
                   />
                 </div>
                 <PeriodTypeFields
@@ -361,25 +361,25 @@ export default function Budgets() {
                 />
                 {periodType !== 'custom' && (
                   <div>
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                       <input
                         type="checkbox"
                         checked={isRecurring}
                         onChange={(e) => setIsRecurring(e.target.checked)}
-                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        className="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
                       />
                       {t('budgets.createRecurring')}
                     </label>
                     {isRecurring && (
                       <div className="mt-2">
-                        <label className="block text-sm font-medium text-gray-700">{t('budgets.numberOfPeriods')}</label>
+                        <label className="form-label">{t('budgets.numberOfPeriods')}</label>
                         <input
                           type="number"
                           min={2}
                           max={24}
                           value={numberOfPeriods}
                           onChange={(e) => setNumberOfPeriods(Number(e.target.value))}
-                          className="mt-1 block w-24 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                          className="form-input w-24"
                         />
                       </div>
                     )}
@@ -403,7 +403,7 @@ export default function Budgets() {
                 </p>
               )}
               {recurringProgress && createRecurringBudgets.isPending && (
-                <p className="mt-2 text-sm text-gray-600">
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                   {t('budgets.recurringProgress', {
                     current: recurringProgress.currentPeriod,
                     total: recurringProgress.totalPeriods,
@@ -414,7 +414,7 @@ export default function Budgets() {
                 <button
                   type="button"
                   onClick={closeCreateModal}
-                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
+                  className="rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px]"
                 >
                   {t('common.cancel')}
                 </button>
@@ -437,33 +437,33 @@ export default function Budgets() {
             <form onSubmit={handleUpdate}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
+                  <label className="form-label">{t('common.name')}</label>
                   <input
                     type="text"
                     required
                     value={editingBudget.name}
                     onChange={(e) => setEditingBudget({ ...editingBudget, name: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    className="form-input"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('budgets.startDate')}</label>
+                  <label className="form-label">{t('budgets.startDate')}</label>
                   <input
                     type="date"
                     required
                     value={editingBudget.start_date}
                     onChange={(e) => setEditingBudget({ ...editingBudget, start_date: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    className="form-input"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('budgets.endDate')}</label>
+                  <label className="form-label">{t('budgets.endDate')}</label>
                   <input
                     type="date"
                     required
                     value={editingBudget.end_date}
                     onChange={(e) => setEditingBudget({ ...editingBudget, end_date: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    className="form-input"
                   />
                 </div>
               </div>
@@ -479,7 +479,7 @@ export default function Budgets() {
                 <button
                   type="button"
                   onClick={() => { setEditingBudget(null); updateMutation.reset(); }}
-                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
+                  className="rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px]"
                 >
                   {t('common.cancel')}
                 </button>
@@ -500,13 +500,13 @@ export default function Budgets() {
             <form onSubmit={handleDuplicateSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
+                  <label className="form-label">{t('common.name')}</label>
                   <input
                     type="text"
                     required
                     value={duplicateFormData.name}
                     onChange={(e) => setDuplicateFormData({ ...duplicateFormData, name: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    className="form-input"
                   />
                 </div>
                 <PeriodTypeFields
@@ -519,24 +519,24 @@ export default function Budgets() {
                   }
                 />
                 <div>
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                     <input
                       type="checkbox"
                       checked={duplicateCopyExpenses}
                       onChange={(e) => setDuplicateCopyExpenses(e.target.checked)}
-                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      className="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
                     />
                     {t('budgets.copyExpectedExpenses')}
                   </label>
                 </div>
                 {duplicatePeriodType !== 'custom' && (
                   <div>
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                       <input
                         type="checkbox"
                         checked={duplicateIsRecurring}
                         onChange={(e) => setDuplicateIsRecurring(e.target.checked)}
-                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        className="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
                       />
                       {t('budgets.createRecurring')}
                     </label>
@@ -558,14 +558,14 @@ export default function Budgets() {
                     )}
                     {duplicateIsRecurring && duplicatePeriodType !== 'monthly' && (
                       <div className="mt-2">
-                        <label className="block text-sm font-medium text-gray-700">{t('budgets.numberOfPeriods')}</label>
+                        <label className="form-label">{t('budgets.numberOfPeriods')}</label>
                         <input
                           type="number"
                           min={2}
                           max={24}
                           value={duplicateNumberOfPeriods}
                           onChange={(e) => setDuplicateNumberOfPeriods(Number(e.target.value))}
-                          className="mt-1 block w-24 rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                          className="form-input w-24"
                         />
                       </div>
                     )}
@@ -597,7 +597,7 @@ export default function Budgets() {
                 </p>
               )}
               {recurringProgress && createRecurringBudgets.isPending && (
-                <p className="mt-2 text-sm text-gray-600">
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                   {t('budgets.recurringProgress', {
                     current: recurringProgress.currentPeriod,
                     total: recurringProgress.totalPeriods,
@@ -605,7 +605,7 @@ export default function Budgets() {
                 </p>
               )}
               {monthsProgress && createBudgetsForMonths.isPending && (
-                <p className="mt-2 text-sm text-gray-600">
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                   {t('budgets.recurringProgress', {
                     current: monthsProgress.currentIndex,
                     total: monthsProgress.totalMonths,
@@ -616,7 +616,7 @@ export default function Budgets() {
                 <button
                   type="button"
                   onClick={closeDuplicateModal}
-                  className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
+                  className="rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px]"
                 >
                   {t('common.cancel')}
                 </button>
@@ -641,7 +641,7 @@ export default function Budgets() {
 
       {deletingBudget && (
         <Dialog title={t('budgets.deleteBudget')} onClose={() => { setDeletingBudget(null); deleteMutation.reset(); }}>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               {t('common.deleteConfirm', { name: deletingBudget.name }).replace(/\*\*/g, '')}
             </p>
             {deleteMutation.isError && (
@@ -656,7 +656,7 @@ export default function Budgets() {
               <button
                 type="button"
                 onClick={() => { setDeletingBudget(null); deleteMutation.reset(); }}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
+                className="rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px]"
               >
                 {t('common.cancel')}
               </button>

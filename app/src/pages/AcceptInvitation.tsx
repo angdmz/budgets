@@ -79,10 +79,10 @@ export default function AcceptInvitation() {
 
   if (loading || isAuthLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">{t('invitation.loading')}</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">{t('invitation.loading')}</p>
         </div>
       </div>
     );
@@ -90,15 +90,15 @@ export default function AcceptInvitation() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-lg shadow p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('invitation.joined')}</h1>
-          <p className="text-gray-600">{t('invitation.redirecting')}</p>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{t('invitation.joined')}</h1>
+          <p className="text-gray-600 dark:text-gray-400">{t('invitation.redirecting')}</p>
         </div>
       </div>
     );
@@ -106,15 +106,15 @@ export default function AcceptInvitation() {
 
   if (error && !detail) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-lg shadow p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('invitation.unavailable')}</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{t('invitation.unavailable')}</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <button
             onClick={() => navigate('/dashboard')}
             className="rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500"
@@ -127,34 +127,34 @@ export default function AcceptInvitation() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-lg shadow p-8 max-w-md w-full">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-2">{t('invitation.title')}</h1>
-        <p className="text-gray-600 mb-6">{t('invitation.subtitle')}</p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 max-w-md w-full">
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">{t('invitation.title')}</h1>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">{t('invitation.subtitle')}</p>
 
         {detail && (
-          <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-3">
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 mb-6 space-y-3">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('invitation.group')}</p>
-              <p className="text-gray-900 font-semibold mt-0.5">{detail.group_name}</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('invitation.group')}</p>
+              <p className="text-gray-900 dark:text-white font-semibold mt-0.5">{detail.group_name}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('invitation.invitedBy')}</p>
-              <p className="text-gray-900 mt-0.5">{detail.inviter_name}</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('invitation.invitedBy')}</p>
+              <p className="text-gray-900 dark:text-white mt-0.5">{detail.inviter_name}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('invitation.role')}</p>
-              <p className="text-gray-900 capitalize mt-0.5">{detail.role}</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('invitation.role')}</p>
+              <p className="text-gray-900 dark:text-white capitalize mt-0.5">{detail.role}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{t('invitation.expires')}</p>
-              <p className="text-gray-900 mt-0.5">{formatDate(detail.expires_at)}</p>
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('invitation.expires')}</p>
+              <p className="text-gray-900 dark:text-white mt-0.5">{formatDate(detail.expires_at)}</p>
             </div>
           </div>
         )}
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+          <div className="mb-4 rounded-md bg-red-50 dark:bg-red-900/30 p-3 text-sm text-red-700 dark:text-red-400">
             {error}
           </div>
         )}
@@ -168,7 +168,7 @@ export default function AcceptInvitation() {
         </button>
         <button
           onClick={() => navigate('/dashboard')}
-          className="mt-3 w-full rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+          className="mt-3 w-full rounded-md bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
         >
           {t('invitation.decline')}
         </button>

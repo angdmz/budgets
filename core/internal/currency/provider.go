@@ -12,6 +12,7 @@ import (
 type ExchangeRate struct {
 	FromCurrency domain.Currency
 	ToCurrency   domain.Currency
+	Quote        domain.QuoteType
 	Rate         decimal.Decimal
 	Timestamp    time.Time
 	Source       string
@@ -19,14 +20,14 @@ type ExchangeRate struct {
 
 // ExchangeRateProvider is the interface for fetching exchange rates
 type ExchangeRateProvider interface {
-	// GetRate returns the current exchange rate between two currencies
-	GetRate(ctx context.Context, from, to domain.Currency) (*ExchangeRate, error)
+	// GetRate returns the current exchange rate between two currencies for a given quote type
+	GetRate(ctx context.Context, from, to domain.Currency, quote domain.QuoteType) (*ExchangeRate, error)
 
 	// GetRates returns exchange rates for multiple currency pairs
-	GetRates(ctx context.Context, base domain.Currency, targets []domain.Currency) ([]ExchangeRate, error)
+	GetRates(ctx context.Context, base domain.Currency, targets []domain.Currency, quote domain.QuoteType) ([]ExchangeRate, error)
 
 	// GetHistoricalRate returns the exchange rate at a specific date
-	GetHistoricalRate(ctx context.Context, from, to domain.Currency, date time.Time) (*ExchangeRate, error)
+	GetHistoricalRate(ctx context.Context, from, to domain.Currency, quote domain.QuoteType, date time.Time) (*ExchangeRate, error)
 
 	// ProviderName returns the name of this provider
 	ProviderName() string
@@ -40,7 +41,7 @@ type CurrencyMarketplace struct {
 
 // ExchangeRateCache caches exchange rates
 type ExchangeRateCache interface {
-	Get(from, to domain.Currency) (*ExchangeRate, bool)
+	Get(from, to domain.Currency, quote domain.QuoteType) (*ExchangeRate, bool)
 	Set(rate ExchangeRate, ttl time.Duration)
 	Clear()
 }
@@ -52,22 +53,22 @@ func NewCurrencyMarketplace(provider ExchangeRateProvider, cache ExchangeRateCac
 	}
 }
 
-// Convert converts an amount from one currency to another
-func (m *CurrencyMarketplace) Convert(ctx context.Context, amount domain.Money, to domain.Currency) (domain.Money, error) {
+// Convert converts an amount from one currency to another using the given quote type
+func (m *CurrencyMarketplace) Convert(ctx context.Context, amount domain.Money, to domain.Currency, quote domain.QuoteType) (domain.Money, error) {
 	if amount.Currency == to {
 		return amount, nil
 	}
 
 	// Check cache first
 	if m.cache != nil {
-		if rate, ok := m.cache.Get(amount.Currency, to); ok {
+		if rate, ok := m.cache.Get(amount.Currency, to, quote); ok {
 			convertedAmount := amount.Amount.Mul(rate.Rate)
 			return domain.NewMoney(convertedAmount, to), nil
 		}
 	}
 
 	// Fetch from provider
-	rate, err := m.provider.GetRate(ctx, amount.Currency, to)
+	rate, err := m.provider.GetRate(ctx, amount.Currency, to, quote)
 	if err != nil {
 		return domain.Money{}, err
 	}
@@ -81,12 +82,28 @@ func (m *CurrencyMarketplace) Convert(ctx context.Context, amount domain.Money, 
 	return domain.NewMoney(convertedAmount, to), nil
 }
 
-// GetExchangeRate returns the exchange rate between two currencies
-func (m *CurrencyMarketplace) GetExchangeRate(ctx context.Context, from, to domain.Currency) (*ExchangeRate, error) {
+// ConvertHistorical converts an amount using the historical exchange rate at the given date
+func (m *CurrencyMarketplace) ConvertHistorical(ctx context.Context, amount domain.Money, to domain.Currency, quote domain.QuoteType, date time.Time) (domain.Money, error) {
+	if amount.Currency == to {
+		return amount, nil
+	}
+
+	rate, err := m.provider.GetHistoricalRate(ctx, amount.Currency, to, quote, date)
+	if err != nil {
+		return domain.Money{}, err
+	}
+
+	convertedAmount := amount.Amount.Mul(rate.Rate)
+	return domain.NewMoney(convertedAmount, to), nil
+}
+
+// GetExchangeRate returns the exchange rate between two currencies for a given quote type
+func (m *CurrencyMarketplace) GetExchangeRate(ctx context.Context, from, to domain.Currency, quote domain.QuoteType) (*ExchangeRate, error) {
 	if from == to {
 		return &ExchangeRate{
 			FromCurrency: from,
 			ToCurrency:   to,
+			Quote:        quote,
 			Rate:         decimal.NewFromInt(1),
 			Timestamp:    time.Now(),
 			Source:       "identity",
@@ -95,12 +112,12 @@ func (m *CurrencyMarketplace) GetExchangeRate(ctx context.Context, from, to doma
 
 	// Check cache first
 	if m.cache != nil {
-		if rate, ok := m.cache.Get(from, to); ok {
+		if rate, ok := m.cache.Get(from, to, quote); ok {
 			return rate, nil
 		}
 	}
 
-	rate, err := m.provider.GetRate(ctx, from, to)
+	rate, err := m.provider.GetRate(ctx, from, to, quote)
 	if err != nil {
 		return nil, err
 	}

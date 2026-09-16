@@ -85,6 +85,10 @@ func (h *CurrencyHandler) Convert(c *gin.Context) {
 
 	from := domain.Currency(req.FromCurrency)
 	to := domain.Currency(req.ToCurrency)
+	quote := domain.QuoteType(req.QuoteType)
+	if quote == "" {
+		quote = domain.QuoteOfficial
+	}
 
 	if !from.IsValid() {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_from_currency"})
@@ -94,15 +98,19 @@ func (h *CurrencyHandler) Convert(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_to_currency"})
 		return
 	}
+	if !quote.IsValid() {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_quote_type"})
+		return
+	}
 
 	money := domain.NewMoney(amount, from)
-	converted, err := h.marketplace.Convert(c.Request.Context(), money, to)
+	converted, err := h.marketplace.Convert(c.Request.Context(), money, to, quote)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "conversion_failed", Message: err.Error()})
 		return
 	}
 
-	rate, _ := h.marketplace.GetExchangeRate(c.Request.Context(), from, to)
+	rate, _ := h.marketplace.GetExchangeRate(c.Request.Context(), from, to, quote)
 	rateStr := ""
 	provider := ""
 	if rate != nil {
@@ -110,11 +118,13 @@ func (h *CurrencyHandler) Convert(c *gin.Context) {
 		provider = rate.Source
 	}
 
+	isConverted := money.Currency != converted.Currency
 	c.JSON(http.StatusOK, ConvertCurrencyResponse{
 		OriginalAmount:  MoneyResponse{Amount: money.Amount.String(), Currency: string(money.Currency)},
-		ConvertedAmount: MoneyResponse{Amount: converted.Amount.String(), Currency: string(converted.Currency)},
+		ConvertedAmount: MoneyResponse{Amount: converted.Amount.String(), Currency: string(converted.Currency), Converted: isConverted},
 		ExchangeRate:    rateStr,
 		Provider:        provider,
+		QuoteType:       string(quote),
 	})
 }
 
@@ -142,6 +152,15 @@ func (h *CurrencyHandler) GetExchangeRates(c *gin.Context) {
 		return
 	}
 
+	quote := domain.QuoteType(c.Query("quote_type"))
+	if quote == "" {
+		quote = domain.QuoteOfficial
+	}
+	if !quote.IsValid() {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid_quote_type"})
+		return
+	}
+
 	targets := domain.SupportedCurrencies()
 
 	var response []ExchangeRateResponse
@@ -149,13 +168,14 @@ func (h *CurrencyHandler) GetExchangeRates(c *gin.Context) {
 		if target == base {
 			continue
 		}
-		rate, err := h.marketplace.GetExchangeRate(c.Request.Context(), base, target)
+		rate, err := h.marketplace.GetExchangeRate(c.Request.Context(), base, target, quote)
 		if err != nil {
 			continue
 		}
 		response = append(response, ExchangeRateResponse{
 			FromCurrency: string(base),
 			ToCurrency:   string(target),
+			QuoteType:    string(quote),
 			Rate:         rate.Rate.String(),
 			Provider:     rate.Source,
 		})

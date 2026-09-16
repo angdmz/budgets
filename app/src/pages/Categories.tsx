@@ -101,8 +101,8 @@ export default function Categories() {
     <div className="px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">{t('categories.title')}</h1>
-          <p className="mt-2 text-sm text-gray-700">{t('categories.subtitle')}</p>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('categories.title')}</h1>
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{t('categories.subtitle')}</p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
           <button
@@ -116,11 +116,11 @@ export default function Categories() {
       </div>
 
       <div className="mt-6">
-        <label className="block text-sm font-medium text-gray-700">{t('common.selectGroup')}</label>
+        <label className="form-label">{t('common.selectGroup')}</label>
         <select
           value={selectedGroupId}
           onChange={(e) => setSelectedGroupId(e.target.value)}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+          className="form-select"
         >
           <option value="">{t('common.selectGroupPlaceholder')}</option>
           {groups?.map((group) => (
@@ -132,22 +132,22 @@ export default function Categories() {
       {selectedGroupId && (
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {categories?.map((category) => (
-            <div key={category.id} className="bg-white shadow rounded-lg p-4 border-l-4" style={{ borderColor: category.color || '#0ea5e9' }}>
+            <div key={category.id} className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 border-l-4" style={{ borderColor: category.color || '#0ea5e9' }}>
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <h3 className="text-lg font-medium text-gray-900">{category.name}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{category.description || t('categories.noDescription')}</p>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">{category.name}</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{category.description || t('categories.noDescription')}</p>
                 </div>
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleEdit(category)}
-                    className="text-blue-600 hover:text-blue-800 min-h-[44px] px-2"
+                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 min-h-[44px] px-2"
                   >
                     {t('common.edit')}
                   </button>
                   <button
                     onClick={() => setDeletingCategory(category)}
-                    className="text-red-600 hover:text-red-800 min-h-[44px] px-2"
+                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 min-h-[44px] px-2"
                   >
                     {t('common.delete')}
                   </button>
@@ -163,22 +163,22 @@ export default function Categories() {
             <form onSubmit={handleSubmit}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
+                  <label className="form-label">{t('common.name')}</label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    className="form-input"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('categories.color')}</label>
+                  <label className="form-label">{t('categories.color')}</label>
                   <input
                     type="color"
                     value={formData.color}
                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="mt-1 block w-full h-10 rounded-md border-gray-300 shadow-sm"
+                    className="mt-1 block w-full h-10 rounded-md border-gray-300 shadow-sm dark:border-gray-600 dark:bg-gray-700"
                   />
                 </div>
               </div>
@@ -191,7 +191,7 @@ export default function Categories() {
                 </p>
               )}
               <div className="mt-6 flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
-                <button type="button" onClick={() => { setIsModalOpen(false); createMutation.reset(); }} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]">
+                <button type="button" onClick={() => { setIsModalOpen(false); createMutation.reset(); }} className="rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px]">
                   {t('common.cancel')}
                 </button>
                 <button type="submit" disabled={createMutation.isPending} className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50 min-h-[44px]">
@@ -207,22 +207,22 @@ export default function Categories() {
             <form onSubmit={handleUpdate}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('common.name')}</label>
+                  <label className="form-label">{t('common.name')}</label>
                   <input
                     type="text"
                     required
                     value={editingCategory.name}
                     onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    className="form-input"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">{t('categories.color')}</label>
+                  <label className="form-label">{t('categories.color')}</label>
                   <input
                     type="color"
                     value={editingCategory.color}
                     onChange={(e) => setEditingCategory({ ...editingCategory, color: e.target.value })}
-                    className="mt-1 block w-full h-10 rounded-md border-gray-300 shadow-sm"
+                    className="mt-1 block w-full h-10 rounded-md border-gray-300 shadow-sm dark:border-gray-600 dark:bg-gray-700"
                   />
                 </div>
               </div>
@@ -235,7 +235,7 @@ export default function Categories() {
                 </p>
               )}
               <div className="mt-6 flex flex-col-reverse gap-2 md:flex-row md:justify-end md:space-x-3">
-                <button type="button" onClick={() => { setEditingCategory(null); updateMutation.reset(); }} className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]">
+                <button type="button" onClick={() => { setEditingCategory(null); updateMutation.reset(); }} className="rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px]">
                   {t('common.cancel')}
                 </button>
                 <button type="submit" disabled={updateMutation.isPending} className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 disabled:opacity-50 min-h-[44px]">
@@ -248,7 +248,7 @@ export default function Categories() {
 
       {deletingCategory && (
         <Dialog title={t('categories.deleteCategory')} onClose={() => { setDeletingCategory(null); deleteMutation.reset(); }}>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               {t('common.deleteConfirm', { name: deletingCategory.name }).replace(/\*\*/g, '')}
             </p>
             {deleteMutation.isError && (
@@ -263,7 +263,7 @@ export default function Categories() {
               <button
                 type="button"
                 onClick={() => { setDeletingCategory(null); deleteMutation.reset(); }}
-                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 min-h-[44px]"
+                className="rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px]"
               >
                 {t('common.cancel')}
               </button>

@@ -1218,13 +1218,14 @@ func PersistedExpectedExpensesForBudget(ctx context.Context, budgetExternalID uu
 }
 
 type PersistibleUserPreference struct {
-	userID          int64
-	theme           Theme
-	language        Language
-	displayCurrency Currency
+	userID             int64
+	theme              Theme
+	language           Language
+	displayCurrency    Currency
+	preferredQuoteType QuoteType
 }
 
-func NewPersistibleUserPreference(userID int64, theme Theme, language Language, displayCurrency Currency) (*PersistibleUserPreference, error) {
+func NewPersistibleUserPreference(userID int64, theme Theme, language Language, displayCurrency Currency, preferredQuoteType QuoteType) (*PersistibleUserPreference, error) {
 	if !theme.IsValid() {
 		return nil, fmt.Errorf("%w: invalid theme", ErrValidation)
 	}
@@ -1234,11 +1235,15 @@ func NewPersistibleUserPreference(userID int64, theme Theme, language Language, 
 	if !displayCurrency.IsValid() {
 		return nil, fmt.Errorf("%w: invalid currency", ErrValidation)
 	}
+	if !preferredQuoteType.IsValid() {
+		return nil, fmt.Errorf("%w: invalid quote type", ErrValidation)
+	}
 	return &PersistibleUserPreference{
-		userID:          userID,
-		theme:           theme,
-		language:        language,
-		displayCurrency: displayCurrency,
+		userID:             userID,
+		theme:              theme,
+		language:           language,
+		displayCurrency:    displayCurrency,
+		preferredQuoteType: preferredQuoteType,
 	}, nil
 }
 
@@ -1250,46 +1255,48 @@ func (pref *PersistibleUserPreference) PersistTo(ctx context.Context, p Persiste
 	err := p.QueryRow(
 		ctx,
 		[]any{&id, &externalID, &createdAt, &updatedAt},
-		`INSERT INTO user_preferences (user_id, theme, language, display_currency)
-		 VALUES ($1, $2, $3, $4)
+		`INSERT INTO user_preferences (user_id, theme, language, display_currency, preferred_quote_type)
+		 VALUES ($1, $2, $3, $4, $5)
 		 ON CONFLICT (user_id) WHERE revoked_at IS NULL
-		 DO UPDATE SET theme = EXCLUDED.theme, language = EXCLUDED.language, display_currency = EXCLUDED.display_currency, updated_at = CURRENT_TIMESTAMP
+		 DO UPDATE SET theme = EXCLUDED.theme, language = EXCLUDED.language, display_currency = EXCLUDED.display_currency, preferred_quote_type = EXCLUDED.preferred_quote_type, updated_at = CURRENT_TIMESTAMP
 		 RETURNING id, external_id, created_at, updated_at`,
-		pref.userID, pref.theme, pref.language, pref.displayCurrency,
+		pref.userID, pref.theme, pref.language, pref.displayCurrency, pref.preferredQuoteType,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	return &PersistedUserPreference{
-		id:              id,
-		externalID:      externalID,
-		userID:          pref.userID,
-		theme:           pref.theme,
-		language:        pref.language,
-		displayCurrency: pref.displayCurrency,
-		createdAt:       createdAt,
-		updatedAt:       updatedAt,
+		id:                id,
+		externalID:        externalID,
+		userID:            pref.userID,
+		theme:             pref.theme,
+		language:          pref.language,
+		displayCurrency:   pref.displayCurrency,
+		preferredQuoteType: pref.preferredQuoteType,
+		createdAt:         createdAt,
+		updatedAt:         updatedAt,
 	}, nil
 }
 
 type PersistedUserPreference struct {
-	id              int64
-	externalID      uuid.UUID
-	userID          int64
-	theme           Theme
-	language        Language
-	displayCurrency Currency
-	createdAt       time.Time
-	updatedAt       time.Time
+	id                int64
+	externalID        uuid.UUID
+	userID            int64
+	theme             Theme
+	language          Language
+	displayCurrency   Currency
+	preferredQuoteType QuoteType
+	createdAt         time.Time
+	updatedAt         time.Time
 }
 
 func PersistedUserPreferenceFromPersistence(ctx context.Context, userID int64, p Persister) (*PersistedUserPreference, error) {
 	var pref PersistedUserPreference
 	err := p.QueryRow(
 		ctx,
-		[]any{&pref.id, &pref.externalID, &pref.theme, &pref.language, &pref.displayCurrency, &pref.createdAt, &pref.updatedAt},
-		`SELECT id, external_id, theme, language, display_currency, created_at, updated_at
+		[]any{&pref.id, &pref.externalID, &pref.theme, &pref.language, &pref.displayCurrency, &pref.preferredQuoteType, &pref.createdAt, &pref.updatedAt},
+		`SELECT id, external_id, theme, language, display_currency, preferred_quote_type, created_at, updated_at
 		 FROM user_preferences WHERE user_id = $1 AND revoked_at IS NULL`,
 		userID,
 	)
@@ -1314,6 +1321,10 @@ func (pref *PersistedUserPreference) Language() Language {
 
 func (pref *PersistedUserPreference) DisplayCurrency() Currency {
 	return pref.displayCurrency
+}
+
+func (pref *PersistedUserPreference) PreferredQuoteType() QuoteType {
+	return pref.preferredQuoteType
 }
 
 func (pref *PersistedUserPreference) CreatedAt() time.Time {
@@ -1348,13 +1359,21 @@ func (pref *PersistedUserPreference) UpdateDisplayCurrency(currency Currency) er
 	return nil
 }
 
+func (pref *PersistedUserPreference) UpdatePreferredQuoteType(quoteType QuoteType) error {
+	if !quoteType.IsValid() {
+		return fmt.Errorf("%w: invalid quote type", ErrValidation)
+	}
+	pref.preferredQuoteType = quoteType
+	return nil
+}
+
 func (pref *PersistedUserPreference) UpdateIn(ctx context.Context, p Persister) error {
 	var updatedAt time.Time
 	err := p.QueryRow(
 		ctx,
 		[]any{&updatedAt},
-		`UPDATE user_preferences SET theme = $1, language = $2, display_currency = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING updated_at`,
-		pref.theme, pref.language, pref.displayCurrency, pref.id,
+		`UPDATE user_preferences SET theme = $1, language = $2, display_currency = $3, preferred_quote_type = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING updated_at`,
+		pref.theme, pref.language, pref.displayCurrency, pref.preferredQuoteType, pref.id,
 	)
 	if err != nil {
 		return err

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth0 } from '@auth0/auth0-react';
 import { createApiClient } from '../lib/api';
-import type { Budget, Group, ExpectedExpense, ActualExpense } from '../lib/types';
+import type { Budget, Group, ExpectedExpense, ActualExpense, BudgetSummary } from '../lib/types';
 
 export function useBudgetSelection() {
   const { getAccessTokenSilently } = useAuth0();
@@ -51,9 +51,21 @@ export function useBudgetSelection() {
     enabled: !!selectedBudgetId,
   });
 
-  const expectedTotal = expectedExpenses?.reduce((s, e) => s + parseFloat(e.amount.amount), 0) ?? 0;
-  const actualTotal = actualExpenses?.reduce((s, e) => s + parseFloat(e.amount.amount), 0) ?? 0;
-  const difference = expectedTotal - actualTotal;
+  const { data: summary } = useQuery({
+    queryKey: ['budget-summary', selectedBudgetId],
+    queryFn: async () => {
+      if (!selectedBudgetId) return null;
+      const api = await createApiClient(getAccessTokenSilently);
+      const response = await api.get<BudgetSummary>(`/budgets/${selectedBudgetId}/summary`);
+      return response.data;
+    },
+    enabled: !!selectedBudgetId,
+  });
+
+  const expectedTotal = summary ? parseFloat(summary.expected_total.amount) : 0;
+  const actualTotal = summary ? parseFloat(summary.actual_total.amount) : 0;
+  const difference = summary ? parseFloat(summary.difference.amount) : 0;
+  const currency = summary?.expected_total.currency ?? 'USD';
 
   return {
     selectedGroupId,
@@ -67,5 +79,6 @@ export function useBudgetSelection() {
     expectedTotal,
     actualTotal,
     difference,
+    currency,
   };
 }

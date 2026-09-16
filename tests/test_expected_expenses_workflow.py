@@ -275,10 +275,10 @@ class TestExpectedExpensesWorkflow:
                 (By.XPATH, f"//tr[.//td[normalize-space()='{expense_name}']]//td[contains(., '{category_name}')]")
             )
         )
-        # Verify the currency symbol for EUR appears in the table row
+        # Verify the currency code EUR appears in the table row
         self._wait(driver).until(
             EC.presence_of_element_located(
-                (By.XPATH, f"//tr[.//td[normalize-space()='{expense_name}']]//td[contains(., '€')]")
+                (By.XPATH, f"//tr[.//td[normalize-space()='{expense_name}']]//td[contains(., 'EUR')]")
             )
         )
         driver.save_screenshot(f"{screenshots_dir}/ee_05_expense_created_with_category.png")
