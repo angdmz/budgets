@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { createApiClient } from '../lib/api';
+import { createApiClient, type GetAccessTokenSilently } from '../lib/api';
 import { useOnboarding, ONBOARDING_STEPS } from '../lib/useOnboarding';
 import { computeMonthDates } from '../lib/budgetPeriod';
 import { formatCurrency } from '../lib/format';
@@ -638,7 +638,7 @@ function AddExpectedExpensesStep({
   isPending,
 }: {
   groupId: string;
-  getAccessTokenSilently: () => Promise<string>;
+  getAccessTokenSilently: GetAccessTokenSilently;
   draftExpenses: DraftExpense[];
   setDraftExpenses: (e: DraftExpense[]) => void;
   onNext: () => void;
@@ -782,7 +782,7 @@ function RegisterActualExpenseStep({
   isPending,
 }: {
   groupId: string;
-  getAccessTokenSilently: () => Promise<string>;
+  getAccessTokenSilently: GetAccessTokenSilently;
   actualExpenseId: string;
   onCreate: (req: CreateActualExpenseRequest) => void;
   onNext: () => void;

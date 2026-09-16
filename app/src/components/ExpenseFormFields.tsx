@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import CategoryCombobox from './CategoryCombobox';
 import CurrencySelect from './CurrencySelect';
+import type { GetAccessTokenSilently } from '../lib/api';
 
 interface ExpenseFormFieldsProps {
   name: string;
@@ -12,7 +13,7 @@ interface ExpenseFormFieldsProps {
   expenseDate?: string;
   showDate?: boolean;
   categoryError?: boolean;
-  getAccessTokenSilently: () => Promise<string>;
+  getAccessTokenSilently: GetAccessTokenSilently;
   onNameChange: (name: string) => void;
   onAmountChange: (amount: string) => void;
   onCurrencyChange: (currency: string) => void;

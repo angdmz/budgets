@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import Dialog from './Dialog';
 import ExpenseFormFields from './ExpenseFormFields';
+import type { GetAccessTokenSilently } from '../lib/api';
 
 interface ExpenseFormDialogProps {
   title: string;
@@ -20,7 +21,7 @@ interface ExpenseFormDialogProps {
   errorMessageDetail?: string;
   submitLabel: string;
   submitPendingLabel: string;
-  getAccessTokenSilently: () => Promise<string>;
+  getAccessTokenSilently: GetAccessTokenSilently;
   onNameChange: (name: string) => void;
   onAmountChange: (amount: string) => void;
   onCurrencyChange: (currency: string) => void;
