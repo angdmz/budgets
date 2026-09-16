@@ -173,6 +173,10 @@ jobs:
           INTEGRATION_TESTS_SCREENSHOTS_DIR=/tests/screenshots
           INTEGRATION_TESTS_SCREENSHOTS_HOST_DIR=./tests/screenshots
           INTEGRATION_TESTS_SECRETS_PROVIDER=docker
+          DOCKER_REGISTRY_PREFIX=${{ github.repository }}
+          IMAGE_TAG=ci
+          NGINX_CONF=./nginx/nginx.dev.conf
+          TLS_CERT_DIR=./nginx/ssl
           EOF
 
       - name: Build test image
