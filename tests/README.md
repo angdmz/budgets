@@ -2,6 +2,39 @@
 
 Selenium-based integration tests to verify the basic flow and functionality of the Budget Management System.
 
+## Environment Variables
+
+The integration tests read configuration from the root `.env` file (via `env_file: .env` in `docker-compose.yml`) and from Docker secrets. Settings are loaded in `tests/settings.py` via a Pydantic `BaseSettings` class with the `INTEGRATION_TESTS_` prefix.
+
+### Environment Variables
+
+| Variable | Default | Used In | Purpose |
+|----------|---------|---------|---------|
+| `INTEGRATION_TESTS_BASE_URL` | `http://localhost:8000` | `settings.py:12` → `Settings.base_url` | Base URL for the application under test. In Docker Compose, set to `http://nginx` (the internal Nginx service). For local runs, use `http://localhost:8000`. |
+| `INTEGRATION_TESTS_SCREENSHOTS_DIR` | `/tests/screenshots` | `settings.py:13` → `Settings.screenshots_dir` | Directory inside the test container where screenshots are saved. |
+| `INTEGRATION_TESTS_SCREENSHOTS_HOST_DIR` | `./tests/screenshots` | `docker-compose.yml:190` → `volumes` | Host directory mapped to the container's screenshots directory, so screenshots are accessible on the host after tests run. |
+| `INTEGRATION_TESTS_SECRETS_PROVIDER` | `env` | `settings.py:14` → `Settings.secrets_provider` | Secrets provider for test credentials. Set to `docker` in Docker Compose to read from `/run/secrets/`. |
+| `INTEGRATION_TEST` | `true` | `docker-compose.yml` | Flag indicating integration test mode. |
+| `AUTH0_DOMAIN` | _(empty)_ | `settings.py:20` → `Settings.auth0_domain` | Auth0 tenant domain. Used to obtain Management API tokens for dynamic test user creation/deletion. |
+| `AUTH0_MGMT_CLIENT_ID` | _(empty)_ | `settings.py:23` → `Settings.auth0_mgmt_client_id` | Auth0 Machine-to-Machine (M2M) client ID. Used to authenticate with the Auth0 Management API for creating and deleting test users. |
+| `AUTH0_CLIENT_ID` | _(empty)_ | `settings.py:37` → `Settings.auth0_client_id` | Auth0 SPA client ID. Used for test user login flows. |
+| `AUTH0_AUDIENCE` | `https://api.budget.local` | `settings.py:49` → `Settings.auth0_audience` | Auth0 API identifier. Used when requesting access tokens for test users. |
+| `AUTH0_DB_CONNECTION` | `Username-Password-Authentication` | `settings.py:53` → `Settings.auth0_db_connection` | Auth0 database connection name. Used when creating test users via the Management API. |
+
+### Secrets
+
+The integration tests use three secrets, mounted via Docker secrets in `docker-compose.yml`:
+
+| Secret Key | Retrieved In | Used For |
+|------------|--------------|----------|
+| `auth0_mgmt_client_secret` | `settings.py:28-33` → reads `/run/secrets/auth0_mgmt_client_secret` (docker) or `AUTH0_MGMT_CLIENT_SECRET` env var | Auth0 M2M client secret. Used with `AUTH0_MGMT_CLIENT_ID` to obtain a Management API token for dynamic test user creation and deletion. |
+| `integration_tests_auth0_email` | `settings.py:57-60` → reads `/run/secrets/integration_tests_auth0_email` (docker) or `INTEGRATION_TESTS_AUTH0_EMAIL` env var | Email address for the test user account used in Auth0 login flow tests. |
+| `integration_tests_auth0_password` | `settings.py:62-66` → reads `/run/secrets/integration_tests_auth0_password` (docker) or `INTEGRATION_TESTS_AUTH0_PASSWORD` env var | Password for the test user account used in Auth0 login flow tests. |
+
+When `INTEGRATION_TESTS_SECRETS_PROVIDER=docker`, secrets are read from `/run/secrets/`. When set to `env`, they are read from the corresponding environment variables.
+
+**Note:** Auth0 M2M credentials are optional. If not provided, authenticated tests (login flow, CRUD operations) are skipped — see `conftest.py:150-161` for the skip logic.
+
 ## Prerequisites
 
 - Docker and Docker Compose

@@ -62,17 +62,14 @@ npm install
 
 ### Environment Variables
 
-Create `.env.local` file:
+Create `.env.local` file for local development. In Docker Compose, these are passed as build args (see `docker-compose.yml` → `app` service → `build.args`), which are set as `ENV` vars during the Vite build in `Dockerfile`.
 
-```bash
-# Auth0 Configuration
-VITE_AUTH0_DOMAIN=your-tenant.auth0.com
-VITE_AUTH0_CLIENT_ID=your-spa-client-id
-VITE_AUTH0_AUDIENCE=https://api.budget.local
-
-# API Configuration
-VITE_API_URL=http://localhost:8080/api/v1
-```
+| Variable | Required | Used In | Purpose |
+|----------|----------|---------|---------|
+| `VITE_AUTH0_DOMAIN` | Yes | `src/main.tsx:25` → `Auth0Provider` `domain` prop | Auth0 tenant domain (e.g., `your-tenant.auth0.com`). Used to initialize the Auth0 React SDK and redirect users to the Auth0 login page. |
+| `VITE_AUTH0_CLIENT_ID` | Yes | `src/main.tsx:26` → `Auth0Provider` `clientId` prop | Auth0 Single Page Application client ID. Identifies this app to Auth0 during the OAuth flow. |
+| `VITE_AUTH0_AUDIENCE` | Yes | `src/lib/api.ts:22` → `getAccessTokenSilently({ authorizationParams: { audience } })` | Auth0 API identifier (e.g., `https://api.budget.local`). Sent with the token request so Auth0 issues a JWT scoped to the backend API. |
+| `VITE_API_URL` | No | `src/lib/api.ts:5`, `src/components/CurrencySelect.tsx:5`, `src/pages/AcceptInvitation.tsx:10` → `API_BASE_URL` | Base URL for backend API requests. Defaults to `/api/v1` (relative path resolved by Nginx reverse proxy). Set explicitly only for standalone development without Nginx. |
 
 **Getting Auth0 Credentials:**
 
@@ -83,6 +80,8 @@ VITE_API_URL=http://localhost:8080/api/v1
    - Allowed Callback URLs: `http://localhost:3001/app`
    - Allowed Logout URLs: `http://localhost:3001/app`
    - Allowed Web Origins: `http://localhost:3001`
+
+**Note:** `VITE_AUTH0_DOMAIN`, `VITE_AUTH0_CLIENT_ID`, and `VITE_AUTH0_AUDIENCE` are build-time variables — they are embedded in the JavaScript bundle by Vite. They are not secrets (SPA public client), but must match your Auth0 tenant configuration.
 
 ### Development Mode
 
