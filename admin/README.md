@@ -46,17 +46,16 @@ npm install
 
 ### Environment Variables
 
-Create `.env.local` file:
+Create `.env.local` file for local development. In Docker Compose, these are passed as build args (see `docker-compose.yml` → `admin` service → `build.args`), which are set as `ENV` vars during the Vite build in `Dockerfile`.
 
-```bash
-# Auth0 Configuration
-VITE_AUTH0_DOMAIN=your-tenant.auth0.com
-VITE_AUTH0_CLIENT_ID=your-spa-client-id
-VITE_AUTH0_AUDIENCE=https://api.budget.local
+| Variable | Required | Used In | Purpose |
+|----------|----------|---------|---------|
+| `VITE_AUTH0_DOMAIN` | Yes | `src/main.tsx:6` → `Auth0Provider` `domain` prop | Auth0 tenant domain (e.g., `your-tenant.auth0.com`). Used to initialize the Auth0 React SDK and redirect admin users to the Auth0 login page. |
+| `VITE_AUTH0_CLIENT_ID` | Yes | `src/main.tsx:7` → `Auth0Provider` `clientId` prop | Auth0 Single Page Application client ID. Can be the same SPA client as the main app, or a separate one with admin-specific callback URLs. |
+| `VITE_AUTH0_AUDIENCE` | Yes | `src/main.tsx:8` → `Auth0Provider` `authorizationParams.audience` | Auth0 API identifier (e.g., `https://api.budget.local`). Sent with the token request so Auth0 issues a JWT scoped to the backend API. |
+| `VITE_API_URL` | No | _(declared in `vite-env.d.ts`, not yet used in code)_ | Base URL for backend API requests. Will default to `/api/v1` (relative path resolved by Nginx reverse proxy) when implemented. |
 
-# API Configuration
-VITE_API_URL=http://localhost:8080/api/v1
-```
+**Note:** `VITE_AUTH0_DOMAIN`, `VITE_AUTH0_CLIENT_ID`, and `VITE_AUTH0_AUDIENCE` are build-time variables — they are embedded in the JavaScript bundle by Vite. They are not secrets (SPA public client), but must match your Auth0 tenant configuration.
 
 ### Auth0 Configuration
 

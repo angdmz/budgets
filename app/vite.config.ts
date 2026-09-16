@@ -19,4 +19,18 @@ export default defineConfig({
     host: true,
   },
   base: '/app',
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'query-vendor': ['@tanstack/react-query'],
+          'charts-vendor': ['recharts'],
+          'i18n-vendor': ['i18next', 'react-i18next'],
+          'state-vendor': ['zustand'],
+          'auth-vendor': ['@auth0/auth0-react'],
+        },
+      },
+    },
+  },
 })

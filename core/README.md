@@ -91,45 +91,87 @@ internal/
 
 ### Environment Variables
 
-Create a `.env` file or set these variables:
+All services read from a single `.env` file at the project root (via `env_file: .env` in `docker-compose.yml`). Copy `.env.example` to `.env` and fill in your values:
 
 ```bash
-# Server
-SERVER_PORT=8080
-SERVER_ENV=development
-
-# Database
-DB_HOSTNAME=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_NAME=budgets
-DB_SSLMODE=disable
-
-# Auth0
-AUTH0_DOMAIN=your-tenant.auth0.com
-AUTH0_AUDIENCE=https://api.budget.local
-AUTH0_CLIENT_ID=your-client-id
-
-# Secrets Provider (env, docker, aws, localstack)
-SECRETS_PROVIDER=env
+cp .env.example .env
 ```
+
+The backend reads environment variables in `internal/config/config.go` via `config.Load()`. Each variable and its purpose:
+
+#### Server Configuration
+
+| Variable | Default | Used In | Purpose |
+|----------|---------|---------|---------|
+| `SERVER_PORT` | `8080` | `config.go` → `ServerConfig.Port` | Port the HTTP server listens on inside the container. Mapped to host via `API_PORT` in docker-compose. |
+| `SERVER_ENV` | `development` | `config.go` → `ServerConfig.Env` | Controls error handling behavior. `development` exposes detailed errors and stack traces; `production` returns generic error messages. Parsed by `ParseEnvironment()`. |
+| `SERVER_READ_TIMEOUT_SECONDS` | `15` | `config.go` → `ServerConfig.ReadTimeoutSeconds` | Maximum duration for reading the entire HTTP request (including body). Prevents slowloris attacks. |
+| `SERVER_WRITE_TIMEOUT_SECONDS` | `15` | `config.go` → `ServerConfig.WriteTimeoutSeconds` | Maximum duration for writing the HTTP response. |
+| `SERVER_IDLE_TIMEOUT_SECONDS` | `60` | `config.go` → `ServerConfig.IdleTimeoutSeconds` | Maximum amount of time to wait for the next request when keep-alives are enabled. |
+| `SERVER_SHUTDOWN_TIMEOUT_SECONDS` | `30` | `config.go` → `ServerConfig.ShutdownTimeoutSeconds` | Grace period for in-flight requests to complete during graceful shutdown. |
+
+#### Database Configuration
+
+| Variable | Default | Used In | Purpose |
+|----------|---------|---------|---------|
+| `DB_HOSTNAME` | `localhost` | `config.go` → `DatabaseConfig.Host` | PostgreSQL server hostname. In Docker Compose, set to `db` (the compose service name). |
+| `DB_PORT` | `5432` | `config.go` → `DatabaseConfig.Port` | PostgreSQL server port. Also used in docker-compose to map the host port to the `db` service. |
+| `DB_USERNAME` | `postgres` | `config.go` → `DatabaseConfig.User` | PostgreSQL database username for the API's connection. |
+| `DB_NAME` | `budgets` | `config.go` → `DatabaseConfig.Name` | PostgreSQL database name to connect to. |
+| `DB_SSLMODE` | `disable` | `config.go` → `DatabaseConfig.SSLMode` | PostgreSQL SSL mode (`disable`, `require`, `verify-ca`, `verify-full`). Use `require` in production. Parsed by `ParseSSLMode()`. |
+| `DB_MAX_OPEN_CONNS` | `25` | `config.go` → `DatabaseConfig.MaxOpenConns` | Maximum number of open database connections in the pool. |
+| `DB_MAX_IDLE_CONNS` | `5` | `config.go` → `DatabaseConfig.MaxIdleConns` | Maximum number of idle database connections retained in the pool. |
+| `DB_CONN_MAX_LIFETIME_SECONDS` | `300` | `config.go` → `DatabaseConfig.ConnMaxLifetime` | Maximum lifetime of a database connection before it's recycled (seconds). |
+
+#### Auth0 Configuration
+
+| Variable | Default | Used In | Purpose |
+|----------|---------|---------|---------|
+| `AUTH0_DOMAIN` | _(required)_ | `config.go` → `AuthConfig.Auth0Domain` | Auth0 tenant domain (e.g., `your-tenant.auth0.com`). Used by the JWT middleware to fetch JWKS for token signature validation. |
+| `AUTH0_AUDIENCE` | _(required)_ | `config.go` → `AuthConfig.Auth0Audience` | Auth0 API identifier (e.g., `https://api.budget.local`). Validated against the `aud` claim in incoming JWT tokens. |
+| `AUTH0_CLIENT_ID` | _(required)_ | `config.go` → `AuthConfig.Auth0ClientID` | Auth0 application client ID. Used for Auth0 Management API interactions. |
+
+#### Exchange Rate Provider Configuration
+
+| Variable | Default | Used In | Purpose |
+|----------|---------|---------|---------|
+| `EXCHANGE_PROVIDER` | `stub` | `config.go` → `ExchangeConfig.Provider` | Exchange rate provider type. Currently `frankfurter` (free, no API key). `stub` returns fixed rates for testing. |
+| `EXCHANGE_API_URL` | _(empty)_ | `config.go` → `ExchangeConfig.APIURL` | Custom exchange rate API URL. If empty, the provider uses its default endpoint. |
+| `EXCHANGE_TIMEOUT_SECONDS` | `10` | `config.go` → `ExchangeConfig.Timeout` | Timeout for exchange rate API requests (seconds). Falls back to 10 if not set or ≤ 0. |
+
+#### Secrets Provider Configuration
+
+| Variable | Default | Used In | Purpose |
+|----------|---------|---------|---------|
+| `SECRETS_PROVIDER` | `env` | `secrets/factory.go` → `GetProvider()` | Selects the secrets provider: `env` (environment variables), `docker` (Docker secrets at `/run/secrets/`), `aws` (AWS Secrets Manager), `localstack` (local AWS simulation). |
+| `SECRETS_PREFIX` | _(empty)_ | `secrets/factory.go` → default case | Prefix prepended to secret keys when using the `env` provider. Useful for namespacing (e.g., `BUDGET_APP_`). |
+| `AWS_REGION` | `us-east-1` | `secrets/factory.go` → AWS/LocalStack cases | AWS region for Secrets Manager. Used when `SECRETS_PROVIDER=aws` or `SECRETS_PROVIDER=localstack`. |
+| `AWS_SECRET_NAME` | _(empty)_ | `secrets/factory.go` → AWS/LocalStack cases | AWS Secrets Manager secret name to fetch. Used when `SECRETS_PROVIDER=aws` or `SECRETS_PROVIDER=localstack`. |
+| `LOCALSTACK_ENDPOINT` | _(provider default)_ | `secrets/factory.go` → LocalStack case | LocalStack endpoint URL (e.g., `http://localstack:4566`). Used when `SECRETS_PROVIDER=localstack`. |
+| `DOCKER_SECRETS_PATH` | `/run/secrets` | `secrets/factory.go` → Docker case | Directory where Docker secrets files are mounted. Used when `SECRETS_PROVIDER=docker`. |
 
 ### Secrets
 
-The application requires these secrets (see `/secrets/README.md`):
+The backend requires four secrets, retrieved through the secrets provider abstraction (see `internal/secrets/`). The provider is selected by `SECRETS_PROVIDER` and the secrets are loaded in `config.Load()`:
 
-- `db_password` - Database password
-- `encryption_key` - Fernet encryption key
-- `jwt_secret` - JWT signing secret
-- `auth0_client_secret` - Auth0 client secret
+| Secret Key | Retrieved In | Used For |
+|------------|--------------|----------|
+| `encryption_key` | `config.go:71` → `provider.GetSecret("encryption_key")` | Fernet encryption key for encrypting/decrypting all monetary values at rest. Must be a valid Fernet key (generate with `Fernet.generate_key()`). Passed to `encryption.NewEncryptor()` in `main.go`. |
+| `jwt_secret` | `config.go:76` → `provider.GetSecret("jwt_secret")` | Secret key for signing JWT tokens. Used for internal JWT operations. |
+| `db_password` | `config.go:81` → `provider.GetSecret("db_password")` | PostgreSQL database password. Combined with `DB_USERNAME`, `DB_HOSTNAME`, etc. to build the connection string in `DatabaseConfig.ConnectionString()`. |
+| `auth0_client_secret` | `config.go:86` → `provider.GetSecret("auth0_client_secret")` | Auth0 application client secret. Used for server-side Auth0 Management API calls (e.g., user lifecycle management). |
+| `exchange_api_key` | `config.go:141` → `getSecretOrDefault(provider, "exchange_api_key", "")` | API key for the exchange rate provider, if required. Currently optional — Frankfurter is free and needs no key. Defaults to empty string if not found. |
 
-**For development with environment variables:**
+**For development with environment variables (`SECRETS_PROVIDER=env`):**
 ```bash
 export ENCRYPTION_KEY="your-fernet-key"
 export JWT_SECRET="your-jwt-secret"
 export DB_PASSWORD="your-db-password"
 export AUTH0_CLIENT_SECRET="your-auth0-secret"
 ```
+
+**For Docker Compose (`SECRETS_PROVIDER=docker`):**
+Secrets are read from `/run/secrets/` via Docker secrets — see `secrets/README.md`.
 
 ### Running Locally
 

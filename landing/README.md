@@ -52,7 +52,12 @@ npm install
 
 ### Environment Variables
 
-No environment variables required for the landing page. All configuration is static.
+No environment variables are required for the landing page. All configuration is static.
+
+The landing page Dockerfile sets two internal environment variables that are not user-configurable:
+- `NEXT_TELEMETRY_DISABLED=1` — Disables Next.js telemetry during build and runtime.
+- `NODE_ENV=production` — Set in the production stage of the Dockerfile for optimized Next.js output.
+- `PORT=3000` — Set in the production stage of the Dockerfile; the port the Next.js standalone server listens on.
 
 ### Development Mode
 

@@ -98,34 +98,25 @@ admin/src/
 
 ### 3. Docker Compose Integration
 
-Update `docker-compose.yml` to include:
+All services in `docker-compose.yml` use `env_file: .env` — no inline `environment:` blocks. Copy `.env.example` to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Frontend build-time variables (VITE_*) are passed as Docker build args from the `.env` values:
 
 ```yaml
 services:
-  # ... existing services ...
-
-  landing:
-    build:
-      context: ./landing
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-    networks:
-      - budget_network
-
   app:
     build:
       context: ./app
       dockerfile: Dockerfile
-    ports:
-      - "3001:3001"
-    environment:
-      - VITE_AUTH0_DOMAIN=${AUTH0_DOMAIN}
-      - VITE_AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
-      - VITE_AUTH0_AUDIENCE=${AUTH0_AUDIENCE}
-      - VITE_API_URL=http://localhost/api
+      args:
+        VITE_AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+        VITE_AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
+        VITE_AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+    env_file: .env
     networks:
       - budget_network
 
@@ -133,13 +124,19 @@ services:
     build:
       context: ./admin
       dockerfile: Dockerfile
-    ports:
-      - "3002:3002"
-    environment:
-      - VITE_AUTH0_DOMAIN=${AUTH0_DOMAIN}
-      - VITE_AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
-      - VITE_AUTH0_AUDIENCE=${AUTH0_AUDIENCE}
-      - VITE_API_URL=http://localhost/api
+      args:
+        VITE_AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+        VITE_AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
+        VITE_AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
+    env_file: .env
+    networks:
+      - budget_network
+
+  landing:
+    build:
+      context: ./landing
+      dockerfile: Dockerfile
+    env_file: .env
     networks:
       - budget_network
 
@@ -148,7 +145,8 @@ services:
       context: ./nginx
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "8000:80"
+      - "8443:443"
     depends_on:
       - api
       - landing
@@ -160,20 +158,26 @@ services:
 
 ## Auth0 Configuration Required
 
-### Backend Environment Variables
+### Environment Variables
+
+All services read from a single `.env` file at the project root. Copy `.env.example` to `.env` and fill in:
+
 ```bash
+# Auth0 Configuration (REQUIRED)
 AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_AUDIENCE=https://api.budget.local
-AUTH0_CLIENT_ID=your-backend-client-id
+AUTH0_CLIENT_ID=your-auth0-client-id
+AUTH0_CLIENT_SECRET=your-auth0-client-secret
+
+# Auth0 Management API (M2M) - for integration tests
+AUTH0_MGMT_CLIENT_ID=your-auth0-m2m-client-id
+AUTH0_MGMT_CLIENT_SECRET=your-auth0-m2m-client-secret
+AUTH0_DB_CONNECTION=Username-Password-Authentication
 ```
 
-### Frontend Environment Variables
-```bash
-VITE_AUTH0_DOMAIN=your-tenant.auth0.com
-VITE_AUTH0_CLIENT_ID=your-frontend-client-id
-VITE_AUTH0_AUDIENCE=https://api.budget.local
-VITE_API_URL=http://localhost/api
-```
+Frontend build-time variables (VITE_AUTH0_DOMAIN, VITE_AUTH0_CLIENT_ID, VITE_AUTH0_AUDIENCE) are passed as Docker build args from the `.env` values — no separate frontend env vars needed.
+
+See `.env.example` for the full list of variables and their defaults.
 
 ### Auth0 Application Setup
 
