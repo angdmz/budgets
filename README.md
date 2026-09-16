@@ -399,14 +399,22 @@ cp .env.example .env
 
 ### Step 3: Update Environment Variables
 
-Edit `.env` file with your Auth0 credentials:
+Edit `.env` file with your Auth0 credentials (see `.env.example` for all variables):
 
 ```bash
-# Auth0 Configuration
+# Auth0 Configuration (REQUIRED)
 AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_AUDIENCE=https://api.budget.local
-AUTH0_CLIENT_ID=your-client-id-from-auth0
+AUTH0_CLIENT_ID=your-auth0-client-id
+AUTH0_CLIENT_SECRET=your-auth0-client-secret
+
+# Auth0 Management API (M2M) - for integration tests
+AUTH0_MGMT_CLIENT_ID=your-auth0-m2m-client-id
+AUTH0_MGMT_CLIENT_SECRET=your-auth0-m2m-client-secret
+AUTH0_DB_CONNECTION=Username-Password-Authentication
 ```
+
+All other variables have sensible defaults — see `.env.example` for the full list.
 
 ### Step 4: Generate Secrets
 
@@ -609,40 +617,51 @@ docker-compose up --build -d api
 
 ## Environment Variables
 
-Create a `.env` file in the project root with these variables:
+All services read from a single `.env` file at the project root (via `env_file: .env` in `docker-compose.yml`). Copy `.env.example` to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+### Full Variable Reference
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `DB_USERNAME` | PostgreSQL username | `postgres` | No |
 | `DB_NAME` | Database name | `budgets` | No |
-| `DB_PORT` | Database port (host mapping) | `5432` | No |
+| `DB_HOSTNAME` | Database hostname (compose service name) | `db` | No |
+| `DB_PORT` | Database port | `5432` | No |
+| `DB_SSLMODE` | PostgreSQL SSL mode | `disable` | No |
+| `DB_MAX_OPEN_CONNS` | Max DB connections | `25` | No |
+| `DB_MAX_IDLE_CONNS` | Max idle DB connections | `5` | No |
+| `DB_CONN_MAX_LIFETIME_SECONDS` | Connection max lifetime | `300` | No |
+| `POSTGRES_USER` | Postgres superuser | `postgres` | No |
+| `POSTGRES_PASSWORD_FILE` | Path to password secret file | `/run/secrets/db_password` | No |
+| `POSTGRES_DB` | Postgres initial database | `budgets` | No |
+| `API_PORT` | API host port mapping | `8080` | No |
+| `SERVER_PORT` | API container port | `8080` | No |
 | `SERVER_ENV` | Environment mode | `development` | No |
+| `NODE_ENV` | Node environment (landing) | `production` | No |
+| `NGINX_CONF` | Nginx config file path | `./nginx/nginx.dev.conf` | No |
+| `TLS_CERT_DIR` | TLS certificate directory | `./nginx/ssl` | No |
 | `AUTH0_DOMAIN` | Auth0 tenant domain | - | **Yes** |
 | `AUTH0_AUDIENCE` | Auth0 API identifier | - | **Yes** |
 | `AUTH0_CLIENT_ID` | Auth0 client ID | - | **Yes** |
+| `AUTH0_CLIENT_SECRET` | Auth0 client secret | - | **Yes** |
+| `AUTH0_MGMT_CLIENT_ID` | Auth0 M2M client ID (integration tests) | - | No |
+| `AUTH0_MGMT_CLIENT_SECRET` | Auth0 M2M client secret (integration tests) | - | No |
+| `AUTH0_DB_CONNECTION` | Auth0 DB connection name | `Username-Password-Authentication` | No |
 | `SECRETS_PROVIDER` | Secrets source (`docker`/`env`/`aws`/`localstack`) | `docker` | No |
+| `EXCHANGE_PROVIDER` | Exchange rate provider | `frankfurter` | No |
+| `DOCKER_REGISTRY_PREFIX` | ghcr.io image prefix | `angdmz/budgets` | No |
+| `IMAGE_TAG` | Docker image tag | `latest` | No |
+| `INTEGRATION_TEST` | Integration test flag | `true` | No |
+| `INTEGRATION_TESTS_BASE_URL` | Integration test base URL | `http://nginx` | No |
+| `INTEGRATION_TESTS_SCREENSHOTS_DIR` | Screenshots dir (container) | `/tests/screenshots` | No |
+| `INTEGRATION_TESTS_SCREENSHOTS_HOST_DIR` | Screenshots dir (host) | `./tests/screenshots` | No |
+| `INTEGRATION_TESTS_SECRETS_PROVIDER` | Test secrets provider | `docker` | No |
 
-**Note**: Sensitive values (db_password, encryption_key, jwt_secret, auth0_client_secret) are stored in `secrets/` directory as Docker secrets.
-
-### Example `.env` file
-
-```bash
-# Database
-DB_USERNAME=postgres
-DB_NAME=budgets
-DB_PORT=5432
-
-# Server
-SERVER_ENV=development
-
-# Auth0 Configuration (REQUIRED)
-AUTH0_DOMAIN=your-tenant.auth0.com
-AUTH0_AUDIENCE=https://api.budget.local
-AUTH0_CLIENT_ID=your-auth0-client-id
-
-# Secrets Provider
-SECRETS_PROVIDER=docker
-```
+**Note**: Sensitive values (db_password, encryption_key, jwt_secret, auth0_client_secret) are stored in `secrets/` directory as Docker secrets, not in `.env`.
 
 ---
 

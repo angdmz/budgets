@@ -16,69 +16,155 @@ env:
   IMAGE_PREFIX: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  # ---------------------------------------------------------------------------
+  # Per-service build & push jobs — each builds and pushes independently
+  # ---------------------------------------------------------------------------
+  build-and-push-api:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/build-push-action@v6
+        with:
+          context: ./core
+          file: ./core/Dockerfile
+          target: production
+          push: true
+          tags: ghcr.io/${{ github.repository }}/api:${{ github.sha }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+  build-and-push-landing:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
-
+      - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./landing
+          file: ./landing/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/landing:${{ github.sha }}
+          cache-from: type=gha,scope=landing
+          cache-to: type=gha,mode=max,scope=landing
 
-      - name: Create placeholder secrets (compose needs files to exist)
-        run: |
-          mkdir -p secrets
-          for f in db_password encryption_key jwt_secret auth0_client_secret \
-                   auth0_mgmt_client_secret integration_tests_auth0_email \
-                   integration_tests_auth0_password; do
-            echo "placeholder" > "secrets/${f}.txt"
-          done
+  build-and-push-app:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          file: ./app/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/app:${{ github.sha }}
+          build-args: |
+            VITE_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+            VITE_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+            VITE_AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
 
-      - name: Create .env with build args
-        run: |
-          cat > .env <<EOF
-          AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
-          AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE }}
-          AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
-          EOF
+  build-and-push-admin:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./admin
+          file: ./admin/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/admin:${{ github.sha }}
+          build-args: |
+            VITE_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+            VITE_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+            VITE_AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE }}
+          cache-from: type=gha,scope=admin
+          cache-to: type=gha,mode=max,scope=admin
 
-      - name: Generate compose override with registry image names
-        run: |
-          TAG="${GITHUB_SHA::7}"
-          REG="ghcr.io/${{ github.repository }}"
-          cat > docker-compose.ci-images.yml <<EOF
-          services:
-            api:
-              image: ${REG}/api:${TAG}
-            app:
-              image: ${REG}/app:${TAG}
-            admin:
-              image: ${REG}/admin:${TAG}
-            landing:
-              image: ${REG}/landing:${TAG}
-            migrations:
-              image: ${REG}/migrations:${TAG}
-            nginx:
-              image: ${REG}/nginx:${TAG}
-          EOF
+  build-and-push-migrations:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./migrations
+          file: ./migrations/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/migrations:${{ github.sha }}
+          cache-from: type=gha,scope=migrations
+          cache-to: type=gha,mode=max,scope=migrations
 
-      - name: Build images
-        run: |
-          docker compose -f docker-compose.yml -f docker-compose.ci-images.yml \
-            build api app admin landing migrations nginx
-
-      - name: Push images
-        run: |
-          docker compose -f docker-compose.yml -f docker-compose.ci-images.yml \
-            push api app admin landing migrations nginx
+  build-and-push-nginx:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./nginx
+          file: ./nginx/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository }}/nginx:${{ github.sha }}
+          cache-from: type=gha,scope=nginx
+          cache-to: type=gha,mode=max,scope=nginx
 
   migrate:
-    needs: build-and-push
+    needs: [build-and-push-migrations]
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -93,11 +179,11 @@ jobs:
           echo "    -e DB_PASSWORD=\${{ secrets.DB_PASSWORD }} \\"
           echo "    -e ENCRYPTION_KEY=\${{ secrets.ENCRYPTION_KEY }} \\"
           echo "    -e SECRETS_PROVIDER=env \\"
-          echo "    ghcr.io/${{ github.repository }}/migrations:${GITHUB_SHA::7} \\"
+          echo "    ghcr.io/${{ github.repository }}/migrations:\${GITHUB_SHA} \\"
           echo "    alembic upgrade head"
 
   deploy:
-    needs: migrate
+    needs: [migrate, build-and-push-api, build-and-push-landing, build-and-push-app, build-and-push-admin, build-and-push-nginx]
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -105,7 +191,7 @@ jobs:
         run: |
           echo "TODO: Replace with actual deploy command. Examples:"
           echo "  - VPS: ssh deploy@host 'cd /app && docker compose pull && docker compose up -d'"
-          echo "  - K8s: kubectl set image deployment/api api=ghcr.io/.../api:\${SHA::7}"
+          echo "  - K8s: kubectl set image deployment/api api=ghcr.io/.../api:\${SHA}"
           echo "  - ECS: aws ecs update-service --force-new-deployment"
           echo ""
           echo "Deployed commit: ${{ github.sha }}"

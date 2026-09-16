@@ -1,12 +1,9 @@
 services:
   db:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${DB_USERNAME:-postgres}
-      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
-      POSTGRES_DB: ${DB_NAME:-budgets}
+    env_file: .env
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     secrets:
@@ -20,15 +17,11 @@ services:
       - budget_network
 
   migrations:
+    image: ghcr.io/${DOCKER_REGISTRY_PREFIX}/migrations:${IMAGE_TAG}
     build:
       context: ./migrations
       dockerfile: Dockerfile
-    environment:
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_NAME: ${DB_NAME:-budgets}
-      DB_HOSTNAME: db
-      DB_PORT: 5432
-      SECRETS_PROVIDER: docker
+    env_file: .env
     secrets:
       - db_password
       - encryption_key
@@ -43,12 +36,7 @@ services:
       context: ./migrations
       dockerfile: Dockerfile
     entrypoint: ["alembic", "revision", "--autogenerate", "-m"]
-    environment:
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_NAME: ${DB_NAME:-budgets}
-      DB_HOSTNAME: db
-      DB_PORT: 5432
-      SECRETS_PROVIDER: docker
+    env_file: .env
     secrets:
       - db_password
       - encryption_key
@@ -68,12 +56,7 @@ services:
       dockerfile: Dockerfile
     entrypoint: ["alembic", "downgrade"]
     command: ["-1"]
-    environment:
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_NAME: ${DB_NAME:-budgets}
-      DB_HOSTNAME: db
-      DB_PORT: 5432
-      SECRETS_PROVIDER: docker
+    env_file: .env
     secrets:
       - db_password
       - encryption_key
@@ -90,12 +73,7 @@ services:
       context: ./migrations
       dockerfile: Dockerfile
     entrypoint: ["alembic", "history"]
-    environment:
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_NAME: ${DB_NAME:-budgets}
-      DB_HOSTNAME: db
-      DB_PORT: 5432
-      SECRETS_PROVIDER: docker
+    env_file: .env
     secrets:
       - db_password
       - encryption_key
@@ -108,28 +86,14 @@ services:
       - tools
 
   api:
+    image: ghcr.io/${DOCKER_REGISTRY_PREFIX}/api:${IMAGE_TAG}
     build:
       context: ./core
       dockerfile: Dockerfile
       target: production
     ports:
-      - "${API_PORT:-8080}:8080"
-    environment:
-      SERVER_PORT: 8080
-      SERVER_ENV: ${SERVER_ENV:-development}
-      DB_HOSTNAME: db
-      DB_PORT: 5432
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_NAME: ${DB_NAME:-budgets}
-      DB_SSLMODE: disable
-      DB_MAX_OPEN_CONNS: ${DB_MAX_OPEN_CONNS:-25}
-      DB_MAX_IDLE_CONNS: ${DB_MAX_IDLE_CONNS:-5}
-      DB_CONN_MAX_LIFETIME_SECONDS: ${DB_CONN_MAX_LIFETIME_SECONDS:-300}
-      SECRETS_PROVIDER: docker
-      EXCHANGE_PROVIDER: ${EXCHANGE_PROVIDER:-frankfurter}
-      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
-      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
-      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
+      - "${API_PORT}:8080"
+    env_file: .env
     secrets:
       - db_password
       - encryption_key
@@ -142,15 +106,16 @@ services:
       - budget_network
 
   landing:
+    image: ghcr.io/${DOCKER_REGISTRY_PREFIX}/landing:${IMAGE_TAG}
     build:
       context: ./landing
       dockerfile: Dockerfile
-    environment:
-      - NODE_ENV=production
+    env_file: .env
     networks:
       - budget_network
 
   app:
+    image: ghcr.io/${DOCKER_REGISTRY_PREFIX}/app:${IMAGE_TAG}
     build:
       context: ./app
       dockerfile: Dockerfile
@@ -162,6 +127,7 @@ services:
       - budget_network
 
   admin:
+    image: ghcr.io/${DOCKER_REGISTRY_PREFIX}/admin:${IMAGE_TAG}
     build:
       context: ./admin
       dockerfile: Dockerfile
@@ -173,6 +139,7 @@ services:
       - budget_network
 
   nginx:
+    image: ghcr.io/${DOCKER_REGISTRY_PREFIX}/nginx:${IMAGE_TAG}
     build:
       context: ./nginx
       dockerfile: Dockerfile
@@ -187,9 +154,9 @@ services:
     networks:
       - budget_network
     volumes:
-      - ${NGINX_CONF:-./nginx/nginx.dev.conf}:/etc/nginx/nginx.conf:ro
+      - ${NGINX_CONF}:/etc/nginx/nginx.conf:ro
       - ./nginx/logs:/var/log/nginx
-      - ${TLS_CERT_DIR:-./nginx/ssl}:/etc/nginx/ssl:ro
+      - ${TLS_CERT_DIR}:/etc/nginx/ssl:ro
 
   test:
     build:
@@ -198,16 +165,7 @@ services:
       target: test
     volumes:
       - ./test-results:/tmp/test-results
-    environment:
-      DB_HOSTNAME: db
-      DB_PORT: 5432
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_NAME: ${DB_NAME:-budgets}
-      SECRETS_PROVIDER: docker
-      INTEGRATION_TEST: "true"
-      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
-      AUTH0_AUDIENCE: ${AUTH0_AUDIENCE}
-      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
+    env_file: .env
     secrets:
       - db_password
       - encryption_key
@@ -229,7 +187,7 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     volumes:
-      - ${INTEGRATION_TESTS_SCREENSHOTS_HOST_DIR:-./tests/screenshots}:/tests/screenshots
+      - ${INTEGRATION_TESTS_SCREENSHOTS_HOST_DIR}:/tests/screenshots
     secrets:
       - integration_tests_auth0_email
       - integration_tests_auth0_password

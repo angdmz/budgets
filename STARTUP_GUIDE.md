@@ -32,14 +32,28 @@
 
 ### Step 2: Update Environment Variables
 
-Edit `.env` file:
+Copy `.env.example` to `.env` and fill in your Auth0 credentials:
 
 ```bash
-# Auth0 Configuration
+cp .env.example .env
+```
+
+Edit `.env` file with your Auth0 credentials:
+
+```bash
+# Auth0 Configuration (REQUIRED)
 AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_AUDIENCE=https://api.budget.local
-AUTH0_CLIENT_ID=your-client-id-from-auth0
+AUTH0_CLIENT_ID=your-auth0-client-id
+AUTH0_CLIENT_SECRET=your-auth0-client-secret
+
+# Auth0 Management API (M2M) - for integration tests
+AUTH0_MGMT_CLIENT_ID=your-auth0-m2m-client-id
+AUTH0_MGMT_CLIENT_SECRET=your-auth0-m2m-client-secret
+AUTH0_DB_CONNECTION=Username-Password-Authentication
 ```
+
+All other variables have sensible defaults — see `.env.example` for the full list.
 
 ### Step 3: Verify Secrets
 
@@ -74,10 +88,10 @@ This will start:
 - PostgreSQL database (port 5432)
 - Database migrations
 - Go API backend (internal port 8080)
-- Next.js landing page (internal port 3000)
-- React main app (internal port 3001)
-- React admin app (internal port 3002)
-- Nginx gateway (port 80)
+- Next.js landing page
+- React main app
+- React admin app
+- Nginx gateway (port 8000 for HTTP, 8443 for HTTPS)
 
 ### Step 5: Access the System
 

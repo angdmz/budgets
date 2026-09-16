@@ -3,34 +3,32 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+ENV NEXT_TELEMETRY_DISABLED=1
+
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+RUN --mount=type=cache,target=/root/.npm npm install
 
-# Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 # Production stage
 FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Copy built application from builder
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-
-# Expose port
-EXPOSE 3000
-
-# Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Start the application
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/public ./public
+
+EXPOSE 3000
+
+USER node
+
 CMD ["node", "server.js"]

@@ -9,15 +9,140 @@ concurrency:
   group: ci-${{ github.head_ref }}
   cancel-in-progress: true
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
 jobs:
-  test:
+  # ---------------------------------------------------------------------------
+  # Per-service build jobs — each builds independently for easier debugging
+  # ---------------------------------------------------------------------------
+  build-api:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build api
+        uses: docker/build-push-action@v6
+        with:
+          context: ./core
+          file: ./core/Dockerfile
+          target: production
+          push: false
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+  build-landing:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build landing
+        uses: docker/build-push-action@v6
+        with:
+          context: ./landing
+          file: ./landing/Dockerfile
+          push: false
+          cache-from: type=gha,scope=landing
+          cache-to: type=gha,mode=max,scope=landing
+
+  build-app:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build app
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          file: ./app/Dockerfile
+          push: false
+          build-args: |
+            VITE_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+            VITE_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+            VITE_AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+
+  build-admin:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build admin
+        uses: docker/build-push-action@v6
+        with:
+          context: ./admin
+          file: ./admin/Dockerfile
+          push: false
+          build-args: |
+            VITE_AUTH0_DOMAIN=${{ secrets.AUTH0_DOMAIN }}
+            VITE_AUTH0_CLIENT_ID=${{ secrets.AUTH0_CLIENT_ID }}
+            VITE_AUTH0_AUDIENCE=${{ secrets.AUTH0_AUDIENCE }}
+          cache-from: type=gha,scope=admin
+          cache-to: type=gha,mode=max,scope=admin
+
+  build-migrations:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build migrations
+        uses: docker/build-push-action@v6
+        with:
+          context: ./migrations
+          file: ./migrations/Dockerfile
+          push: false
+          cache-from: type=gha,scope=migrations
+          cache-to: type=gha,mode=max,scope=migrations
+
+  build-nginx:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build nginx
+        uses: docker/build-push-action@v6
+        with:
+          context: ./nginx
+          file: ./nginx/Dockerfile
+          push: false
+          cache-from: type=gha,scope=nginx
+          cache-to: type=gha,mode=max,scope=nginx
+
+  # ---------------------------------------------------------------------------
+  # Test job — builds the test target and runs Go tests with DB
+  # ---------------------------------------------------------------------------
+  test:
+    needs: [build-api, build-migrations]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
       actions: read
       checks: write
     steps:
       - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
 
       - name: Create CI secrets
         run: |
@@ -50,8 +175,27 @@ jobs:
           INTEGRATION_TESTS_SECRETS_PROVIDER=docker
           EOF
 
-      - name: Build all services
-        run: docker compose build
+      - name: Build test image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./core
+          file: ./core/Dockerfile
+          target: test
+          tags: budgets-test:ci
+          push: false
+          load: true
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=test
+
+      - name: Build migrations image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./migrations
+          file: ./migrations/Dockerfile
+          tags: budgets-migrations:ci
+          push: false
+          load: true
+          cache-from: type=gha,scope=migrations
 
       - name: Run Go tests (unit + integration with DB)
         run: docker compose --profile test run --rm test

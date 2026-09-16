@@ -91,7 +91,13 @@ internal/
 
 ### Environment Variables
 
-Create a `.env` file or set these variables:
+All services read from a single `.env` file at the project root (via `env_file: .env` in `docker-compose.yml`). Copy `.env.example` to `.env` and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Key variables for the backend:
 
 ```bash
 # Server
@@ -99,20 +105,28 @@ SERVER_PORT=8080
 SERVER_ENV=development
 
 # Database
-DB_HOSTNAME=localhost
+DB_HOSTNAME=db
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_NAME=budgets
 DB_SSLMODE=disable
+DB_MAX_OPEN_CONNS=25
+DB_MAX_IDLE_CONNS=5
+DB_CONN_MAX_LIFETIME_SECONDS=300
 
 # Auth0
 AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_AUDIENCE=https://api.budget.local
-AUTH0_CLIENT_ID=your-client-id
+AUTH0_CLIENT_ID=your-auth0-client-id
+
+# Exchange Rate Provider
+EXCHANGE_PROVIDER=frankfurter
 
 # Secrets Provider (env, docker, aws, localstack)
-SECRETS_PROVIDER=env
+SECRETS_PROVIDER=docker
 ```
+
+See `.env.example` for the full list of variables.
 
 ### Secrets
 
@@ -123,13 +137,16 @@ The application requires these secrets (see `/secrets/README.md`):
 - `jwt_secret` - JWT signing secret
 - `auth0_client_secret` - Auth0 client secret
 
-**For development with environment variables:**
+**For development with environment variables (SECRETS_PROVIDER=env):**
 ```bash
 export ENCRYPTION_KEY="your-fernet-key"
 export JWT_SECRET="your-jwt-secret"
 export DB_PASSWORD="your-db-password"
 export AUTH0_CLIENT_SECRET="your-auth0-secret"
 ```
+
+**For Docker Compose (SECRETS_PROVIDER=docker):**
+Secrets are read from `/run/secrets/` via Docker secrets — see `secrets/README.md`.
 
 ### Running Locally
 
