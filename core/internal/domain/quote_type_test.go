@@ -170,8 +170,8 @@ func TestPersistedUserPreference_UpdatePreferredQuoteType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if pref.PreferredQuoteType() != QuoteBlue {
-		t.Errorf("expected BLUE, got %s", pref.PreferredQuoteType())
+	if pref.Presentation().preferredQuote != QuoteBlue {
+		t.Errorf("expected BLUE, got %s", pref.Presentation().preferredQuote)
 	}
 }
 
@@ -184,7 +184,7 @@ func TestPersistedUserPreference_UpdatePreferredQuoteType_Invalid(t *testing.T) 
 	if err == nil {
 		t.Error("expected error for invalid quote type")
 	}
-	if pref.PreferredQuoteType() != QuoteOfficial {
+	if pref.Presentation().preferredQuote != QuoteOfficial {
 		t.Error("expected quote type to remain unchanged on error")
 	}
 }

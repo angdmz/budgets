@@ -126,14 +126,3 @@ func PersistedExchangeRateFromPersistence(
 	e.quote = quote
 	return &e, nil
 }
-
-func (e *PersistedExchangeRate) ID() int64              { return e.id }
-func (e *PersistedExchangeRate) ExternalID() uuid.UUID  { return e.externalID }
-func (e *PersistedExchangeRate) FromCurrency() Currency { return e.fromCurrency }
-func (e *PersistedExchangeRate) ToCurrency() Currency   { return e.toCurrency }
-func (e *PersistedExchangeRate) Quote() QuoteType       { return e.quote }
-func (e *PersistedExchangeRate) Rate() decimal.Decimal   { return e.rate }
-func (e *PersistedExchangeRate) Provider() string        { return e.provider }
-func (e *PersistedExchangeRate) ObservedAt() time.Time   { return e.observedAt }
-func (e *PersistedExchangeRate) CreatedAt() time.Time    { return e.createdAt }
-func (e *PersistedExchangeRate) UpdatedAt() time.Time    { return e.updatedAt }

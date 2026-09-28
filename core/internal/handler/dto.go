@@ -1,9 +1,30 @@
 package handler
 
 import (
-	"time"
-
 	"github.com/google/uuid"
+
+	"github.com/budgets/core/internal/representation"
+)
+
+// Response wire shapes live in the representation package; these aliases keep
+// handler code and swagger annotations stable.
+type (
+	GroupResponse          = representation.Group
+	CategoryResponse       = representation.Category
+	BudgetResponse         = representation.Budget
+	BudgetSummaryResponse  = representation.BudgetSummary
+	MoneyResponse          = representation.Money
+	ExpectedExpenseResponse = representation.ExpectedExpense
+	ActualExpenseResponse  = representation.ActualExpense
+	AuthCallbackResponse   = representation.AuthCallback
+	PreferenceResponse     = representation.Preference
+	ConvertCurrencyResponse = representation.ConvertCurrency
+	ExchangeRateResponse   = representation.ExchangeRate
+	InvitationResponse     = representation.Invitation
+	InvitationDetailResponse = representation.InvitationDetail
+	CurrencyResponse       = representation.Currency
+	OnboardingResponse     = representation.Onboarding
+	OnboardingStepResponse = representation.OnboardingStep
 )
 
 type ErrorResponse struct {
@@ -21,14 +42,6 @@ type UpdateGroupRequest struct {
 	Description string `json:"description"`
 }
 
-type GroupResponse struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-}
-
 type CreateCategoryRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
@@ -41,16 +54,6 @@ type UpdateCategoryRequest struct {
 	Description string `json:"description"`
 	Color       string `json:"color"`
 	Icon        string `json:"icon"`
-}
-
-type CategoryResponse struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description,omitempty"`
-	Color       string    `json:"color,omitempty"`
-	Icon        string    `json:"icon,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type CreateBudgetRequest struct {
@@ -67,32 +70,9 @@ type UpdateBudgetRequest struct {
 	EndDate     string `json:"end_date" binding:"required"`
 }
 
-type BudgetResponse struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description,omitempty"`
-	StartDate   string    `json:"start_date"`
-	EndDate     string    `json:"end_date"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-}
-
-type BudgetSummaryResponse struct {
-	BudgetID     uuid.UUID     `json:"budget_id"`
-	ExpectedTotal MoneyResponse `json:"expected_total"`
-	ActualTotal   MoneyResponse `json:"actual_total"`
-	Difference    MoneyResponse `json:"difference"`
-}
-
 type MoneyRequest struct {
 	Amount   string `json:"amount" binding:"required"`
 	Currency string `json:"currency" binding:"required"`
-}
-
-type MoneyResponse struct {
-	Amount   string `json:"amount"`
-	Currency string `json:"currency"`
-	Converted bool   `json:"converted,omitempty"`
 }
 
 type CreateExpectedExpenseRequest struct {
@@ -107,17 +87,6 @@ type UpdateExpectedExpenseRequest struct {
 	Description string       `json:"description"`
 	Amount      MoneyRequest `json:"amount" binding:"required"`
 	CategoryID  uuid.UUID    `json:"category_id" binding:"required"`
-}
-
-type ExpectedExpenseResponse struct {
-	ID             uuid.UUID      `json:"id"`
-	Name           string         `json:"name"`
-	Description    string         `json:"description,omitempty"`
-	Amount         MoneyResponse  `json:"amount"`
-	ConvertedAmount *MoneyResponse `json:"converted_amount,omitempty"`
-	CategoryID     uuid.UUID      `json:"category_id"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
 }
 
 type CreateActualExpenseRequest struct {
@@ -138,22 +107,6 @@ type UpdateActualExpenseRequest struct {
 	ExpectedExpenseID *uuid.UUID   `json:"expected_expense_id"`
 }
 
-type ActualExpenseResponse struct {
-	ID             uuid.UUID      `json:"id"`
-	Name           string         `json:"name"`
-	Description    string         `json:"description,omitempty"`
-	ExpenseDate    string         `json:"expense_date"`
-	Amount         MoneyResponse  `json:"amount"`
-	ConvertedAmount *MoneyResponse `json:"converted_amount,omitempty"`
-	CategoryID     uuid.UUID      `json:"category_id"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-}
-
-type AuthCallbackResponse struct {
-	Token string `json:"token"`
-}
-
 type UpdatePreferenceRequest struct {
 	Theme              string `json:"theme" binding:"required"`
 	Language           string `json:"language" binding:"required"`
@@ -168,13 +121,6 @@ type PatchPreferenceRequest struct {
 	PreferredQuoteType *string `json:"preferred_quote_type"`
 }
 
-type PreferenceResponse struct {
-	Theme              string `json:"theme"`
-	Language           string `json:"language"`
-	DisplayCurrency    string `json:"display_currency"`
-	PreferredQuoteType string `json:"preferred_quote_type"`
-}
-
 type ConvertCurrencyRequest struct {
 	Amount       string `json:"amount" binding:"required"`
 	FromCurrency string `json:"from_currency" binding:"required"`
@@ -182,69 +128,11 @@ type ConvertCurrencyRequest struct {
 	QuoteType    string `json:"quote_type"`
 }
 
-type ConvertCurrencyResponse struct {
-	OriginalAmount  MoneyResponse `json:"original_amount"`
-	ConvertedAmount MoneyResponse `json:"converted_amount"`
-	ExchangeRate    string        `json:"exchange_rate"`
-	Provider        string        `json:"provider"`
-	QuoteType       string        `json:"quote_type,omitempty"`
-}
-
-type ExchangeRateResponse struct {
-	FromCurrency string `json:"from_currency"`
-	ToCurrency   string `json:"to_currency"`
-	QuoteType    string `json:"quote_type,omitempty"`
-	Rate         string `json:"rate"`
-	Provider     string `json:"provider"`
-}
-
 type CreateInvitationRequest struct {
 	Role string `json:"role"`
-}
-
-type InvitationResponse struct {
-	ID          uuid.UUID  `json:"id"`
-	Token       string     `json:"token"`
-	GroupID     uuid.UUID  `json:"group_id,omitempty"`
-	GroupName   string     `json:"group_name"`
-	InviterName string     `json:"inviter_name"`
-	Status      string     `json:"status"`
-	Role        string     `json:"role"`
-	ExpiresAt   time.Time  `json:"expires_at"`
-	AcceptedAt  *time.Time `json:"accepted_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-}
-
-type InvitationDetailResponse struct {
-	GroupName   string    `json:"group_name"`
-	InviterName string    `json:"inviter_name"`
-	Status      string    `json:"status"`
-	Role        string    `json:"role"`
-	ExpiresAt   time.Time `json:"expires_at"`
-}
-
-type CurrencyResponse struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
 }
 
 type CompleteStepRequest struct {
 	Data interface{} `json:"data"`
 }
 
-type OnboardingResponse struct {
-	ID          uuid.UUID               `json:"id"`
-	Status      string                  `json:"status"`
-	CurrentStep string                  `json:"current_step"`
-	Steps       []OnboardingStepResponse `json:"steps"`
-	CreatedAt   time.Time               `json:"created_at"`
-	UpdatedAt   time.Time               `json:"updated_at"`
-}
-
-type OnboardingStepResponse struct {
-	Step      string      `json:"step"`
-	Status    string      `json:"status"`
-	Data      interface{} `json:"data,omitempty"`
-	CreatedAt time.Time   `json:"created_at"`
-	UpdatedAt time.Time   `json:"updated_at"`
-}

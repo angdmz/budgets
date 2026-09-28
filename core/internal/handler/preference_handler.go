@@ -11,6 +11,7 @@ import (
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/middleware"
+	"github.com/budgets/core/internal/representation"
 )
 
 type PreferenceHandler struct {
@@ -37,7 +38,7 @@ func (h *PreferenceHandler) GetPreferences(c *gin.Context) {
 		return
 	}
 
-	var response PreferenceResponse
+	var response domain.Rendered[representation.Preference]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		pref, err := domain.PersistedUserPreferenceFromPersistence(ctx, user.ID, p)
 		if err != nil {
@@ -54,12 +55,7 @@ func (h *PreferenceHandler) GetPreferences(c *gin.Context) {
 			}
 		}
 
-		response = PreferenceResponse{
-			Theme:              string(pref.Theme()),
-			Language:           string(pref.Language()),
-			DisplayCurrency:    string(pref.DisplayCurrency()),
-			PreferredQuoteType: string(pref.PreferredQuoteType()),
-		}
+		response = pref.Render()
 		return nil
 	})
 
@@ -101,7 +97,7 @@ func (h *PreferenceHandler) UpdatePreferences(c *gin.Context) {
 		quoteType = domain.QuoteOfficial
 	}
 
-	var response PreferenceResponse
+	var response domain.Rendered[representation.Preference]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.Theme(req.Theme), domain.Language(req.Language), domain.Currency(req.DisplayCurrency), quoteType)
 		if err != nil {
@@ -113,12 +109,7 @@ func (h *PreferenceHandler) UpdatePreferences(c *gin.Context) {
 			return err
 		}
 
-		response = PreferenceResponse{
-			Theme:              string(pref.Theme()),
-			Language:           string(pref.Language()),
-			DisplayCurrency:    string(pref.DisplayCurrency()),
-			PreferredQuoteType: string(pref.PreferredQuoteType()),
-		}
+		response = pref.Render()
 		return nil
 	})
 
@@ -164,7 +155,7 @@ func (h *PreferenceHandler) PatchPreferences(c *gin.Context) {
 		return
 	}
 
-	var response PreferenceResponse
+	var response domain.Rendered[representation.Preference]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		pref, err := domain.PersistedUserPreferenceFromPersistence(ctx, user.ID, p)
 		if err != nil {
@@ -206,12 +197,7 @@ func (h *PreferenceHandler) PatchPreferences(c *gin.Context) {
 			return err
 		}
 
-		response = PreferenceResponse{
-			Theme:              string(pref.Theme()),
-			Language:           string(pref.Language()),
-			DisplayCurrency:    string(pref.DisplayCurrency()),
-			PreferredQuoteType: string(pref.PreferredQuoteType()),
-		}
+		response = pref.Render()
 		return nil
 	})
 

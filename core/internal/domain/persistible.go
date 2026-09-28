@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/budgets/core/internal/representation"
 )
 
 type Persister interface {
@@ -448,24 +450,15 @@ func PersistedGroupFromPersistence(ctx context.Context, externalID uuid.UUID, p 
 	return &g, nil
 }
 
-func (g *PersistedGroup) ExternalID() uuid.UUID {
-	return g.externalID
-}
-
-func (g *PersistedGroup) Name() string {
-	return g.name
-}
-
-func (g *PersistedGroup) Description() string {
-	return g.description
-}
-
-func (g *PersistedGroup) CreatedAt() time.Time {
-	return g.createdAt
-}
-
-func (g *PersistedGroup) UpdatedAt() time.Time {
-	return g.updatedAt
+// Render returns the final wire representation of this group.
+func (g *PersistedGroup) Render() Rendered[representation.Group] {
+	return Render(representation.Group{
+		ID:          g.externalID,
+		Name:        g.name,
+		Description: g.description,
+		CreatedAt:   g.createdAt,
+		UpdatedAt:   g.updatedAt,
+	})
 }
 
 func (g *PersistedGroup) UpdateName(name string) {
@@ -525,32 +518,17 @@ func PersistedCategoryFromPersistence(ctx context.Context, externalID uuid.UUID,
 	return &c, nil
 }
 
-func (c *PersistedCategory) ExternalID() uuid.UUID {
-	return c.externalID
-}
-
-func (c *PersistedCategory) Name() string {
-	return c.name
-}
-
-func (c *PersistedCategory) Description() string {
-	return c.description
-}
-
-func (c *PersistedCategory) Color() string {
-	return c.color
-}
-
-func (c *PersistedCategory) Icon() string {
-	return c.icon
-}
-
-func (c *PersistedCategory) CreatedAt() time.Time {
-	return c.createdAt
-}
-
-func (c *PersistedCategory) UpdatedAt() time.Time {
-	return c.updatedAt
+// Render returns the final wire representation of this category.
+func (c *PersistedCategory) Render() Rendered[representation.Category] {
+	return Render(representation.Category{
+		ID:          c.externalID,
+		Name:        c.name,
+		Description: c.description,
+		Color:       c.color,
+		Icon:        c.icon,
+		CreatedAt:   c.createdAt,
+		UpdatedAt:   c.updatedAt,
+	})
 }
 
 func (c *PersistedCategory) UpdateName(name string) {
@@ -618,32 +596,26 @@ func PersistedBudgetFromPersistence(ctx context.Context, externalID uuid.UUID, p
 	return &b, nil
 }
 
-func (b *PersistedBudget) ExternalID() uuid.UUID {
-	return b.externalID
-}
-
-func (b *PersistedBudget) Name() string {
-	return b.name
-}
-
-func (b *PersistedBudget) Description() string {
-	return b.description
-}
-
-func (b *PersistedBudget) StartDate() time.Time {
-	return b.startDate
-}
-
-func (b *PersistedBudget) EndDate() time.Time {
+// ConversionCutoffAt returns the as-of date for historical conversion of this
+// budget's expected expenses: the earlier of the budget's end date and now.
+func (b *PersistedBudget) ConversionCutoffAt(now time.Time) time.Time {
+	if b.endDate.After(now) {
+		return now
+	}
 	return b.endDate
 }
 
-func (b *PersistedBudget) CreatedAt() time.Time {
-	return b.createdAt
-}
-
-func (b *PersistedBudget) UpdatedAt() time.Time {
-	return b.updatedAt
+// Render returns the final wire representation of this budget.
+func (b *PersistedBudget) Render() Rendered[representation.Budget] {
+	return Render(representation.Budget{
+		ID:          b.externalID,
+		Name:        b.name,
+		Description: b.description,
+		StartDate:   b.startDate.Format(apiDateFormat),
+		EndDate:     b.endDate.Format(apiDateFormat),
+		CreatedAt:   b.createdAt,
+		UpdatedAt:   b.updatedAt,
+	})
 }
 
 func (b *PersistedBudget) UpdateName(name string) {
@@ -713,34 +685,6 @@ func PersistedExpectedExpenseFromPersistence(ctx context.Context, externalID uui
 		return nil, fmt.Errorf("%w: expected expense not found", ErrNotFound)
 	}
 	return &e, nil
-}
-
-func (e *PersistedExpectedExpense) ExternalID() uuid.UUID {
-	return e.externalID
-}
-
-func (e *PersistedExpectedExpense) Name() string {
-	return e.name
-}
-
-func (e *PersistedExpectedExpense) Description() string {
-	return e.description
-}
-
-func (e *PersistedExpectedExpense) EncryptedAmount() string {
-	return e.encryptedAmount
-}
-
-func (e *PersistedExpectedExpense) CreatedAt() time.Time {
-	return e.createdAt
-}
-
-func (e *PersistedExpectedExpense) UpdatedAt() time.Time {
-	return e.updatedAt
-}
-
-func (e *PersistedExpectedExpense) CategoryExternalID() uuid.UUID {
-	return e.categoryExternalID
 }
 
 func (e *PersistedExpectedExpense) UpdateName(name string) {
@@ -823,38 +767,6 @@ func PersistedActualExpenseFromPersistence(ctx context.Context, externalID uuid.
 	return &e, nil
 }
 
-func (e *PersistedActualExpense) ExternalID() uuid.UUID {
-	return e.externalID
-}
-
-func (e *PersistedActualExpense) Name() string {
-	return e.name
-}
-
-func (e *PersistedActualExpense) Description() string {
-	return e.description
-}
-
-func (e *PersistedActualExpense) ExpenseDate() time.Time {
-	return e.expenseDate
-}
-
-func (e *PersistedActualExpense) EncryptedAmount() string {
-	return e.encryptedAmount
-}
-
-func (e *PersistedActualExpense) CreatedAt() time.Time {
-	return e.createdAt
-}
-
-func (e *PersistedActualExpense) UpdatedAt() time.Time {
-	return e.updatedAt
-}
-
-func (e *PersistedActualExpense) CategoryExternalID() uuid.UUID {
-	return e.categoryExternalID
-}
-
 func (e *PersistedActualExpense) UpdateName(name string) {
 	e.name = name
 }
@@ -913,6 +825,7 @@ func (e *PersistedActualExpense) DeleteFrom(ctx context.Context, p Persister) er
 type SecurityGuard interface {
 	AuthorizeGroupAccess(ctx context.Context, p Persister, groupExternalID uuid.UUID) error
 	AuthorizeGroupOwnership(ctx context.Context, p Persister, groupExternalID uuid.UUID) error
+	AuthorizeInvitationOwnership(ctx context.Context, p Persister, invitationExternalID uuid.UUID) error
 	AuthorizeBudgetAccess(ctx context.Context, p Persister, budgetExternalID uuid.UUID) error
 	AuthorizeCategoryAccess(ctx context.Context, p Persister, categoryExternalID uuid.UUID) error
 	AuthorizeExpenseAccess(ctx context.Context, p Persister, expenseExternalID uuid.UUID) error
@@ -1004,6 +917,29 @@ func (s *securityGuard) AuthorizeBudgetAccess(ctx context.Context, p Persister, 
 		return err
 	}
 	if !hasAccess {
+		return ErrForbidden
+	}
+	return nil
+}
+
+func (s *securityGuard) AuthorizeInvitationOwnership(ctx context.Context, p Persister, invitationExternalID uuid.UUID) error {
+	var isOwner bool
+	err := p.QueryRow(
+		ctx,
+		[]any{&isOwner},
+		`SELECT EXISTS(
+			SELECT 1 FROM user_participants up
+			JOIN participants pt ON up.participant_id = pt.id
+			JOIN group_invitations gi ON gi.budgeting_group_id = pt.budgeting_group_id
+			WHERE up.user_id = $1 AND gi.external_id = $2 AND up.role = 'owner'
+			AND up.revoked_at IS NULL AND pt.revoked_at IS NULL AND gi.revoked_at IS NULL
+		)`,
+		s.userID, invitationExternalID,
+	)
+	if err != nil {
+		return err
+	}
+	if !isOwner {
 		return ErrForbidden
 	}
 	return nil
@@ -1307,32 +1243,20 @@ func PersistedUserPreferenceFromPersistence(ctx context.Context, userID int64, p
 	return &pref, nil
 }
 
-func (pref *PersistedUserPreference) ExternalID() uuid.UUID {
-	return pref.externalID
+// Presentation returns the display settings used when converting and
+// rendering amounts for this user.
+func (pref *PersistedUserPreference) Presentation() PresentationPrefs {
+	return PresentationPrefs{displayCurrency: pref.displayCurrency, preferredQuote: pref.preferredQuoteType}
 }
 
-func (pref *PersistedUserPreference) Theme() Theme {
-	return pref.theme
-}
-
-func (pref *PersistedUserPreference) Language() Language {
-	return pref.language
-}
-
-func (pref *PersistedUserPreference) DisplayCurrency() Currency {
-	return pref.displayCurrency
-}
-
-func (pref *PersistedUserPreference) PreferredQuoteType() QuoteType {
-	return pref.preferredQuoteType
-}
-
-func (pref *PersistedUserPreference) CreatedAt() time.Time {
-	return pref.createdAt
-}
-
-func (pref *PersistedUserPreference) UpdatedAt() time.Time {
-	return pref.updatedAt
+// Render returns the final wire representation of these preferences.
+func (pref *PersistedUserPreference) Render() Rendered[representation.Preference] {
+	return Render(representation.Preference{
+		Theme:              string(pref.theme),
+		Language:           string(pref.language),
+		DisplayCurrency:    string(pref.displayCurrency),
+		PreferredQuoteType: string(pref.preferredQuoteType),
+	})
 }
 
 func (pref *PersistedUserPreference) UpdateTheme(theme Theme) error {

@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/budgets/core/internal/representation"
 )
 
 // OnboardingStatus represents the global onboarding state
@@ -158,13 +160,44 @@ func PersistedUserOnboardingFromPersistence(ctx context.Context, userID int64, p
 	return &ob, nil
 }
 
-func (o *PersistedUserOnboarding) ID() int64             { return o.id }
-func (o *PersistedUserOnboarding) ExternalID() uuid.UUID { return o.externalID }
-func (o *PersistedUserOnboarding) UserID() int64         { return o.userID }
-func (o *PersistedUserOnboarding) Status() OnboardingStatus { return o.status }
-func (o *PersistedUserOnboarding) CurrentStep() OnboardingStep { return o.currentStep }
-func (o *PersistedUserOnboarding) CreatedAt() time.Time  { return o.createdAt }
-func (o *PersistedUserOnboarding) UpdatedAt() time.Time  { return o.updatedAt }
+// Detail loads this onboarding's persisted steps and returns a renderable
+// composite. The query happens here, at construction, so Render stays pure.
+func (o *PersistedUserOnboarding) Detail(ctx context.Context, p Persister) (*OnboardingDetail, error) {
+	steps, err := o.Steps(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	return &OnboardingDetail{onboarding: o, steps: steps}, nil
+}
+
+// NewStep builds a persistible completed step wired to this onboarding's
+// internal id — the FK never leaves the domain package.
+func (o *PersistedUserOnboarding) NewStep(step OnboardingStep, data []byte) (*PersistibleUserOnboardingStep, error) {
+	if !step.IsValid() {
+		return nil, fmt.Errorf("%w: invalid step", ErrValidation)
+	}
+	if err := validateStepData(step, data); err != nil {
+		return nil, err
+	}
+	return &PersistibleUserOnboardingStep{
+		onboardingID: o.id,
+		step:         step,
+		data:         data,
+	}, nil
+}
+
+// NewSkippedStep builds a persistible skipped step wired to this onboarding's
+// internal id.
+func (o *PersistedUserOnboarding) NewSkippedStep(step OnboardingStep) (*PersistibleUserOnboardingStep, error) {
+	if !step.IsValid() {
+		return nil, fmt.Errorf("%w: invalid step", ErrValidation)
+	}
+	return &PersistibleUserOnboardingStep{
+		onboardingID: o.id,
+		step:         step,
+		data:         nil,
+	}, nil
+}
 
 func (o *PersistedUserOnboarding) Steps(ctx context.Context, p Persister) ([]PersistedUserOnboardingStep, error) {
 	steps := make([]PersistedUserOnboardingStep, 0)
@@ -293,23 +326,6 @@ type PersistibleUserOnboardingStep struct {
 	data         []byte
 }
 
-func NewPersistibleUserOnboardingStep(onboardingID int64, step OnboardingStep, data []byte) (*PersistibleUserOnboardingStep, error) {
-	if onboardingID <= 0 {
-		return nil, fmt.Errorf("%w: onboarding_id must be positive", ErrValidation)
-	}
-	if !step.IsValid() {
-		return nil, fmt.Errorf("%w: invalid step", ErrValidation)
-	}
-	if err := validateStepData(step, data); err != nil {
-		return nil, err
-	}
-	return &PersistibleUserOnboardingStep{
-		onboardingID: onboardingID,
-		step:         step,
-		data:         data,
-	}, nil
-}
-
 func (s *PersistibleUserOnboardingStep) PersistTo(ctx context.Context, p Persister) (*PersistedUserOnboardingStep, error) {
 	var persisted PersistedUserOnboardingStep
 	err := p.QueryRow(
@@ -346,21 +362,6 @@ func (s *PersistibleUserOnboardingStep) PersistSkippedTo(ctx context.Context, p 
 	return &persisted, nil
 }
 
-// NewSkippedUserOnboardingStep creates a persistible step for skipping, without data validation.
-func NewSkippedUserOnboardingStep(onboardingID int64, step OnboardingStep) (*PersistibleUserOnboardingStep, error) {
-	if onboardingID <= 0 {
-		return nil, fmt.Errorf("%w: onboarding_id must be positive", ErrValidation)
-	}
-	if !step.IsValid() {
-		return nil, fmt.Errorf("%w: invalid step", ErrValidation)
-	}
-	return &PersistibleUserOnboardingStep{
-		onboardingID: onboardingID,
-		step:         step,
-		data:         nil,
-	}, nil
-}
-
 // --- Persisted step ---
 
 type PersistedUserOnboardingStep struct {
@@ -374,14 +375,44 @@ type PersistedUserOnboardingStep struct {
 	updatedAt    time.Time
 }
 
-func (s *PersistedUserOnboardingStep) ID() int64              { return s.id }
-func (s *PersistedUserOnboardingStep) ExternalID() uuid.UUID  { return s.externalID }
-func (s *PersistedUserOnboardingStep) OnboardingID() int64    { return s.onboardingID }
-func (s *PersistedUserOnboardingStep) Step() OnboardingStep   { return s.step }
-func (s *PersistedUserOnboardingStep) Status() OnboardingStepStatus { return s.status }
-func (s *PersistedUserOnboardingStep) Data() []byte           { return s.rawData }
-func (s *PersistedUserOnboardingStep) CreatedAt() time.Time   { return s.createdAt }
-func (s *PersistedUserOnboardingStep) UpdatedAt() time.Time   { return s.updatedAt }
+// render produces this step's wire shape; unmarshalling the stored JSON data
+// is pure computation, so it is safe to do at render time.
+func (s *PersistedUserOnboardingStep) render() representation.OnboardingStep {
+	var data interface{}
+	if len(s.rawData) > 0 {
+		_ = json.Unmarshal(s.rawData, &data)
+	}
+	return representation.OnboardingStep{
+		Step:      string(s.step),
+		Status:    string(s.status),
+		Data:      data,
+		CreatedAt: s.createdAt,
+		UpdatedAt: s.updatedAt,
+	}
+}
+
+// OnboardingDetail is a persisted onboarding composed with its steps; it
+// renders the full onboarding wire shape.
+type OnboardingDetail struct {
+	onboarding *PersistedUserOnboarding
+	steps      []PersistedUserOnboardingStep
+}
+
+// Render returns the final wire representation of the onboarding and its steps.
+func (d *OnboardingDetail) Render() Rendered[representation.Onboarding] {
+	steps := make([]representation.OnboardingStep, len(d.steps))
+	for i := range d.steps {
+		steps[i] = d.steps[i].render()
+	}
+	return Render(representation.Onboarding{
+		ID:          d.onboarding.externalID,
+		Status:      string(d.onboarding.status),
+		CurrentStep: string(d.onboarding.currentStep),
+		Steps:       steps,
+		CreatedAt:   d.onboarding.createdAt,
+		UpdatedAt:   d.onboarding.updatedAt,
+	})
+}
 
 // --- Step data validation ---
 

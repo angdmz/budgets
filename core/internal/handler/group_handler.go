@@ -12,6 +12,7 @@ import (
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/middleware"
+	"github.com/budgets/core/internal/representation"
 )
 
 type GroupHandler struct {
@@ -48,7 +49,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 		return
 	}
 
-	var response GroupResponse
+	var response domain.Rendered[representation.Group]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		persistibleGroup, err := domain.NewPersistibleGroup(req.Name, req.Description)
 		if err != nil {
@@ -63,13 +64,7 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 			return err
 		}
 
-		response = GroupResponse{
-			ID:          persistedGroup.ExternalID(),
-			Name:        persistedGroup.Name(),
-			Description: persistedGroup.Description(),
-			CreatedAt:   persistedGroup.CreatedAt(),
-			UpdatedAt:   persistedGroup.UpdatedAt(),
-		}
+		response = persistedGroup.Render()
 		return nil
 	})
 
@@ -98,22 +93,16 @@ func (h *GroupHandler) GetGroups(c *gin.Context) {
 		return
 	}
 
-	var response []GroupResponse
+	var response []domain.Rendered[representation.Group]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		groups, err := domain.PersistedGroupsForUser(ctx, user.ID, p)
 		if err != nil {
 			return err
 		}
 
-		response = make([]GroupResponse, len(groups))
-		for i, g := range groups {
-			response[i] = GroupResponse{
-				ID:          g.ExternalID(),
-				Name:        g.Name(),
-				Description: g.Description(),
-				CreatedAt:   g.CreatedAt(),
-				UpdatedAt:   g.UpdatedAt(),
-			}
+		response = make([]domain.Rendered[representation.Group], len(groups))
+		for i := range groups {
+			response[i] = groups[i].Render()
 		}
 		return nil
 	})
@@ -153,7 +142,7 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 		return
 	}
 
-	var response GroupResponse
+	var response domain.Rendered[representation.Group]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		guard := domain.NewSecurityGuard(user.ID)
 		if err := guard.AuthorizeGroupAccess(ctx, p, id); err != nil {
@@ -165,13 +154,7 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 			return err
 		}
 
-		response = GroupResponse{
-			ID:          group.ExternalID(),
-			Name:        group.Name(),
-			Description: group.Description(),
-			CreatedAt:   group.CreatedAt(),
-			UpdatedAt:   group.UpdatedAt(),
-		}
+		response = group.Render()
 		return nil
 	})
 
@@ -226,7 +209,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	var response GroupResponse
+	var response domain.Rendered[representation.Group]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		guard := domain.NewSecurityGuard(user.ID)
 		if err := guard.AuthorizeGroupAccess(ctx, p, id); err != nil {
@@ -245,13 +228,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 			return err
 		}
 
-		response = GroupResponse{
-			ID:          group.ExternalID(),
-			Name:        group.Name(),
-			Description: group.Description(),
-			CreatedAt:   group.CreatedAt(),
-			UpdatedAt:   group.UpdatedAt(),
-		}
+		response = group.Render()
 		return nil
 	})
 

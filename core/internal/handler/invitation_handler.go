@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -12,6 +13,7 @@ import (
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/middleware"
+	"github.com/budgets/core/internal/representation"
 )
 
 type InvitationHandler struct {
@@ -41,7 +43,7 @@ func (h *InvitationHandler) CreateInvitation(c *gin.Context) {
 		return
 	}
 
-	var response InvitationResponse
+	var response domain.Rendered[representation.Invitation]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		var groupInternalID int64
 		err := p.QueryRow(
@@ -69,17 +71,7 @@ func (h *InvitationHandler) CreateInvitation(c *gin.Context) {
 			return err
 		}
 
-		response = InvitationResponse{
-			ID:          persisted.ExternalID(),
-			Token:       persisted.Token(),
-			GroupName:   persisted.GroupName(),
-			InviterName: persisted.InviterName(),
-			Status:      persisted.Status(),
-			Role:        persisted.Role(),
-			ExpiresAt:   persisted.ExpiresAt(),
-			AcceptedAt:  persisted.AcceptedAt(),
-			CreatedAt:   persisted.CreatedAt(),
-		}
+		response = persisted.Render()
 		return nil
 	})
 
@@ -113,7 +105,7 @@ func (h *InvitationHandler) ListInvitations(c *gin.Context) {
 		return
 	}
 
-	var response []InvitationResponse
+	var response []domain.Rendered[representation.Invitation]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		var groupExists bool
 		err := p.QueryRow(
@@ -136,19 +128,9 @@ func (h *InvitationHandler) ListInvitations(c *gin.Context) {
 			return err
 		}
 
-		response = make([]InvitationResponse, len(invitations))
-		for i, inv := range invitations {
-			response[i] = InvitationResponse{
-				ID:          inv.ExternalID(),
-				Token:       inv.Token(),
-				GroupName:   inv.GroupName(),
-				InviterName: inv.InviterName(),
-				Status:      inv.Status(),
-				Role:        inv.Role(),
-				ExpiresAt:   inv.ExpiresAt(),
-				AcceptedAt:  inv.AcceptedAt(),
-				CreatedAt:   inv.CreatedAt(),
-			}
+		response = make([]domain.Rendered[representation.Invitation], len(invitations))
+		for i := range invitations {
+			response[i] = invitations[i].Render()
 		}
 		return nil
 	})
@@ -189,19 +171,8 @@ func (h *InvitationHandler) RevokeInvitation(c *gin.Context) {
 			return err
 		}
 
-		var groupExternalID uuid.UUID
-		err = p.QueryRow(
-			ctx,
-			[]any{&groupExternalID},
-			`SELECT external_id FROM budgeting_groups WHERE id = $1`,
-			invitation.GroupID(),
-		)
-		if err != nil {
-			return err
-		}
-
 		guard := domain.NewSecurityGuard(user.ID)
-		if err := guard.AuthorizeGroupOwnership(ctx, p, groupExternalID); err != nil {
+		if err := guard.AuthorizeInvitationOwnership(ctx, p, invitationID); err != nil {
 			return err
 		}
 
@@ -235,24 +206,18 @@ func (h *InvitationHandler) GetInvitationByToken(c *gin.Context) {
 		return
 	}
 
-	var response InvitationDetailResponse
+	var response domain.Rendered[representation.InvitationDetail]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		invitation, err := domain.PersistedInvitationByToken(ctx, token, p)
 		if err != nil {
 			return err
 		}
 
-		if invitation.IsExpired() || invitation.Status() == domain.InvitationStatusRevoked {
-			return domain.ErrGone
+		if err := invitation.EnsureUsable(time.Now()); err != nil {
+			return err
 		}
 
-		response = InvitationDetailResponse{
-			GroupName:   invitation.GroupName(),
-			InviterName: invitation.InviterName(),
-			Status:      invitation.Status(),
-			Role:        invitation.Role(),
-			ExpiresAt:   invitation.ExpiresAt(),
-		}
+		response = invitation.RenderDetail()
 		return nil
 	})
 

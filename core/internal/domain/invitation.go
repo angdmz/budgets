@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/budgets/core/internal/representation"
 )
 
 const (
@@ -52,12 +54,15 @@ func (i *PersistibleInvitation) PersistTo(ctx context.Context, p Persister) (*Pe
 	var groupName, inviterName string
 	var createdAt, updatedAt time.Time
 
+	var groupExternalID uuid.UUID
+
 	err := p.QueryRow(
 		ctx,
-		[]any{&id, &externalID, &groupName, &inviterName, &createdAt, &updatedAt},
+		[]any{&id, &externalID, &groupExternalID, &groupName, &inviterName, &createdAt, &updatedAt},
 		`INSERT INTO group_invitations (budgeting_group_id, inviter_user_id, token, role, status, expires_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, external_id, 
+		RETURNING id, external_id,
+			(SELECT external_id FROM budgeting_groups WHERE id = $1),
 			(SELECT name FROM budgeting_groups WHERE id = $1),
 			(SELECT display_name FROM users WHERE id = $2),
 			created_at, updated_at`,
@@ -68,18 +73,19 @@ func (i *PersistibleInvitation) PersistTo(ctx context.Context, p Persister) (*Pe
 	}
 
 	return &PersistedInvitation{
-		id:            id,
-		externalID:    externalID,
-		groupID:       i.groupID,
-		groupName:     groupName,
-		inviterUserID: i.inviterUserID,
-		inviterName:   inviterName,
-		token:         i.token,
-		status:        InvitationStatusPending,
-		role:          i.role,
-		expiresAt:     i.expiresAt,
-		createdAt:     createdAt,
-		updatedAt:     updatedAt,
+		id:              id,
+		externalID:      externalID,
+		groupID:         i.groupID,
+		groupExternalID: groupExternalID,
+		groupName:       groupName,
+		inviterUserID:   i.inviterUserID,
+		inviterName:     inviterName,
+		token:           i.token,
+		status:          InvitationStatusPending,
+		role:            i.role,
+		expiresAt:       i.expiresAt,
+		createdAt:       createdAt,
+		updatedAt:       updatedAt,
 	}, nil
 }
 
@@ -87,6 +93,7 @@ type PersistedInvitation struct {
 	id               int64
 	externalID       uuid.UUID
 	groupID          int64
+	groupExternalID  uuid.UUID
 	groupName        string
 	inviterUserID    int64
 	inviterName      string
@@ -111,6 +118,7 @@ func PersistedInvitationByToken(ctx context.Context, token string, p Persister) 
 			&inv.id,
 			&inv.externalID,
 			&inv.groupID,
+			&inv.groupExternalID,
 			&inv.groupName,
 			&inv.inviterUserID,
 			&inv.inviterName,
@@ -123,8 +131,8 @@ func PersistedInvitationByToken(ctx context.Context, token string, p Persister) 
 			&inv.createdAt,
 			&inv.updatedAt,
 		},
-		`SELECT 
-			gi.id, gi.external_id, gi.budgeting_group_id,
+		`SELECT
+			gi.id, gi.external_id, gi.budgeting_group_id, bg.external_id,
 			bg.name, gi.inviter_user_id, u.display_name,
 			gi.accepted_by_user_id, gi.token, gi.status, gi.role,
 			gi.expires_at, gi.accepted_at, gi.created_at, gi.updated_at
@@ -155,6 +163,7 @@ func PersistedInvitationByExternalID(ctx context.Context, externalID uuid.UUID, 
 			&inv.id,
 			&inv.externalID,
 			&inv.groupID,
+			&inv.groupExternalID,
 			&inv.groupName,
 			&inv.inviterUserID,
 			&inv.inviterName,
@@ -167,8 +176,8 @@ func PersistedInvitationByExternalID(ctx context.Context, externalID uuid.UUID, 
 			&inv.createdAt,
 			&inv.updatedAt,
 		},
-		`SELECT 
-			gi.id, gi.external_id, gi.budgeting_group_id,
+		`SELECT
+			gi.id, gi.external_id, gi.budgeting_group_id, bg.external_id,
 			bg.name, gi.inviter_user_id, u.display_name,
 			gi.accepted_by_user_id, gi.token, gi.status, gi.role,
 			gi.expires_at, gi.accepted_at, gi.created_at, gi.updated_at
@@ -207,6 +216,7 @@ func PersistedInvitationsForGroup(ctx context.Context, groupExternalID uuid.UUID
 			var inv PersistedInvitation
 			var acceptedByUserID *int64
 			var acceptedAt *time.Time
+			inv.groupExternalID = groupExternalID
 			invitations = append(invitations, inv)
 			idx := len(invitations) - 1
 			return []any{
@@ -226,7 +236,7 @@ func PersistedInvitationsForGroup(ctx context.Context, groupExternalID uuid.UUID
 				&invitations[idx].updatedAt,
 			}
 		},
-		`SELECT 
+		`SELECT
 			gi.id, gi.external_id, gi.budgeting_group_id,
 			bg.name, gi.inviter_user_id, u.display_name,
 			gi.accepted_by_user_id, gi.token, gi.status, gi.role,
@@ -245,52 +255,43 @@ func PersistedInvitationsForGroup(ctx context.Context, groupExternalID uuid.UUID
 	return invitations, nil
 }
 
-func (i *PersistedInvitation) ExternalID() uuid.UUID {
-	return i.externalID
+// Render returns the final wire representation of this invitation.
+func (i *PersistedInvitation) Render() Rendered[representation.Invitation] {
+	return Render(representation.Invitation{
+		ID:          i.externalID,
+		Token:       i.token,
+		GroupID:     i.groupExternalID,
+		GroupName:   i.groupName,
+		InviterName: i.inviterName,
+		Status:      i.status,
+		Role:        i.role,
+		ExpiresAt:   i.expiresAt,
+		AcceptedAt:  i.acceptedAt,
+		CreatedAt:   i.createdAt,
+	})
 }
 
-func (i *PersistedInvitation) GroupID() int64 {
-	return i.groupID
+// RenderDetail returns the public wire representation of this invitation.
+func (i *PersistedInvitation) RenderDetail() Rendered[representation.InvitationDetail] {
+	return Render(representation.InvitationDetail{
+		GroupName:   i.groupName,
+		InviterName: i.inviterName,
+		Status:      i.status,
+		Role:        i.role,
+		ExpiresAt:   i.expiresAt,
+	})
 }
 
-func (i *PersistedInvitation) Token() string {
-	return i.token
-}
-
-func (i *PersistedInvitation) GroupName() string {
-	return i.groupName
-}
-
-func (i *PersistedInvitation) InviterName() string {
-	return i.inviterName
-}
-
-func (i *PersistedInvitation) Status() string {
-	return i.status
-}
-
-func (i *PersistedInvitation) Role() string {
-	return i.role
-}
-
-func (i *PersistedInvitation) ExpiresAt() time.Time {
-	return i.expiresAt
-}
-
-func (i *PersistedInvitation) AcceptedAt() *time.Time {
-	return i.acceptedAt
-}
-
-func (i *PersistedInvitation) CreatedAt() time.Time {
-	return i.createdAt
-}
-
-func (i *PersistedInvitation) UpdatedAt() time.Time {
-	return i.updatedAt
-}
-
-func (i *PersistedInvitation) IsExpired() bool {
-	return time.Now().After(i.expiresAt)
+// EnsureUsable fails with ErrGone when this invitation is revoked or has
+// already expired at the given instant.
+func (i *PersistedInvitation) EnsureUsable(now time.Time) error {
+	if i.status == InvitationStatusRevoked {
+		return fmt.Errorf("%w: invitation has been revoked", ErrGone)
+	}
+	if now.After(i.expiresAt) {
+		return fmt.Errorf("%w: invitation has expired", ErrGone)
+	}
+	return nil
 }
 
 func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, displayName string, p Persister) error {
@@ -302,7 +303,7 @@ func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, displayN
 		return fmt.Errorf("%w: invitation already %s", ErrConflict, i.status)
 	}
 
-	if i.IsExpired() {
+	if time.Now().After(i.expiresAt) {
 		return fmt.Errorf("%w: invitation has expired", ErrGone)
 	}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/middleware"
+	"github.com/budgets/core/internal/representation"
 )
 
 type CategoryHandler struct {
@@ -57,7 +58,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	var response CategoryResponse
+	var response domain.Rendered[representation.Category]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		guard := domain.NewSecurityGuard(user.ID)
 		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
@@ -74,15 +75,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 			return err
 		}
 
-		response = CategoryResponse{
-			ID:          persistedCategory.ExternalID(),
-			Name:        persistedCategory.Name(),
-			Description: persistedCategory.Description(),
-			Color:       persistedCategory.Color(),
-			Icon:        persistedCategory.Icon(),
-			CreatedAt:   persistedCategory.CreatedAt(),
-			UpdatedAt:   persistedCategory.UpdatedAt(),
-		}
+		response = persistedCategory.Render()
 		return nil
 	})
 
@@ -129,7 +122,7 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 		return
 	}
 
-	var response []CategoryResponse
+	var response []domain.Rendered[representation.Category]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		guard := domain.NewSecurityGuard(user.ID)
 		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
@@ -141,17 +134,9 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 			return err
 		}
 
-		response = make([]CategoryResponse, len(categories))
-		for i, cat := range categories {
-			response[i] = CategoryResponse{
-				ID:          cat.ExternalID(),
-				Name:        cat.Name(),
-				Description: cat.Description(),
-				Color:       cat.Color(),
-				Icon:        cat.Icon(),
-				CreatedAt:   cat.CreatedAt(),
-				UpdatedAt:   cat.UpdatedAt(),
-			}
+		response = make([]domain.Rendered[representation.Category], len(categories))
+		for i := range categories {
+			response[i] = categories[i].Render()
 		}
 		return nil
 	})
@@ -207,7 +192,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	var response CategoryResponse
+	var response domain.Rendered[representation.Category]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		guard := domain.NewSecurityGuard(user.ID)
 		if err := guard.AuthorizeCategoryAccess(ctx, p, id); err != nil {
@@ -228,15 +213,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 			return err
 		}
 
-		response = CategoryResponse{
-			ID:          category.ExternalID(),
-			Name:        category.Name(),
-			Description: category.Description(),
-			Color:       category.Color(),
-			Icon:        category.Icon(),
-			CreatedAt:   category.CreatedAt(),
-			UpdatedAt:   category.UpdatedAt(),
-		}
+		response = category.Render()
 		return nil
 	})
 

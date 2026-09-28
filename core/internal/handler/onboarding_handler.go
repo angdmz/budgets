@@ -13,6 +13,7 @@ import (
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/middleware"
+	"github.com/budgets/core/internal/representation"
 )
 
 type OnboardingHandler struct {
@@ -30,7 +31,7 @@ func (h *OnboardingHandler) GetOnboarding(c *gin.Context) {
 		return
 	}
 
-	var response OnboardingResponse
+	var response domain.Rendered[representation.Onboarding]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		ob, err := domain.PersistedUserOnboardingFromPersistence(ctx, user.ID, p)
 		if err != nil {
@@ -47,7 +48,12 @@ func (h *OnboardingHandler) GetOnboarding(c *gin.Context) {
 			}
 		}
 
-		return buildOnboardingResponse(ctx, ob, p, &response)
+		detail, err := ob.Detail(ctx, p)
+		if err != nil {
+			return err
+		}
+		response = detail.Render()
+		return nil
 	})
 
 	if err != nil {
@@ -82,7 +88,7 @@ func (h *OnboardingHandler) CompleteStep(c *gin.Context) {
 		return
 	}
 
-	var response OnboardingResponse
+	var response domain.Rendered[representation.Onboarding]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		ob, err := domain.PersistedUserOnboardingFromPersistence(ctx, user.ID, p)
 		if err != nil {
@@ -107,7 +113,7 @@ func (h *OnboardingHandler) CompleteStep(c *gin.Context) {
 			}
 		}
 
-		persistibleStep, err := domain.NewPersistibleUserOnboardingStep(ob.ID(), step, dataBytes)
+		persistibleStep, err := ob.NewStep(step, dataBytes)
 		if err != nil {
 			return err
 		}
@@ -128,7 +134,12 @@ func (h *OnboardingHandler) CompleteStep(c *gin.Context) {
 			}
 		}
 
-		return buildOnboardingResponse(ctx, ob, p, &response)
+		detail, err := ob.Detail(ctx, p)
+		if err != nil {
+			return err
+		}
+		response = detail.Render()
+		return nil
 	})
 
 	if err != nil {
@@ -157,7 +168,7 @@ func (h *OnboardingHandler) SkipStep(c *gin.Context) {
 		return
 	}
 
-	var response OnboardingResponse
+	var response domain.Rendered[representation.Onboarding]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		ob, err := domain.PersistedUserOnboardingFromPersistence(ctx, user.ID, p)
 		if err != nil {
@@ -174,7 +185,7 @@ func (h *OnboardingHandler) SkipStep(c *gin.Context) {
 			}
 		}
 
-		persistibleStep, err := domain.NewSkippedUserOnboardingStep(ob.ID(), step)
+		persistibleStep, err := ob.NewSkippedStep(step)
 		if err != nil {
 			return err
 		}
@@ -194,7 +205,12 @@ func (h *OnboardingHandler) SkipStep(c *gin.Context) {
 			}
 		}
 
-		return buildOnboardingResponse(ctx, ob, p, &response)
+		detail, err := ob.Detail(ctx, p)
+		if err != nil {
+			return err
+		}
+		response = detail.Render()
+		return nil
 	})
 
 	if err != nil {
@@ -219,7 +235,7 @@ func (h *OnboardingHandler) GoBack(c *gin.Context) {
 		return
 	}
 
-	var response OnboardingResponse
+	var response domain.Rendered[representation.Onboarding]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		ob, err := domain.PersistedUserOnboardingFromPersistence(ctx, user.ID, p)
 		if err != nil {
@@ -245,7 +261,12 @@ func (h *OnboardingHandler) GoBack(c *gin.Context) {
 			return err
 		}
 
-		return buildOnboardingResponse(ctx, ob, p, &response)
+		detail, err := ob.Detail(ctx, p)
+		if err != nil {
+			return err
+		}
+		response = detail.Render()
+		return nil
 	})
 
 	if err != nil {
@@ -260,38 +281,6 @@ func (h *OnboardingHandler) GoBack(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func buildOnboardingResponse(ctx context.Context, ob *domain.PersistedUserOnboarding, p *database.PgxPersister, response *OnboardingResponse) error {
-	steps, err := ob.Steps(ctx, p)
-	if err != nil {
-		return err
-	}
-
-	stepResponses := make([]OnboardingStepResponse, len(steps))
-	for i, s := range steps {
-		var data interface{}
-		if len(s.Data()) > 0 {
-			_ = json.Unmarshal(s.Data(), &data)
-		}
-		stepResponses[i] = OnboardingStepResponse{
-			Step:      string(s.Step()),
-			Status:    string(s.Status()),
-			Data:      data,
-			CreatedAt: s.CreatedAt(),
-			UpdatedAt: s.UpdatedAt(),
-		}
-	}
-
-	*response = OnboardingResponse{
-		ID:          ob.ExternalID(),
-		Status:      string(ob.Status()),
-		CurrentStep: string(ob.CurrentStep()),
-		Steps:       stepResponses,
-		CreatedAt:   ob.CreatedAt(),
-		UpdatedAt:   ob.UpdatedAt(),
-	}
-	return nil
-}
-
 func (h *OnboardingHandler) ResetOnboarding(c *gin.Context) {
 	user := middleware.GetDBUserFromContext(c)
 	if user == nil {
@@ -299,7 +288,7 @@ func (h *OnboardingHandler) ResetOnboarding(c *gin.Context) {
 		return
 	}
 
-	var response OnboardingResponse
+	var response domain.Rendered[representation.Onboarding]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
 		ob, err := domain.PersistedUserOnboardingFromPersistence(ctx, user.ID, p)
 		if err != nil {
@@ -320,7 +309,12 @@ func (h *OnboardingHandler) ResetOnboarding(c *gin.Context) {
 			return err
 		}
 
-		return buildOnboardingResponse(ctx, ob, p, &response)
+		detail, err := ob.Detail(ctx, p)
+		if err != nil {
+			return err
+		}
+		response = detail.Render()
+		return nil
 	})
 
 	if err != nil {
