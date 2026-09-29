@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -107,14 +108,14 @@ func AllOnboardingSteps() []OnboardingStep {
 // --- Persistible (create) ---
 
 type PersistibleUserOnboarding struct {
-	userID int64
+	user *PersistedUser
 }
 
-func NewPersistibleUserOnboarding(userID int64) (*PersistibleUserOnboarding, error) {
-	if userID <= 0 {
-		return nil, fmt.Errorf("%w: user_id must be positive", ErrValidation)
+func NewPersistibleUserOnboarding(user *PersistedUser) (*PersistibleUserOnboarding, error) {
+	if user == nil {
+		return nil, fmt.Errorf("%w: user is required", ErrValidation)
 	}
-	return &PersistibleUserOnboarding{userID: userID}, nil
+	return &PersistibleUserOnboarding{user: user}, nil
 }
 
 func (o *PersistibleUserOnboarding) PersistTo(ctx context.Context, p Persister) (*PersistedUserOnboarding, error) {
@@ -125,7 +126,7 @@ func (o *PersistibleUserOnboarding) PersistTo(ctx context.Context, p Persister) 
 		`INSERT INTO user_onboardings (user_id, status, current_step)
 		 VALUES ($1, 'in_progress', 'welcome')
 		 RETURNING id, external_id, user_id, status, current_step, created_at, updated_at`,
-		o.userID,
+		o.user,
 	)
 	if err != nil {
 		return nil, err
@@ -145,19 +146,36 @@ type PersistedUserOnboarding struct {
 	updatedAt   time.Time
 }
 
-func PersistedUserOnboardingFromPersistence(ctx context.Context, userID int64, p Persister) (*PersistedUserOnboarding, error) {
+func PersistedUserOnboardingFromPersistence(ctx context.Context, user *PersistedUser, p Persister) (*PersistedUserOnboarding, error) {
 	var ob PersistedUserOnboarding
 	err := p.QueryRow(
 		ctx,
 		[]any{&ob.id, &ob.externalID, &ob.userID, &ob.status, &ob.currentStep, &ob.createdAt, &ob.updatedAt},
 		`SELECT id, external_id, user_id, status, current_step, created_at, updated_at
 		 FROM user_onboardings WHERE user_id = $1 AND revoked_at IS NULL`,
-		userID,
+		user,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: onboarding not found", ErrNotFound)
+		return nil, wrapNotFound(err, "onboarding not found")
 	}
 	return &ob, nil
+}
+
+// PersistedUserOnboardingFor loads the user's onboarding, creating and
+// persisting a fresh one when none exists yet (find-or-create).
+func PersistedUserOnboardingFor(ctx context.Context, user *PersistedUser, p Persister) (*PersistedUserOnboarding, error) {
+	ob, err := PersistedUserOnboardingFromPersistence(ctx, user, p)
+	if err == nil {
+		return ob, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+	persistible, err := NewPersistibleUserOnboarding(user)
+	if err != nil {
+		return nil, err
+	}
+	return persistible.PersistTo(ctx, p)
 }
 
 // Detail loads this onboarding's persisted steps and returns a renderable
@@ -170,16 +188,16 @@ func (o *PersistedUserOnboarding) Detail(ctx context.Context, p Persister) (*Onb
 	return &OnboardingDetail{onboarding: o, steps: steps}, nil
 }
 
-// NewStep builds a persistible completed step wired to this onboarding's
-// internal id — the FK never leaves the domain package.
-func (o *PersistedUserOnboarding) NewStep(step OnboardingStep, data []byte) (*PersistibleUserOnboardingStep, error) {
+// NewCompletedStep builds a persistible completed step wired to this
+// onboarding's internal id — the FK never leaves the domain package.
+func (o *PersistedUserOnboarding) NewCompletedStep(step OnboardingStep, data []byte) (*PersistibleCompletedStep, error) {
 	if !step.IsValid() {
 		return nil, fmt.Errorf("%w: invalid step", ErrValidation)
 	}
 	if err := validateStepData(step, data); err != nil {
 		return nil, err
 	}
-	return &PersistibleUserOnboardingStep{
+	return &PersistibleCompletedStep{
 		onboardingID: o.id,
 		step:         step,
 		data:         data,
@@ -188,15 +206,71 @@ func (o *PersistedUserOnboarding) NewStep(step OnboardingStep, data []byte) (*Pe
 
 // NewSkippedStep builds a persistible skipped step wired to this onboarding's
 // internal id.
-func (o *PersistedUserOnboarding) NewSkippedStep(step OnboardingStep) (*PersistibleUserOnboardingStep, error) {
+func (o *PersistedUserOnboarding) NewSkippedStep(step OnboardingStep) (*PersistibleSkippedStep, error) {
 	if !step.IsValid() {
 		return nil, fmt.Errorf("%w: invalid step", ErrValidation)
 	}
-	return &PersistibleUserOnboardingStep{
+	return &PersistibleSkippedStep{
 		onboardingID: o.id,
 		step:         step,
-		data:         nil,
 	}, nil
+}
+
+// CompleteStep records `step` as completed, advances the flow (or marks the
+// onboarding completed when `step` is the last one), and returns the refreshed
+// renderable composite.
+func (o *PersistedUserOnboarding) CompleteStep(ctx context.Context, step OnboardingStep, data []byte, p Persister) (*OnboardingDetail, error) {
+	persistible, err := o.NewCompletedStep(step, data)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := persistible.PersistTo(ctx, p); err != nil {
+		return nil, err
+	}
+	if err := o.advanceOrComplete(ctx, step, p); err != nil {
+		return nil, err
+	}
+	return o.Detail(ctx, p)
+}
+
+// SkipStep records `step` as skipped, advances the flow (or marks the
+// onboarding completed when `step` is the last one), and returns the refreshed
+// renderable composite.
+func (o *PersistedUserOnboarding) SkipStep(ctx context.Context, step OnboardingStep, p Persister) (*OnboardingDetail, error) {
+	persistible, err := o.NewSkippedStep(step)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := persistible.PersistTo(ctx, p); err != nil {
+		return nil, err
+	}
+	if err := o.advanceOrComplete(ctx, step, p); err != nil {
+		return nil, err
+	}
+	return o.Detail(ctx, p)
+}
+
+// GoBackFrom moves the current step marker back to the step preceding `step`
+// and returns the refreshed renderable composite.
+func (o *PersistedUserOnboarding) GoBackFrom(ctx context.Context, step OnboardingStep, p Persister) (*OnboardingDetail, error) {
+	if !step.IsValid() {
+		return nil, fmt.Errorf("%w: invalid step", ErrValidation)
+	}
+	prev, ok := step.Prev()
+	if !ok {
+		return nil, fmt.Errorf("%w: cannot go back from the first step", ErrValidation)
+	}
+	if err := o.AdvanceTo(ctx, prev, p); err != nil {
+		return nil, err
+	}
+	return o.Detail(ctx, p)
+}
+
+func (o *PersistedUserOnboarding) advanceOrComplete(ctx context.Context, step OnboardingStep, p Persister) error {
+	if next, ok := step.Next(); ok {
+		return o.AdvanceTo(ctx, next, p)
+	}
+	return o.MarkCompleted(ctx, p)
 }
 
 func (o *PersistedUserOnboarding) Steps(ctx context.Context, p Persister) ([]PersistedUserOnboardingStep, error) {
@@ -246,7 +320,7 @@ func (o *PersistedUserOnboarding) StepByType(ctx context.Context, step Onboardin
 		o.id, step,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: step not found", ErrNotFound)
+		return nil, wrapNotFound(err, "step not found")
 	}
 	return &s, nil
 }
@@ -318,15 +392,16 @@ func (o *PersistedUserOnboarding) Reset(ctx context.Context, p Persister) error 
 	return nil
 }
 
-// --- Persistible step (create or upsert) ---
+// --- Persistible steps (create or upsert) ---
 
-type PersistibleUserOnboardingStep struct {
+// PersistibleCompletedStep is a step-completion event to be persisted.
+type PersistibleCompletedStep struct {
 	onboardingID int64
 	step         OnboardingStep
 	data         []byte
 }
 
-func (s *PersistibleUserOnboardingStep) PersistTo(ctx context.Context, p Persister) (*PersistedUserOnboardingStep, error) {
+func (s *PersistibleCompletedStep) PersistTo(ctx context.Context, p Persister) (*PersistedUserOnboardingStep, error) {
 	var persisted PersistedUserOnboardingStep
 	err := p.QueryRow(
 		ctx,
@@ -344,7 +419,13 @@ func (s *PersistibleUserOnboardingStep) PersistTo(ctx context.Context, p Persist
 	return &persisted, nil
 }
 
-func (s *PersistibleUserOnboardingStep) PersistSkippedTo(ctx context.Context, p Persister) (*PersistedUserOnboardingStep, error) {
+// PersistibleSkippedStep is a step-skip event to be persisted.
+type PersistibleSkippedStep struct {
+	onboardingID int64
+	step         OnboardingStep
+}
+
+func (s *PersistibleSkippedStep) PersistTo(ctx context.Context, p Persister) (*PersistedUserOnboardingStep, error) {
 	var persisted PersistedUserOnboardingStep
 	err := p.QueryRow(
 		ctx,
@@ -404,7 +485,7 @@ func (d *OnboardingDetail) Render() Rendered[representation.Onboarding] {
 	for i := range d.steps {
 		steps[i] = d.steps[i].render()
 	}
-	return Render(representation.Onboarding{
+	return render(representation.Onboarding{
 		ID:          d.onboarding.externalID,
 		Status:      string(d.onboarding.status),
 		CurrentStep: string(d.onboarding.currentStep),
@@ -416,6 +497,87 @@ func (d *OnboardingDetail) Render() Rendered[representation.Onboarding] {
 
 // --- Step data validation ---
 
+// stepDataValidator validates a step's decoded JSON payload. Polymorphism by
+// table lookup instead of a switch: registering a new step means adding one
+// entry here.
+type stepDataValidator func(raw map[string]interface{}) error
+
+func alwaysValid(map[string]interface{}) error { return nil }
+
+func requireUUIDField(field string) stepDataValidator {
+	return func(raw map[string]interface{}) error {
+		value, ok := raw[field]
+		if !ok {
+			return fmt.Errorf("%w: %s is required", ErrValidation, field)
+		}
+		str, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("%w: %s must be a string UUID", ErrValidation, field)
+		}
+		if _, err := uuid.Parse(str); err != nil {
+			return fmt.Errorf("%w: %s must be a valid UUID", ErrValidation, field)
+		}
+		return nil
+	}
+}
+
+func validateCadenceStep(raw map[string]interface{}) error {
+	if err := requireUUIDField("budget_id")(raw); err != nil {
+		return err
+	}
+	cadence, ok := raw["cadence"]
+	if !ok {
+		return nil
+	}
+	cadenceStr, ok := cadence.(string)
+	if !ok {
+		return fmt.Errorf("%w: cadence must be a string", ErrValidation)
+	}
+	validCadences := map[string]bool{
+		"weekly": true, "biweekly": true, "monthly": true, "custom": true,
+	}
+	if !validCadences[cadenceStr] {
+		return fmt.Errorf("%w: cadence must be one of weekly, biweekly, monthly, custom", ErrValidation)
+	}
+	return nil
+}
+
+func validateExpectedExpensesStep(raw map[string]interface{}) error {
+	expensesRaw, ok := raw["expected_expense_ids"]
+	if !ok {
+		return fmt.Errorf("%w: expected_expense_ids is required", ErrValidation)
+	}
+	expenses, ok := expensesRaw.([]interface{})
+	if !ok {
+		return fmt.Errorf("%w: expected_expense_ids must be an array", ErrValidation)
+	}
+	if len(expenses) == 0 {
+		return fmt.Errorf("%w: expected_expense_ids must not be empty", ErrValidation)
+	}
+	for _, e := range expenses {
+		eStr, ok := e.(string)
+		if !ok {
+			return fmt.Errorf("%w: each expected_expense_id must be a string UUID", ErrValidation)
+		}
+		if _, err := uuid.Parse(eStr); err != nil {
+			return fmt.Errorf("%w: each expected_expense_id must be a valid UUID", ErrValidation)
+		}
+	}
+	return nil
+}
+
+var stepValidators = map[OnboardingStep]stepDataValidator{
+	StepWelcome:               alwaysValid,
+	StepChooseGroup:           requireUUIDField("group_id"),
+	StepChooseCadence:         validateCadenceStep,
+	StepAddExpectedExpenses:   validateExpectedExpensesStep,
+	StepBudgetSummary:         alwaysValid, // optional display fields
+	StepRegisterActualExpense: requireUUIDField("actual_expense_id"),
+	StepCompareExpenses:       alwaysValid, // comparison is derived
+	StepDashboardTour:         alwaysValid,
+	StepComplete:              alwaysValid,
+}
+
 func validateStepData(step OnboardingStep, data []byte) error {
 	if len(data) == 0 {
 		data = []byte("{}")
@@ -426,101 +588,9 @@ func validateStepData(step OnboardingStep, data []byte) error {
 		return fmt.Errorf("%w: step data must be valid JSON", ErrValidation)
 	}
 
-	switch step {
-	case StepWelcome:
-		// No required fields
-		return nil
-
-	case StepChooseGroup:
-		if _, ok := raw["group_id"]; !ok {
-			return fmt.Errorf("%w: group_id is required", ErrValidation)
-		}
-		groupIDStr, ok := raw["group_id"].(string)
-		if !ok {
-			return fmt.Errorf("%w: group_id must be a string UUID", ErrValidation)
-		}
-		if _, err := uuid.Parse(groupIDStr); err != nil {
-			return fmt.Errorf("%w: group_id must be a valid UUID", ErrValidation)
-		}
-		return nil
-
-	case StepChooseCadence:
-		if _, ok := raw["budget_id"]; !ok {
-			return fmt.Errorf("%w: budget_id is required", ErrValidation)
-		}
-		budgetIDStr, ok := raw["budget_id"].(string)
-		if !ok {
-			return fmt.Errorf("%w: budget_id must be a string UUID", ErrValidation)
-		}
-		if _, err := uuid.Parse(budgetIDStr); err != nil {
-			return fmt.Errorf("%w: budget_id must be a valid UUID", ErrValidation)
-		}
-		if cadence, ok := raw["cadence"]; ok {
-			cadenceStr, ok := cadence.(string)
-			if !ok {
-				return fmt.Errorf("%w: cadence must be a string", ErrValidation)
-			}
-			validCadences := map[string]bool{
-				"weekly": true, "biweekly": true, "monthly": true, "custom": true,
-			}
-			if !validCadences[cadenceStr] {
-				return fmt.Errorf("%w: cadence must be one of weekly, biweekly, monthly, custom", ErrValidation)
-			}
-		}
-		return nil
-
-	case StepAddExpectedExpenses:
-		expensesRaw, ok := raw["expected_expense_ids"]
-		if !ok {
-			return fmt.Errorf("%w: expected_expense_ids is required", ErrValidation)
-		}
-		expenses, ok := expensesRaw.([]interface{})
-		if !ok {
-			return fmt.Errorf("%w: expected_expense_ids must be an array", ErrValidation)
-		}
-		if len(expenses) == 0 {
-			return fmt.Errorf("%w: expected_expense_ids must not be empty", ErrValidation)
-		}
-		for _, e := range expenses {
-			eStr, ok := e.(string)
-			if !ok {
-				return fmt.Errorf("%w: each expected_expense_id must be a string UUID", ErrValidation)
-			}
-			if _, err := uuid.Parse(eStr); err != nil {
-				return fmt.Errorf("%w: each expected_expense_id must be a valid UUID", ErrValidation)
-			}
-		}
-		return nil
-
-	case StepBudgetSummary:
-		// Optional: total_expected and currency for display purposes
-		return nil
-
-	case StepRegisterActualExpense:
-		if _, ok := raw["actual_expense_id"]; !ok {
-			return fmt.Errorf("%w: actual_expense_id is required", ErrValidation)
-		}
-		expenseIDStr, ok := raw["actual_expense_id"].(string)
-		if !ok {
-			return fmt.Errorf("%w: actual_expense_id must be a string UUID", ErrValidation)
-		}
-		if _, err := uuid.Parse(expenseIDStr); err != nil {
-			return fmt.Errorf("%w: actual_expense_id must be a valid UUID", ErrValidation)
-		}
-		return nil
-
-	case StepCompareExpenses:
-		// No required fields — comparison is derived
-		return nil
-
-	case StepDashboardTour:
-		// No required fields
-		return nil
-
-	case StepComplete:
-		// No required fields
-		return nil
+	validate, ok := stepValidators[step]
+	if !ok {
+		return fmt.Errorf("%w: unknown step", ErrValidation)
 	}
-
-	return fmt.Errorf("%w: unknown step", ErrValidation)
+	return validate(raw)
 }

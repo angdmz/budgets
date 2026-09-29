@@ -2,10 +2,8 @@ package domain
 
 import (
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 )
 
 func TestQuoteType_IsValid(t *testing.T) {
@@ -30,116 +28,8 @@ func TestSupportedQuoteTypes(t *testing.T) {
 	}
 }
 
-func TestNewPersistibleExchangeRate_Valid(t *testing.T) {
-	observed := time.Now()
-	er, err := NewPersistibleExchangeRate(
-		CurrencyUSD, CurrencyARS,
-		QuoteBlue,
-		decimal.NewFromInt(1450),
-		"stub",
-		observed,
-	)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if er == nil {
-		t.Fatal("expected non-nil result")
-	}
-}
-
-func TestNewPersistibleExchangeRate_InvalidFrom(t *testing.T) {
-	_, err := NewPersistibleExchangeRate(
-		Currency("XXX"), CurrencyARS,
-		QuoteBlue,
-		decimal.NewFromInt(1450),
-		"stub",
-		time.Now(),
-	)
-	if err == nil {
-		t.Error("expected error for invalid from_currency")
-	}
-}
-
-func TestNewPersistibleExchangeRate_InvalidTo(t *testing.T) {
-	_, err := NewPersistibleExchangeRate(
-		CurrencyUSD, Currency("XXX"),
-		QuoteBlue,
-		decimal.NewFromInt(1450),
-		"stub",
-		time.Now(),
-	)
-	if err == nil {
-		t.Error("expected error for invalid to_currency")
-	}
-}
-
-func TestNewPersistibleExchangeRate_InvalidQuote(t *testing.T) {
-	_, err := NewPersistibleExchangeRate(
-		CurrencyUSD, CurrencyARS,
-		QuoteType("INVALID"),
-		decimal.NewFromInt(1450),
-		"stub",
-		time.Now(),
-	)
-	if err == nil {
-		t.Error("expected error for invalid quote type")
-	}
-}
-
-func TestNewPersistibleExchangeRate_ZeroRate(t *testing.T) {
-	_, err := NewPersistibleExchangeRate(
-		CurrencyUSD, CurrencyARS,
-		QuoteBlue,
-		decimal.NewFromInt(0),
-		"stub",
-		time.Now(),
-	)
-	if err == nil {
-		t.Error("expected error for zero rate")
-	}
-}
-
-func TestNewPersistibleExchangeRate_NegativeRate(t *testing.T) {
-	_, err := NewPersistibleExchangeRate(
-		CurrencyUSD, CurrencyARS,
-		QuoteBlue,
-		decimal.NewFromInt(-1),
-		"stub",
-		time.Now(),
-	)
-	if err == nil {
-		t.Error("expected error for negative rate")
-	}
-}
-
-func TestNewPersistibleExchangeRate_EmptyProvider(t *testing.T) {
-	_, err := NewPersistibleExchangeRate(
-		CurrencyUSD, CurrencyARS,
-		QuoteBlue,
-		decimal.NewFromInt(1450),
-		"",
-		time.Now(),
-	)
-	if err == nil {
-		t.Error("expected error for empty provider")
-	}
-}
-
-func TestNewPersistibleExchangeRate_ZeroObservedAt(t *testing.T) {
-	_, err := NewPersistibleExchangeRate(
-		CurrencyUSD, CurrencyARS,
-		QuoteBlue,
-		decimal.NewFromInt(1450),
-		"stub",
-		time.Time{},
-	)
-	if err == nil {
-		t.Error("expected error for zero observed_at")
-	}
-}
-
 func TestNewPersistibleUserPreference_Valid(t *testing.T) {
-	pref, err := NewPersistibleUserPreference(1, ThemeLight, LanguageEN, CurrencyUSD, QuoteOfficial)
+	pref, err := NewPersistibleUserPreference(&PersistedUser{id: 1}, ThemeLight, LanguageEN, CurrencyUSD, QuoteOfficial)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -149,9 +39,16 @@ func TestNewPersistibleUserPreference_Valid(t *testing.T) {
 }
 
 func TestNewPersistibleUserPreference_InvalidQuoteType(t *testing.T) {
-	_, err := NewPersistibleUserPreference(1, ThemeLight, LanguageEN, CurrencyUSD, QuoteType("INVALID"))
+	_, err := NewPersistibleUserPreference(&PersistedUser{id: 1}, ThemeLight, LanguageEN, CurrencyUSD, QuoteType("INVALID"))
 	if err == nil {
 		t.Error("expected error for invalid quote type")
+	}
+}
+
+func TestNewPersistibleUserPreference_NilUser(t *testing.T) {
+	_, err := NewPersistibleUserPreference(nil, ThemeLight, LanguageEN, CurrencyUSD, QuoteOfficial)
+	if err == nil {
+		t.Error("expected error for nil user")
 	}
 }
 

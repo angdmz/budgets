@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 )
 
@@ -23,7 +23,7 @@ type UserResolver interface {
 }
 
 // UserResolverFunc is a function type that can get-or-create a user within a transaction.
-type UserResolverFunc func(ctx context.Context, tx pgx.Tx, providerID string, provider domain.AuthProvider, email, displayName, avatarURL string) (*domain.User, error)
+type UserResolverFunc func(ctx context.Context, providerID string, provider domain.AuthProvider, email, displayName, avatarURL string, p domain.Persister) (*domain.PersistedUser, error)
 
 type userResolver struct {
 	pool       *pgxpool.Pool
@@ -47,32 +47,21 @@ func (ur *userResolver) ResolveUser() gin.HandlerFunc {
 			return
 		}
 
-		// Resolve (get-or-create) the DB user within a transaction
-		tx, err := ur.pool.Begin(c.Request.Context())
-		if err != nil {
-			log.Printf("[ERROR] user_resolver: failed to begin transaction: %v", err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "db_error"})
-			return
-		}
-		defer tx.Rollback(c.Request.Context())
-
 		provider := domain.AuthProvider(strings.ToUpper(string(authUser.AuthProvider)))
 		if provider == "" {
 			provider = domain.AuthProviderGoogle
 		}
 
-		log.Printf("[DEBUG] user_resolver: resolving user providerID=%s provider=%s email=%s displayName=%s",
-			authUser.ExternalProviderID, provider, authUser.Email, authUser.DisplayName)
-		dbUser, err := ur.resolveFunc(c.Request.Context(), tx, authUser.ExternalProviderID, provider, authUser.Email, authUser.DisplayName, authUser.AvatarURL)
+		// Resolve (get-or-create) the DB user within a transaction
+		var dbUser *domain.PersistedUser
+		err := database.WithPersister(c.Request.Context(), ur.pool, func(ctx context.Context, p *database.PgxPersister) error {
+			var resolveErr error
+			dbUser, resolveErr = ur.resolveFunc(ctx, authUser.ExternalProviderID, provider, authUser.Email, authUser.DisplayName, authUser.AvatarURL, p)
+			return resolveErr
+		})
 		if err != nil {
 			log.Printf("[ERROR] user_resolver: user resolution failed: %v", err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "user_resolution_failed"})
-			return
-		}
-
-		if err := tx.Commit(c.Request.Context()); err != nil {
-			log.Printf("[ERROR] user_resolver: failed to commit transaction: %v", err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "db_commit_failed"})
 			return
 		}
 
@@ -82,9 +71,9 @@ func (ur *userResolver) ResolveUser() gin.HandlerFunc {
 }
 
 // GetDBUserFromContext retrieves the resolved DB user from the Gin context.
-func GetDBUserFromContext(c *gin.Context) *domain.User {
+func GetDBUserFromContext(c *gin.Context) *domain.PersistedUser {
 	if user, exists := c.Get(dbUserContextKey); exists {
-		if u, ok := user.(*domain.User); ok {
+		if u, ok := user.(*domain.PersistedUser); ok {
 			return u
 		}
 	}

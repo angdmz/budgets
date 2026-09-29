@@ -16,8 +16,10 @@ type Rendered[T any] struct {
 	v T
 }
 
-// Render wraps a wire-shape value into its final renderable form.
-func Render[T any](v T) Rendered[T] {
+// render wraps a wire-shape value into its final renderable form. Domain
+// objects call it from their Render() methods; the wrapped value cannot be
+// inspected outside this package.
+func render[T any](v T) Rendered[T] {
 	return Rendered[T]{v: v}
 }
 
@@ -26,8 +28,8 @@ func (r Rendered[T]) MarshalJSON() ([]byte, error) {
 	return json.Marshal(r.v)
 }
 
-// Value exposes the wrapped wire shape. For internal domain use only —
-// e.g. composing one rendering inside another.
-func (r Rendered[T]) Value() T {
+// value exposes the wrapped wire shape. Internal domain use only — e.g.
+// composing one rendering inside another.
+func (r Rendered[T]) value() T {
 	return r.v
 }

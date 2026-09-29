@@ -68,7 +68,7 @@ func SetupTestSuite(t *testing.T) *TestSuite {
 
 	// Create server with test authenticator
 	srv := server.New(cfg, db, deps, server.WithAuthenticator(authMiddleware))
-	testUser := &domain.User{
+	testUser := &middleware.AuthUser{
 		ExternalProviderID: testUserID,
 		Email:              "test@example.com",
 		DisplayName:        "Test User",
@@ -141,7 +141,7 @@ func (ts *TestSuite) Delete(path string) *httptest.ResponseRecorder {
 }
 
 func (ts *TestSuite) CreateSecondUser() (string, error) {
-	secondUser := &domain.User{
+	secondUser := &middleware.AuthUser{
 		ExternalProviderID: "test-user-456",
 		Email:              "test2@example.com",
 		DisplayName:        "Test User 2",

@@ -10,6 +10,17 @@ import (
 	"github.com/google/uuid"
 )
 
+// User is the wire shape for an authenticated user.
+type User struct {
+	ID          uuid.UUID `json:"id"`
+	Provider    string    `json:"provider"`
+	Email       string    `json:"email"`
+	DisplayName string    `json:"display_name,omitempty"`
+	AvatarURL   string    `json:"avatar_url,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 // Money is the wire shape for a monetary amount.
 type Money struct {
 	Amount    string `json:"amount"`

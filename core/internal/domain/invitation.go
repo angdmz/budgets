@@ -2,9 +2,9 @@ package domain
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,73 +12,118 @@ import (
 	"github.com/budgets/core/internal/representation"
 )
 
+// InvitationStatus is the lifecycle state of an invitation. State transitions
+// are enforced by its behavior methods, not by string comparisons at call
+// sites.
+type InvitationStatus string
+
 const (
-	InvitationStatusPending  = "pending"
-	InvitationStatusAccepted = "accepted"
-	InvitationStatusRevoked  = "revoked"
-	InvitationStatusExpired  = "expired"
+	InvitationStatusPending  InvitationStatus = "pending"
+	InvitationStatusAccepted InvitationStatus = "accepted"
+	InvitationStatusRevoked  InvitationStatus = "revoked"
+	InvitationStatusExpired  InvitationStatus = "expired"
 )
 
-type PersistibleInvitation struct {
-	groupID       int64
-	inviterUserID int64
-	token         string
-	role          string
-	expiresAt     time.Time
+// ensureAcceptable fails unless the invitation can be accepted at `now`.
+func (s InvitationStatus) ensureAcceptable(now, expiresAt time.Time) error {
+	if s == InvitationStatusRevoked {
+		return fmt.Errorf("%w: invitation has been revoked", ErrGone)
+	}
+	if s != InvitationStatusPending {
+		return fmt.Errorf("%w: invitation already %s", ErrConflict, s)
+	}
+	if now.After(expiresAt) {
+		return fmt.Errorf("%w: invitation has expired", ErrGone)
+	}
+	return nil
 }
 
-func NewPersistibleInvitation(groupID int64, inviterUserID int64, role string) (*PersistibleInvitation, error) {
+// ensureRevokable fails unless the invitation is still pending.
+func (s InvitationStatus) ensureRevokable() error {
+	if s != InvitationStatusPending {
+		return fmt.Errorf("%w: can only revoke pending invitations", ErrConflict)
+	}
+	return nil
+}
+
+// ensureUsable fails when the invitation is revoked or expired at `now`.
+func (s InvitationStatus) ensureUsable(now, expiresAt time.Time) error {
+	if s == InvitationStatusRevoked {
+		return fmt.Errorf("%w: invitation has been revoked", ErrGone)
+	}
+	if now.After(expiresAt) {
+		return fmt.Errorf("%w: invitation has expired", ErrGone)
+	}
+	return nil
+}
+
+type PersistibleInvitation struct {
+	groupExternalID uuid.UUID
+	inviter         *PersistedUser
+	token           string
+	role            ParticipantRole
+	expiresAt       time.Time
+}
+
+// NewPersistibleInvitation builds a new invitation for the group identified by
+// its external ID. `entropy` is the source for the token (crypto/rand.Reader in
+// production); `now` fixes the expiry instant.
+func NewPersistibleInvitation(groupExternalID uuid.UUID, inviter *PersistedUser, role ParticipantRole, entropy io.Reader, now time.Time) (*PersistibleInvitation, error) {
+	if inviter == nil {
+		return nil, fmt.Errorf("%w: inviter is required", ErrValidation)
+	}
 	if role == "" {
-		role = "member"
+		role = ParticipantRoleMember
 	}
 
-	token, err := generateSecureToken()
+	token, err := generateSecureToken(entropy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
-	expiresAt := time.Now().Add(7 * 24 * time.Hour)
-
 	return &PersistibleInvitation{
-		groupID:       groupID,
-		inviterUserID: inviterUserID,
-		token:         token,
-		role:          role,
-		expiresAt:     expiresAt,
+		groupExternalID: groupExternalID,
+		inviter:         inviter,
+		token:           token,
+		role:            role,
+		expiresAt:       now.Add(7 * 24 * time.Hour),
 	}, nil
 }
 
 func (i *PersistibleInvitation) PersistTo(ctx context.Context, p Persister) (*PersistedInvitation, error) {
-	var id int64
+	var id, groupID int64
 	var externalID uuid.UUID
 	var groupName, inviterName string
 	var createdAt, updatedAt time.Time
 
-	var groupExternalID uuid.UUID
-
 	err := p.QueryRow(
 		ctx,
-		[]any{&id, &externalID, &groupExternalID, &groupName, &inviterName, &createdAt, &updatedAt},
-		`INSERT INTO group_invitations (budgeting_group_id, inviter_user_id, token, role, status, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, external_id,
-			(SELECT external_id FROM budgeting_groups WHERE id = $1),
-			(SELECT name FROM budgeting_groups WHERE id = $1),
+		[]any{&id, &externalID, &groupID, &groupName, &inviterName, &createdAt, &updatedAt},
+		`WITH ins AS (
+			INSERT INTO group_invitations (budgeting_group_id, inviter_user_id, token, role, status, expires_at)
+			SELECT bg.id, $2, $3, $4, $5, $6
+			FROM budgeting_groups bg
+			WHERE bg.external_id = $1 AND bg.revoked_at IS NULL
+			RETURNING id, external_id, budgeting_group_id, created_at, updated_at
+		)
+		SELECT ins.id, ins.external_id, ins.budgeting_group_id, bg.name,
 			(SELECT display_name FROM users WHERE id = $2),
-			created_at, updated_at`,
-		i.groupID, i.inviterUserID, i.token, i.role, InvitationStatusPending, i.expiresAt,
+			ins.created_at, ins.updated_at
+		FROM ins
+		JOIN budgeting_groups bg ON bg.id = ins.budgeting_group_id`,
+		i.groupExternalID, i.inviter, i.token, string(i.role), InvitationStatusPending, i.expiresAt,
 	)
 	if err != nil {
-		return nil, err
+		return nil, wrapNotFound(err, "group not found")
 	}
 
 	return &PersistedInvitation{
 		id:              id,
 		externalID:      externalID,
-		groupID:         i.groupID,
-		groupExternalID: groupExternalID,
+		groupID:         groupID,
+		groupExternalID: i.groupExternalID,
 		groupName:       groupName,
-		inviterUserID:   i.inviterUserID,
+		inviterUserID:   i.inviter.id,
 		inviterName:     inviterName,
 		token:           i.token,
 		status:          InvitationStatusPending,
@@ -99,8 +144,8 @@ type PersistedInvitation struct {
 	inviterName      string
 	acceptedByUserID *int64
 	token            string
-	status           string
-	role             string
+	status           InvitationStatus
+	role             ParticipantRole
 	expiresAt        time.Time
 	acceptedAt       *time.Time
 	createdAt        time.Time
@@ -109,8 +154,6 @@ type PersistedInvitation struct {
 
 func PersistedInvitationByToken(ctx context.Context, token string, p Persister) (*PersistedInvitation, error) {
 	var inv PersistedInvitation
-	var acceptedByUserID *int64
-	var acceptedAt *time.Time
 
 	err := p.QueryRow(
 		ctx,
@@ -122,12 +165,12 @@ func PersistedInvitationByToken(ctx context.Context, token string, p Persister) 
 			&inv.groupName,
 			&inv.inviterUserID,
 			&inv.inviterName,
-			&acceptedByUserID,
+			&inv.acceptedByUserID,
 			&inv.token,
 			&inv.status,
 			&inv.role,
 			&inv.expiresAt,
-			&acceptedAt,
+			&inv.acceptedAt,
 			&inv.createdAt,
 			&inv.updatedAt,
 		},
@@ -143,19 +186,14 @@ func PersistedInvitationByToken(ctx context.Context, token string, p Persister) 
 		token,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: invitation not found", ErrNotFound)
+		return nil, wrapNotFound(err, "invitation not found")
 	}
-
-	inv.acceptedByUserID = acceptedByUserID
-	inv.acceptedAt = acceptedAt
 
 	return &inv, nil
 }
 
 func PersistedInvitationByExternalID(ctx context.Context, externalID uuid.UUID, p Persister) (*PersistedInvitation, error) {
 	var inv PersistedInvitation
-	var acceptedByUserID *int64
-	var acceptedAt *time.Time
 
 	err := p.QueryRow(
 		ctx,
@@ -167,12 +205,12 @@ func PersistedInvitationByExternalID(ctx context.Context, externalID uuid.UUID, 
 			&inv.groupName,
 			&inv.inviterUserID,
 			&inv.inviterName,
-			&acceptedByUserID,
+			&inv.acceptedByUserID,
 			&inv.token,
 			&inv.status,
 			&inv.role,
 			&inv.expiresAt,
-			&acceptedAt,
+			&inv.acceptedAt,
 			&inv.createdAt,
 			&inv.updatedAt,
 		},
@@ -188,34 +226,18 @@ func PersistedInvitationByExternalID(ctx context.Context, externalID uuid.UUID, 
 		externalID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: invitation not found", ErrNotFound)
+		return nil, wrapNotFound(err, "invitation not found")
 	}
-
-	inv.acceptedByUserID = acceptedByUserID
-	inv.acceptedAt = acceptedAt
 
 	return &inv, nil
 }
 
 func PersistedInvitationsForGroup(ctx context.Context, groupExternalID uuid.UUID, p Persister) ([]PersistedInvitation, error) {
-	var groupID int64
-	err := p.QueryRow(
-		ctx,
-		[]any{&groupID},
-		`SELECT id FROM budgeting_groups WHERE external_id = $1 AND revoked_at IS NULL`,
-		groupExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: group not found", ErrNotFound)
-	}
-
 	invitations := make([]PersistedInvitation, 0)
-	err = p.QueryRows(
+	err := p.QueryRows(
 		ctx,
 		func() []any {
 			var inv PersistedInvitation
-			var acceptedByUserID *int64
-			var acceptedAt *time.Time
 			inv.groupExternalID = groupExternalID
 			invitations = append(invitations, inv)
 			idx := len(invitations) - 1
@@ -226,12 +248,12 @@ func PersistedInvitationsForGroup(ctx context.Context, groupExternalID uuid.UUID
 				&invitations[idx].groupName,
 				&invitations[idx].inviterUserID,
 				&invitations[idx].inviterName,
-				&acceptedByUserID,
+				&invitations[idx].acceptedByUserID,
 				&invitations[idx].token,
 				&invitations[idx].status,
 				&invitations[idx].role,
 				&invitations[idx].expiresAt,
-				&acceptedAt,
+				&invitations[idx].acceptedAt,
 				&invitations[idx].createdAt,
 				&invitations[idx].updatedAt,
 			}
@@ -244,9 +266,9 @@ func PersistedInvitationsForGroup(ctx context.Context, groupExternalID uuid.UUID
 		FROM group_invitations gi
 		JOIN budgeting_groups bg ON gi.budgeting_group_id = bg.id
 		JOIN users u ON gi.inviter_user_id = u.id
-		WHERE gi.budgeting_group_id = $1 AND gi.revoked_at IS NULL
+		WHERE bg.external_id = $1 AND bg.revoked_at IS NULL AND gi.revoked_at IS NULL
 		ORDER BY gi.created_at DESC`,
-		groupID,
+		groupExternalID,
 	)
 	if err != nil {
 		return nil, err
@@ -257,14 +279,14 @@ func PersistedInvitationsForGroup(ctx context.Context, groupExternalID uuid.UUID
 
 // Render returns the final wire representation of this invitation.
 func (i *PersistedInvitation) Render() Rendered[representation.Invitation] {
-	return Render(representation.Invitation{
+	return render(representation.Invitation{
 		ID:          i.externalID,
 		Token:       i.token,
 		GroupID:     i.groupExternalID,
 		GroupName:   i.groupName,
 		InviterName: i.inviterName,
-		Status:      i.status,
-		Role:        i.role,
+		Status:      string(i.status),
+		Role:        string(i.role),
 		ExpiresAt:   i.expiresAt,
 		AcceptedAt:  i.acceptedAt,
 		CreatedAt:   i.createdAt,
@@ -273,11 +295,11 @@ func (i *PersistedInvitation) Render() Rendered[representation.Invitation] {
 
 // RenderDetail returns the public wire representation of this invitation.
 func (i *PersistedInvitation) RenderDetail() Rendered[representation.InvitationDetail] {
-	return Render(representation.InvitationDetail{
+	return render(representation.InvitationDetail{
 		GroupName:   i.groupName,
 		InviterName: i.inviterName,
-		Status:      i.status,
-		Role:        i.role,
+		Status:      string(i.status),
+		Role:        string(i.role),
 		ExpiresAt:   i.expiresAt,
 	})
 }
@@ -285,26 +307,12 @@ func (i *PersistedInvitation) RenderDetail() Rendered[representation.InvitationD
 // EnsureUsable fails with ErrGone when this invitation is revoked or has
 // already expired at the given instant.
 func (i *PersistedInvitation) EnsureUsable(now time.Time) error {
-	if i.status == InvitationStatusRevoked {
-		return fmt.Errorf("%w: invitation has been revoked", ErrGone)
-	}
-	if now.After(i.expiresAt) {
-		return fmt.Errorf("%w: invitation has expired", ErrGone)
-	}
-	return nil
+	return i.status.ensureUsable(now, i.expiresAt)
 }
 
-func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, displayName string, p Persister) error {
-	if i.status == InvitationStatusRevoked {
-		return fmt.Errorf("%w: invitation has been revoked", ErrGone)
-	}
-
-	if i.status != InvitationStatusPending {
-		return fmt.Errorf("%w: invitation already %s", ErrConflict, i.status)
-	}
-
-	if time.Now().After(i.expiresAt) {
-		return fmt.Errorf("%w: invitation has expired", ErrGone)
+func (i *PersistedInvitation) Accept(ctx context.Context, user *PersistedUser, now time.Time, p Persister) error {
+	if err := i.status.ensureAcceptable(now, i.expiresAt); err != nil {
+		return err
 	}
 
 	var alreadyMember bool
@@ -317,7 +325,7 @@ func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, displayN
 			WHERE up.user_id = $1 AND pt.budgeting_group_id = $2
 			AND up.revoked_at IS NULL AND pt.revoked_at IS NULL
 		)`,
-		userID, i.groupID,
+		user, i.groupID,
 	)
 	if err != nil {
 		return err
@@ -337,7 +345,7 @@ func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, displayN
 		`INSERT INTO participants (name, description, budgeting_group_id)
 		VALUES ($1, $2, $3)
 		RETURNING id, external_id, created_at, updated_at`,
-		displayName, "", i.groupID,
+		user.displayName, "", i.groupID,
 	)
 	if err != nil {
 		return err
@@ -348,13 +356,12 @@ func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, displayN
 		ctx,
 		`INSERT INTO user_participants (user_id, participant_id, role, is_primary)
 		VALUES ($1, $2, $3, $4)`,
-		userID, participantID, i.role, isPrimaryInt,
+		user, participantID, string(i.role), isPrimaryInt,
 	)
 	if err != nil {
 		return err
 	}
 
-	now := time.Now()
 	var updatedAt time.Time
 	err = p.QueryRow(
 		ctx,
@@ -363,14 +370,14 @@ func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, displayN
 		SET status = $1, accepted_by_user_id = $2, accepted_at = $3, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $4
 		RETURNING updated_at`,
-		InvitationStatusAccepted, userID, now, i.id,
+		InvitationStatusAccepted, user, now, i.id,
 	)
 	if err != nil {
 		return err
 	}
 
 	i.status = InvitationStatusAccepted
-	i.acceptedByUserID = &userID
+	i.acceptedByUserID = &user.id
 	i.acceptedAt = &now
 	i.updatedAt = updatedAt
 
@@ -378,8 +385,8 @@ func (i *PersistedInvitation) Accept(ctx context.Context, userID int64, displayN
 }
 
 func (i *PersistedInvitation) Revoke(ctx context.Context, p Persister) error {
-	if i.status != InvitationStatusPending {
-		return fmt.Errorf("%w: can only revoke pending invitations", ErrConflict)
+	if err := i.status.ensureRevokable(); err != nil {
+		return err
 	}
 
 	var updatedAt time.Time
@@ -402,10 +409,9 @@ func (i *PersistedInvitation) Revoke(ctx context.Context, p Persister) error {
 	return nil
 }
 
-func generateSecureToken() (string, error) {
+func generateSecureToken(entropy io.Reader) (string, error) {
 	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
+	if _, err := io.ReadFull(entropy, b); err != nil {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil

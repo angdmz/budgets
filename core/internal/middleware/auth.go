@@ -50,7 +50,7 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 	}
 }
 
-func (m *AuthMiddleware) validateToken(tokenString string) (*domain.User, error) {
+func (m *AuthMiddleware) validateToken(tokenString string) (*AuthUser, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -67,7 +67,7 @@ func (m *AuthMiddleware) validateToken(tokenString string) (*domain.User, error)
 		return nil, fmt.Errorf("invalid token claims")
 	}
 
-	user := &domain.User{
+	user := &AuthUser{
 		ExternalProviderID: getLegacyStringClaim(claims, "sub"),
 		Email:              getLegacyStringClaim(claims, "email"),
 		DisplayName:        getLegacyStringClaim(claims, "name"),
@@ -81,7 +81,7 @@ func (m *AuthMiddleware) validateToken(tokenString string) (*domain.User, error)
 	return user, nil
 }
 
-func (m *AuthMiddleware) GenerateToken(user *domain.User) (string, error) {
+func (m *AuthMiddleware) GenerateToken(user *AuthUser) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":      user.ExternalProviderID,
 		"email":    user.Email,
@@ -102,9 +102,9 @@ func getLegacyStringClaim(claims jwt.MapClaims, key string) string {
 	return ""
 }
 
-func GetUserFromContext(c *gin.Context) *domain.User {
+func GetUserFromContext(c *gin.Context) *AuthUser {
 	if user, exists := c.Get(userContextKey); exists {
-		if u, ok := user.(*domain.User); ok {
+		if u, ok := user.(*AuthUser); ok {
 			return u
 		}
 	}

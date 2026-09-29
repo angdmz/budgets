@@ -75,7 +75,7 @@ func (h *BudgetHandler) CreateBudget(c *gin.Context) {
 
 	var response domain.Rendered[representation.Budget]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
 			return err
 		}
@@ -139,7 +139,7 @@ func (h *BudgetHandler) GetBudgets(c *gin.Context) {
 
 	var response []domain.Rendered[representation.Budget]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
 			return err
 		}
@@ -201,7 +201,7 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 
 	var response domain.Rendered[representation.Budget]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -280,7 +280,7 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 
 	var response domain.Rendered[representation.Budget]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -348,7 +348,7 @@ func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
 	}
 
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, id); err != nil {
 			return err
 		}

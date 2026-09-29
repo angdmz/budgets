@@ -125,7 +125,7 @@ func (m *Auth0Middleware) RequireAuth() gin.HandlerFunc {
 	}
 }
 
-func (m *Auth0Middleware) validateToken(ctx context.Context, tokenString string) (*domain.User, error) {
+func (m *Auth0Middleware) validateToken(ctx context.Context, tokenString string) (*AuthUser, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Verify signing method is RS256
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
@@ -308,9 +308,9 @@ func getStringClaim(claims jwt.MapClaims, key string) string {
 }
 
 // GetUserFromContext retrieves the authenticated user from the Gin context
-func GetAuth0UserFromContext(c *gin.Context) *domain.User {
+func GetAuth0UserFromContext(c *gin.Context) *AuthUser {
 	if user, exists := c.Get(auth0UserContextKey); exists {
-		if u, ok := user.(*domain.User); ok {
+		if u, ok := user.(*AuthUser); ok {
 			return u
 		}
 	}

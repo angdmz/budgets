@@ -40,19 +40,9 @@ func (h *PreferenceHandler) GetPreferences(c *gin.Context) {
 
 	var response domain.Rendered[representation.Preference]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		pref, err := domain.PersistedUserPreferenceFromPersistence(ctx, user.ID, p)
+		pref, err := domain.PersistedUserPreferenceFor(ctx, user, p)
 		if err != nil {
-			if !errors.Is(err, domain.ErrNotFound) {
-				return err
-			}
-			persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.ThemeLight, domain.LanguageEN, domain.CurrencyUSD, domain.QuoteOfficial)
-			if err != nil {
-				return err
-			}
-			pref, err = persistible.PersistTo(ctx, p)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 
 		response = pref.Render()
@@ -99,7 +89,7 @@ func (h *PreferenceHandler) UpdatePreferences(c *gin.Context) {
 
 	var response domain.Rendered[representation.Preference]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.Theme(req.Theme), domain.Language(req.Language), domain.Currency(req.DisplayCurrency), quoteType)
+		persistible, err := domain.NewPersistibleUserPreference(user, domain.Theme(req.Theme), domain.Language(req.Language), domain.Currency(req.DisplayCurrency), quoteType)
 		if err != nil {
 			return err
 		}
@@ -157,19 +147,9 @@ func (h *PreferenceHandler) PatchPreferences(c *gin.Context) {
 
 	var response domain.Rendered[representation.Preference]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		pref, err := domain.PersistedUserPreferenceFromPersistence(ctx, user.ID, p)
+		pref, err := domain.PersistedUserPreferenceFor(ctx, user, p)
 		if err != nil {
-			if !errors.Is(err, domain.ErrNotFound) {
-				return err
-			}
-			persistible, err := domain.NewPersistibleUserPreference(user.ID, domain.ThemeLight, domain.LanguageEN, domain.CurrencyUSD, domain.QuoteOfficial)
-			if err != nil {
-				return err
-			}
-			pref, err = persistible.PersistTo(ctx, p)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 
 		if req.Theme != nil {

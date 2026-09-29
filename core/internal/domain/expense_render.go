@@ -36,11 +36,18 @@ func DefaultPresentationPrefs() PresentationPrefs {
 	return PresentationPrefs{displayCurrency: CurrencyUSD, preferredQuote: QuoteOfficial}
 }
 
+// NullMoneyConverter is the NullObject MoneyConverter: it returns the money
+// unchanged, so pipelines can run without a configured marketplace.
+type NullMoneyConverter struct{}
+
+func (NullMoneyConverter) ConvertHistorical(ctx context.Context, amount Money, to Currency, quote QuoteType, date time.Time) (Money, error) {
+	return amount, nil
+}
+
 // Convert converts money into the presentation currency at the given date.
-// Returns the input money unchanged when no conversion is needed or no
-// converter is configured.
+// Returns the input money unchanged when no conversion is needed.
 func (pp PresentationPrefs) Convert(ctx context.Context, m MoneyConverter, money Money, date time.Time) (Money, error) {
-	if m == nil || money.Currency == pp.displayCurrency {
+	if money.Currency == pp.displayCurrency {
 		return money, nil
 	}
 	return m.ConvertHistorical(ctx, money, pp.displayCurrency, pp.preferredQuote, date)
@@ -76,7 +83,7 @@ func (d *DecryptedExpectedExpense) Convert(ctx context.Context, prefs Presentati
 }
 
 func (d *DecryptedExpectedExpense) Render() Rendered[representation.ExpectedExpense] {
-	return Render(representation.ExpectedExpense{
+	return render(representation.ExpectedExpense{
 		ID:          d.expense.externalID,
 		Name:        d.expense.name,
 		Description: d.expense.description,
@@ -95,12 +102,50 @@ type ConvertedExpectedExpense struct {
 }
 
 func (c *ConvertedExpectedExpense) Render() Rendered[representation.ExpectedExpense] {
-	v := c.decrypted.Render().Value()
+	v := c.decrypted.Render().value()
 	if c.amount.Currency != c.decrypted.amount.Currency {
 		m := renderMoney(c.amount, true)
 		v.ConvertedAmount = &m
 	}
-	return Render(v)
+	return render(v)
+}
+
+// ExpectedExpenseViews is the renderable form of a persisted expected-expense
+// list: each item is decrypted and converted at construction time so Render is
+// pure. All expenses convert at the same as-of date, so a caching converter
+// performs at most one provider call per distinct currency pair.
+type ExpectedExpenseViews struct {
+	items []*ConvertedExpectedExpense
+}
+
+func NewExpectedExpenseViews(ctx context.Context, expenses []PersistedExpectedExpense, d AmountDecrypter, prefs PresentationPrefs, m MoneyConverter, asOf time.Time) (*ExpectedExpenseViews, error) {
+	views := &ExpectedExpenseViews{items: make([]*ConvertedExpectedExpense, 0, len(expenses))}
+	for i := range expenses {
+		decrypted, err := NewDecryptedExpectedExpense(&expenses[i], d)
+		if err != nil {
+			return nil, err
+		}
+		converted, err := decrypted.Convert(ctx, prefs, m, asOf)
+		if err != nil {
+			return nil, err
+		}
+		views.items = append(views.items, converted)
+	}
+	return views, nil
+}
+
+// ExpectedExpenseViews builds this budget's renderable expected-expense list,
+// converting at the budget's conversion cutoff (earlier of end date and now).
+func (b *PersistedBudget) ExpectedExpenseViews(ctx context.Context, expenses []PersistedExpectedExpense, d AmountDecrypter, prefs PresentationPrefs, m MoneyConverter, now time.Time) (*ExpectedExpenseViews, error) {
+	return NewExpectedExpenseViews(ctx, expenses, d, prefs, m, b.conversionCutoffAt(now))
+}
+
+func (v *ExpectedExpenseViews) Render() Rendered[[]representation.ExpectedExpense] {
+	out := make([]representation.ExpectedExpense, len(v.items))
+	for i, item := range v.items {
+		out[i] = item.Render().value()
+	}
+	return render(out)
 }
 
 // DecryptedActualExpense is a persisted actual expense whose amount has been
@@ -129,7 +174,7 @@ func (d *DecryptedActualExpense) Convert(ctx context.Context, prefs Presentation
 }
 
 func (d *DecryptedActualExpense) Render() Rendered[representation.ActualExpense] {
-	return Render(representation.ActualExpense{
+	return render(representation.ActualExpense{
 		ID:          d.expense.externalID,
 		Name:        d.expense.name,
 		Description: d.expense.description,
@@ -149,12 +194,44 @@ type ConvertedActualExpense struct {
 }
 
 func (c *ConvertedActualExpense) Render() Rendered[representation.ActualExpense] {
-	v := c.decrypted.Render().Value()
+	v := c.decrypted.Render().value()
 	if c.amount.Currency != c.decrypted.amount.Currency {
 		m := renderMoney(c.amount, true)
 		v.ConvertedAmount = &m
 	}
-	return Render(v)
+	return render(v)
+}
+
+// ActualExpenseViews is the renderable form of a persisted actual-expense
+// list: each item is decrypted and converted at its own expense_date at
+// construction time so Render is pure. A caching converter performs at most
+// one provider call per distinct (currency, quote, date) tuple.
+type ActualExpenseViews struct {
+	items []*ConvertedActualExpense
+}
+
+func NewActualExpenseViews(ctx context.Context, expenses []PersistedActualExpense, d AmountDecrypter, prefs PresentationPrefs, m MoneyConverter) (*ActualExpenseViews, error) {
+	views := &ActualExpenseViews{items: make([]*ConvertedActualExpense, 0, len(expenses))}
+	for i := range expenses {
+		decrypted, err := NewDecryptedActualExpense(&expenses[i], d)
+		if err != nil {
+			return nil, err
+		}
+		converted, err := decrypted.Convert(ctx, prefs, m)
+		if err != nil {
+			return nil, err
+		}
+		views.items = append(views.items, converted)
+	}
+	return views, nil
+}
+
+func (v *ActualExpenseViews) Render() Rendered[[]representation.ActualExpense] {
+	out := make([]representation.ActualExpense, len(v.items))
+	for i, item := range v.items {
+		out[i] = item.Render().value()
+	}
+	return render(out)
 }
 
 // BudgetSummary accumulates expected and actual totals for a budget in the
@@ -175,6 +252,7 @@ func NewBudgetSummary(
 	actual []*DecryptedActualExpense,
 	prefs PresentationPrefs,
 	m MoneyConverter,
+	now time.Time,
 ) (*BudgetSummary, error) {
 	s := &BudgetSummary{
 		budgetExternalID: budget.externalID,
@@ -183,7 +261,7 @@ func NewBudgetSummary(
 		actualTotal:      decimal.Zero,
 	}
 
-	asOf := budget.ConversionCutoffAt(time.Now())
+	asOf := budget.conversionCutoffAt(now)
 	for _, e := range expected {
 		converted, err := prefs.Convert(ctx, m, e.amount, asOf)
 		if err != nil {
@@ -204,7 +282,7 @@ func NewBudgetSummary(
 }
 
 func (s *BudgetSummary) Render() Rendered[representation.BudgetSummary] {
-	return Render(representation.BudgetSummary{
+	return render(representation.BudgetSummary{
 		BudgetID:      s.budgetExternalID,
 		ExpectedTotal: representation.Money{Amount: s.expectedTotal.String(), Currency: string(s.displayCurrency), Converted: true},
 		ActualTotal:   representation.Money{Amount: s.actualTotal.String(), Currency: string(s.displayCurrency), Converted: true},

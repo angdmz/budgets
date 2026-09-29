@@ -17,6 +17,7 @@ type (
 	ExpectedExpenseResponse = representation.ExpectedExpense
 	ActualExpenseResponse  = representation.ActualExpense
 	AuthCallbackResponse   = representation.AuthCallback
+	UserResponse           = representation.User
 	PreferenceResponse     = representation.Preference
 	ConvertCurrencyResponse = representation.ConvertCurrency
 	ExchangeRateResponse   = representation.ExchangeRate

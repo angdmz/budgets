@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"net/http"
 	"time"
@@ -45,23 +46,16 @@ func (h *InvitationHandler) CreateInvitation(c *gin.Context) {
 
 	var response domain.Rendered[representation.Invitation]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		var groupInternalID int64
-		err := p.QueryRow(
-			ctx,
-			[]any{&groupInternalID},
-			`SELECT id FROM budgeting_groups WHERE external_id = $1 AND revoked_at IS NULL`,
-			groupID,
-		)
-		if err != nil {
-			return domain.ErrNotFound
+		if _, err := domain.PersistedGroupFromPersistence(ctx, groupID, p); err != nil {
+			return err
 		}
 
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeGroupOwnership(ctx, p, groupID); err != nil {
 			return err
 		}
 
-		invitation, err := domain.NewPersistibleInvitation(groupInternalID, user.ID, req.Role)
+		invitation, err := domain.NewPersistibleInvitation(groupID, user, domain.ParticipantRole(req.Role), rand.Reader, time.Now())
 		if err != nil {
 			return err
 		}
@@ -107,18 +101,11 @@ func (h *InvitationHandler) ListInvitations(c *gin.Context) {
 
 	var response []domain.Rendered[representation.Invitation]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		var groupExists bool
-		err := p.QueryRow(
-			ctx,
-			[]any{&groupExists},
-			`SELECT EXISTS(SELECT 1 FROM budgeting_groups WHERE external_id = $1 AND revoked_at IS NULL)`,
-			groupID,
-		)
-		if err != nil || !groupExists {
-			return domain.ErrNotFound
+		if _, err := domain.PersistedGroupFromPersistence(ctx, groupID, p); err != nil {
+			return err
 		}
 
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeGroupOwnership(ctx, p, groupID); err != nil {
 			return err
 		}
@@ -166,13 +153,15 @@ func (h *InvitationHandler) RevokeInvitation(c *gin.Context) {
 	}
 
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		invitation, err := domain.PersistedInvitationByExternalID(ctx, invitationID, p)
-		if err != nil {
+		// Authorize before loading the resource: nothing is fetched until the
+		// caller's ownership is proven.
+		guard := middleware.NewSecurityGuard(user)
+		if err := guard.AuthorizeInvitationOwnership(ctx, p, invitationID); err != nil {
 			return err
 		}
 
-		guard := domain.NewSecurityGuard(user.ID)
-		if err := guard.AuthorizeInvitationOwnership(ctx, p, invitationID); err != nil {
+		invitation, err := domain.PersistedInvitationByExternalID(ctx, invitationID, p)
+		if err != nil {
 			return err
 		}
 
@@ -256,7 +245,7 @@ func (h *InvitationHandler) AcceptInvitation(c *gin.Context) {
 			return err
 		}
 
-		return invitation.Accept(ctx, user.ID, user.DisplayName, p)
+		return invitation.Accept(ctx, user, time.Now(), p)
 	})
 
 	if err != nil {

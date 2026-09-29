@@ -24,7 +24,7 @@ func TestUpdateBudget_InvalidUUID(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	handler := &BudgetHandler{}
@@ -71,7 +71,7 @@ func TestUpdateBudget_InvalidRequestBody(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	c.Request = httptest.NewRequest("PUT", "/budgets/"+uuid.New().String(), bytes.NewReader([]byte("invalid json")))
@@ -94,7 +94,7 @@ func TestUpdateBudget_InvalidDateFormat(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	reqBody := UpdateBudgetRequest{
@@ -124,7 +124,7 @@ func TestDeleteBudget_InvalidUUID(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	handler := &BudgetHandler{}

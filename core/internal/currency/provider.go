@@ -39,10 +39,11 @@ type CurrencyMarketplace struct {
 	cache    ExchangeRateCache
 }
 
-// ExchangeRateCache caches exchange rates
+// ExchangeRateCache caches exchange rates.
+// asOf keys historical rates by date; nil addresses the current rate.
 type ExchangeRateCache interface {
-	Get(from, to domain.Currency, quote domain.QuoteType) (*ExchangeRate, bool)
-	Set(rate ExchangeRate, ttl time.Duration)
+	Get(from, to domain.Currency, quote domain.QuoteType, asOf *time.Time) (*ExchangeRate, bool)
+	Set(rate ExchangeRate, asOf *time.Time, ttl time.Duration)
 	Clear()
 }
 
@@ -61,7 +62,7 @@ func (m *CurrencyMarketplace) Convert(ctx context.Context, amount domain.Money, 
 
 	// Check cache first
 	if m.cache != nil {
-		if rate, ok := m.cache.Get(amount.Currency, to, quote); ok {
+		if rate, ok := m.cache.Get(amount.Currency, to, quote, nil); ok {
 			convertedAmount := amount.Amount.Mul(rate.Rate)
 			return domain.NewMoney(convertedAmount, to), nil
 		}
@@ -75,22 +76,38 @@ func (m *CurrencyMarketplace) Convert(ctx context.Context, amount domain.Money, 
 
 	// Cache the rate
 	if m.cache != nil {
-		m.cache.Set(*rate, 5*time.Minute)
+		m.cache.Set(*rate, nil, 5*time.Minute)
 	}
 
 	convertedAmount := amount.Amount.Mul(rate.Rate)
 	return domain.NewMoney(convertedAmount, to), nil
 }
 
-// ConvertHistorical converts an amount using the historical exchange rate at the given date
+// ConvertHistorical converts an amount using the historical exchange rate at the given date.
+// Historical rates are immutable, so they are cached keyed by their date
+// (truncated to day precision) with a long TTL — repeated conversions for the
+// same (from, to, quote, day) tuple hit the provider at most once.
 func (m *CurrencyMarketplace) ConvertHistorical(ctx context.Context, amount domain.Money, to domain.Currency, quote domain.QuoteType, date time.Time) (domain.Money, error) {
 	if amount.Currency == to {
 		return amount, nil
 	}
 
+	asOf := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+
+	if m.cache != nil {
+		if rate, ok := m.cache.Get(amount.Currency, to, quote, &asOf); ok {
+			convertedAmount := amount.Amount.Mul(rate.Rate)
+			return domain.NewMoney(convertedAmount, to), nil
+		}
+	}
+
 	rate, err := m.provider.GetHistoricalRate(ctx, amount.Currency, to, quote, date)
 	if err != nil {
 		return domain.Money{}, err
+	}
+
+	if m.cache != nil {
+		m.cache.Set(*rate, &asOf, 24*time.Hour)
 	}
 
 	convertedAmount := amount.Amount.Mul(rate.Rate)
@@ -112,7 +129,7 @@ func (m *CurrencyMarketplace) GetExchangeRate(ctx context.Context, from, to doma
 
 	// Check cache first
 	if m.cache != nil {
-		if rate, ok := m.cache.Get(from, to, quote); ok {
+		if rate, ok := m.cache.Get(from, to, quote, nil); ok {
 			return rate, nil
 		}
 	}
@@ -124,7 +141,7 @@ func (m *CurrencyMarketplace) GetExchangeRate(ctx context.Context, from, to doma
 
 	// Cache the rate
 	if m.cache != nil {
-		m.cache.Set(*rate, 5*time.Minute)
+		m.cache.Set(*rate, nil, 5*time.Minute)
 	}
 
 	return rate, nil

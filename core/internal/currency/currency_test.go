@@ -111,9 +111,9 @@ func TestInMemoryCache_SetGet(t *testing.T) {
 		Source:       "stub",
 	}
 
-	c.Set(rate, 5*time.Minute)
+	c.Set(rate, nil, 5*time.Minute)
 
-	got, ok := c.Get(domain.CurrencyUSD, domain.CurrencyEUR, domain.QuoteOfficial)
+	got, ok := c.Get(domain.CurrencyUSD, domain.CurrencyEUR, domain.QuoteOfficial, nil)
 	if !ok {
 		t.Fatal("expected cache hit")
 	}
@@ -142,14 +142,14 @@ func TestInMemoryCache_QuoteIsolation(t *testing.T) {
 		Source:       "stub",
 	}
 
-	c.Set(rateOfficial, 5*time.Minute)
-	c.Set(rateBlue, 5*time.Minute)
+	c.Set(rateOfficial, nil, 5*time.Minute)
+	c.Set(rateBlue, nil, 5*time.Minute)
 
-	gotOfficial, ok := c.Get(domain.CurrencyUSD, domain.CurrencyARS, domain.QuoteOfficial)
+	gotOfficial, ok := c.Get(domain.CurrencyUSD, domain.CurrencyARS, domain.QuoteOfficial, nil)
 	if !ok {
 		t.Fatal("expected cache hit for OFFICIAL")
 	}
-	gotBlue, ok := c.Get(domain.CurrencyUSD, domain.CurrencyARS, domain.QuoteBlue)
+	gotBlue, ok := c.Get(domain.CurrencyUSD, domain.CurrencyARS, domain.QuoteBlue, nil)
 	if !ok {
 		t.Fatal("expected cache hit for BLUE")
 	}
@@ -173,10 +173,10 @@ func TestInMemoryCache_Expiry(t *testing.T) {
 		Source:       "stub",
 	}
 
-	c.Set(rate, 1*time.Millisecond)
+	c.Set(rate, nil, 1*time.Millisecond)
 	time.Sleep(5 * time.Millisecond)
 
-	_, ok := c.Get(domain.CurrencyUSD, domain.CurrencyEUR, domain.QuoteOfficial)
+	_, ok := c.Get(domain.CurrencyUSD, domain.CurrencyEUR, domain.QuoteOfficial, nil)
 	if ok {
 		t.Error("expected cache miss after expiry")
 	}
@@ -194,10 +194,10 @@ func TestInMemoryCache_Clear(t *testing.T) {
 		Source:       "stub",
 	}
 
-	c.Set(rate, 5*time.Minute)
+	c.Set(rate, nil, 5*time.Minute)
 	c.Clear()
 
-	_, ok := c.Get(domain.CurrencyUSD, domain.CurrencyEUR, domain.QuoteOfficial)
+	_, ok := c.Get(domain.CurrencyUSD, domain.CurrencyEUR, domain.QuoteOfficial, nil)
 	if ok {
 		t.Error("expected cache miss after clear")
 	}
@@ -257,7 +257,7 @@ func TestMarketplace_Convert_UsesCache(t *testing.T) {
 		Rate:         decimal.NewFromInt(2),
 		Timestamp:    time.Now(),
 		Source:       "test",
-	}, 5*time.Minute)
+	}, nil, 5*time.Minute)
 
 	converted, err := m.Convert(ctx, amount, domain.CurrencyEUR, domain.QuoteOfficial)
 	if err != nil {
@@ -331,6 +331,83 @@ func TestMarketplace_ConvertHistorical_DifferentCurrency(t *testing.T) {
 	}
 	if converted.Currency != domain.CurrencyEUR {
 		t.Errorf("expected EUR, got %s", converted.Currency)
+	}
+}
+
+// countingProvider wraps another provider and counts calls, so tests can
+// prove the marketplace hits the provider at most once per distinct rate.
+type countingProvider struct {
+	ExchangeRateProvider
+	rateCalls int
+	histCalls int
+}
+
+func (c *countingProvider) GetRate(ctx context.Context, from, to domain.Currency, quote domain.QuoteType) (*ExchangeRate, error) {
+	c.rateCalls++
+	return c.ExchangeRateProvider.GetRate(ctx, from, to, quote)
+}
+
+func (c *countingProvider) GetHistoricalRate(ctx context.Context, from, to domain.Currency, quote domain.QuoteType, date time.Time) (*ExchangeRate, error) {
+	c.histCalls++
+	return c.ExchangeRateProvider.GetHistoricalRate(ctx, from, to, quote, date)
+}
+
+// Regression: repeated conversions for the same (from,to,quote) pair must hit
+// the provider once, not once per expense (handoff Phase 0, item 3).
+func TestMarketplace_Convert_ProviderCalledOncePerPair(t *testing.T) {
+	cp := &countingProvider{ExchangeRateProvider: NewStubExchangeRateProvider()}
+	m := NewCurrencyMarketplace(cp, NewInMemoryCache())
+	ctx := context.Background()
+
+	amount := domain.NewMoney(decimal.NewFromInt(100), domain.CurrencyUSD)
+	for i := 0; i < 3; i++ {
+		if _, err := m.Convert(ctx, amount, domain.CurrencyEUR, domain.QuoteOfficial); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if cp.rateCalls != 1 {
+		t.Errorf("expected 1 provider call for repeated conversions, got %d", cp.rateCalls)
+	}
+}
+
+// Regression: historical rates are cached by date — conversions on the same
+// day (even at different times) share one provider call.
+func TestMarketplace_ConvertHistorical_CachesByDate(t *testing.T) {
+	cp := &countingProvider{ExchangeRateProvider: NewStubExchangeRateProvider()}
+	m := NewCurrencyMarketplace(cp, NewInMemoryCache())
+	ctx := context.Background()
+
+	amount := domain.NewMoney(decimal.NewFromInt(100), domain.CurrencyUSD)
+	morning := time.Date(2026, 8, 15, 9, 30, 0, 0, time.UTC)
+	evening := time.Date(2026, 8, 15, 21, 45, 0, 0, time.UTC)
+
+	for _, date := range []time.Time{morning, evening, morning} {
+		if _, err := m.ConvertHistorical(ctx, amount, domain.CurrencyEUR, domain.QuoteOfficial, date); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if cp.histCalls != 1 {
+		t.Errorf("expected 1 provider call for same-day conversions, got %d", cp.histCalls)
+	}
+}
+
+// Distinct dates are distinct cache keys and must each fetch once.
+func TestMarketplace_ConvertHistorical_DistinctDatesFetchEach(t *testing.T) {
+	cp := &countingProvider{ExchangeRateProvider: NewStubExchangeRateProvider()}
+	m := NewCurrencyMarketplace(cp, NewInMemoryCache())
+	ctx := context.Background()
+
+	amount := domain.NewMoney(decimal.NewFromInt(100), domain.CurrencyUSD)
+	day1 := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	day2 := time.Date(2026, 8, 16, 12, 0, 0, 0, time.UTC)
+
+	for _, date := range []time.Time{day1, day2, day1, day2} {
+		if _, err := m.ConvertHistorical(ctx, amount, domain.CurrencyEUR, domain.QuoteOfficial, date); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if cp.histCalls != 2 {
+		t.Errorf("expected 2 provider calls for 2 distinct dates, got %d", cp.histCalls)
 	}
 }
 

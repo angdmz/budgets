@@ -2,9 +2,12 @@ package database
 
 import (
 	"context"
+	"errors"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/budgets/core/internal/domain"
 )
 
 type PgxPersister struct {
@@ -16,7 +19,11 @@ func NewPgxPersister(tx pgx.Tx) *PgxPersister {
 }
 
 func (p *PgxPersister) QueryRow(ctx context.Context, dest []any, query string, args ...any) error {
-	return p.tx.QueryRow(ctx, query, args...).Scan(dest...)
+	err := p.tx.QueryRow(ctx, query, args...).Scan(dest...)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ErrNotFound
+	}
+	return err
 }
 
 func (p *PgxPersister) Exec(ctx context.Context, query string, args ...any) (int64, error) {

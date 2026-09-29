@@ -75,7 +75,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	user := &domain.User{
+	user := &middleware.AuthUser{
 		ExternalProviderID: userInfo.ID,
 		Email:              userInfo.Email,
 		DisplayName:        userInfo.Name,
@@ -124,7 +124,7 @@ func (h *AuthHandler) getUserInfo(accessToken string) (*googleUserInfo, error) {
 // @Description Returns the current authenticated user's information
 // @Tags auth
 // @Produce json
-// @Success 200 {object} domain.User
+// @Success 200 {object} UserResponse
 // @Failure 401 {object} ErrorResponse
 // @Security BearerAuth
 // @Router /auth/me [get]
@@ -134,5 +134,5 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized", Message: "Authentication required"})
 		return
 	}
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, user.Render())
 }

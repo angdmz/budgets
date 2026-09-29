@@ -60,7 +60,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 
 	var response domain.Rendered[representation.Category]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
 			return err
 		}
@@ -124,7 +124,7 @@ func (h *CategoryHandler) GetCategories(c *gin.Context) {
 
 	var response []domain.Rendered[representation.Category]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
 			return err
 		}
@@ -194,7 +194,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 
 	var response domain.Rendered[representation.Category]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeCategoryAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -261,7 +261,7 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 	}
 
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeCategoryAccess(ctx, p, id); err != nil {
 			return err
 		}

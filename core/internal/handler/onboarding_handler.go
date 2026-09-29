@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -33,19 +32,9 @@ func (h *OnboardingHandler) GetOnboarding(c *gin.Context) {
 
 	var response domain.Rendered[representation.Onboarding]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		ob, err := domain.PersistedUserOnboardingFromPersistence(ctx, user.ID, p)
+		ob, err := domain.PersistedUserOnboardingFor(ctx, user, p)
 		if err != nil {
-			if !errors.Is(err, domain.ErrNotFound) {
-				return err
-			}
-			persistible, err := domain.NewPersistibleUserOnboarding(user.ID)
-			if err != nil {
-				return err
-			}
-			ob, err = persistible.PersistTo(ctx, p)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 
 		detail, err := ob.Detail(ctx, p)
@@ -90,19 +79,9 @@ func (h *OnboardingHandler) CompleteStep(c *gin.Context) {
 
 	var response domain.Rendered[representation.Onboarding]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		ob, err := domain.PersistedUserOnboardingFromPersistence(ctx, user.ID, p)
+		ob, err := domain.PersistedUserOnboardingFor(ctx, user, p)
 		if err != nil {
-			if !errors.Is(err, domain.ErrNotFound) {
-				return err
-			}
-			persistible, err := domain.NewPersistibleUserOnboarding(user.ID)
-			if err != nil {
-				return err
-			}
-			ob, err = persistible.PersistTo(ctx, p)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 
 		var dataBytes []byte
@@ -113,28 +92,7 @@ func (h *OnboardingHandler) CompleteStep(c *gin.Context) {
 			}
 		}
 
-		persistibleStep, err := ob.NewStep(step, dataBytes)
-		if err != nil {
-			return err
-		}
-
-		_, err = persistibleStep.PersistTo(ctx, p)
-		if err != nil {
-			return err
-		}
-
-		// Advance to next step or mark onboarding as completed
-		if nextStep, hasNext := step.Next(); hasNext {
-			if err := ob.AdvanceTo(ctx, nextStep, p); err != nil {
-				return err
-			}
-		} else {
-			if err := ob.MarkCompleted(ctx, p); err != nil {
-				return err
-			}
-		}
-
-		detail, err := ob.Detail(ctx, p)
+		detail, err := ob.CompleteStep(ctx, step, dataBytes, p)
 		if err != nil {
 			return err
 		}
@@ -170,42 +128,12 @@ func (h *OnboardingHandler) SkipStep(c *gin.Context) {
 
 	var response domain.Rendered[representation.Onboarding]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		ob, err := domain.PersistedUserOnboardingFromPersistence(ctx, user.ID, p)
-		if err != nil {
-			if !errors.Is(err, domain.ErrNotFound) {
-				return err
-			}
-			persistible, err := domain.NewPersistibleUserOnboarding(user.ID)
-			if err != nil {
-				return err
-			}
-			ob, err = persistible.PersistTo(ctx, p)
-			if err != nil {
-				return err
-			}
-		}
-
-		persistibleStep, err := ob.NewSkippedStep(step)
+		ob, err := domain.PersistedUserOnboardingFor(ctx, user, p)
 		if err != nil {
 			return err
 		}
 
-		_, err = persistibleStep.PersistSkippedTo(ctx, p)
-		if err != nil {
-			return err
-		}
-
-		if nextStep, hasNext := step.Next(); hasNext {
-			if err := ob.AdvanceTo(ctx, nextStep, p); err != nil {
-				return err
-			}
-		} else {
-			if err := ob.MarkCompleted(ctx, p); err != nil {
-				return err
-			}
-		}
-
-		detail, err := ob.Detail(ctx, p)
+		detail, err := ob.SkipStep(ctx, step, p)
 		if err != nil {
 			return err
 		}
@@ -237,31 +165,12 @@ func (h *OnboardingHandler) GoBack(c *gin.Context) {
 
 	var response domain.Rendered[representation.Onboarding]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		ob, err := domain.PersistedUserOnboardingFromPersistence(ctx, user.ID, p)
+		ob, err := domain.PersistedUserOnboardingFor(ctx, user, p)
 		if err != nil {
-			if !errors.Is(err, domain.ErrNotFound) {
-				return err
-			}
-			persistible, err := domain.NewPersistibleUserOnboarding(user.ID)
-			if err != nil {
-				return err
-			}
-			ob, err = persistible.PersistTo(ctx, p)
-			if err != nil {
-				return err
-			}
-		}
-
-		prevStep, hasPrev := step.Prev()
-		if !hasPrev {
-			return fmt.Errorf("%w: cannot go back from the first step", domain.ErrValidation)
-		}
-
-		if err := ob.AdvanceTo(ctx, prevStep, p); err != nil {
 			return err
 		}
 
-		detail, err := ob.Detail(ctx, p)
+		detail, err := ob.GoBackFrom(ctx, step, p)
 		if err != nil {
 			return err
 		}
@@ -290,19 +199,9 @@ func (h *OnboardingHandler) ResetOnboarding(c *gin.Context) {
 
 	var response domain.Rendered[representation.Onboarding]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		ob, err := domain.PersistedUserOnboardingFromPersistence(ctx, user.ID, p)
+		ob, err := domain.PersistedUserOnboardingFor(ctx, user, p)
 		if err != nil {
-			if !errors.Is(err, domain.ErrNotFound) {
-				return err
-			}
-			persistible, err := domain.NewPersistibleUserOnboarding(user.ID)
-			if err != nil {
-				return err
-			}
-			ob, err = persistible.PersistTo(ctx, p)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 
 		if err := ob.Reset(ctx, p); err != nil {

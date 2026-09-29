@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,8 +18,8 @@ type Persister interface {
 }
 
 type userParticipantData struct {
-	userID    int64
-	role      string
+	user      *PersistedUser
+	role      ParticipantRole
 	isPrimary bool
 }
 
@@ -26,8 +27,6 @@ type PersistibleGroup struct {
 	name         string
 	description  string
 	participants []*PersistibleParticipant
-	categories   []*PersistibleCategory
-	budgets      []*PersistibleBudget
 }
 
 func NewPersistibleGroup(name, description string) (*PersistibleGroup, error) {
@@ -38,8 +37,6 @@ func NewPersistibleGroup(name, description string) (*PersistibleGroup, error) {
 		name:         name,
 		description:  description,
 		participants: make([]*PersistibleParticipant, 0),
-		categories:   make([]*PersistibleCategory, 0),
-		budgets:      make([]*PersistibleBudget, 0),
 	}, nil
 }
 
@@ -53,15 +50,9 @@ func (g *PersistibleGroup) AddParticipant(name, description string) *Persistible
 	return p
 }
 
-func (g *PersistibleGroup) AddCategory(name, description, color, icon string) *PersistibleCategory {
-	c := &PersistibleCategory{
-		name:        name,
-		description: description,
-		color:       color,
-		icon:        icon,
-	}
-	g.categories = append(g.categories, c)
-	return c
+// AddParticipantForUser adds a participant named after the given user.
+func (g *PersistibleGroup) AddParticipantForUser(user *PersistedUser) *PersistibleParticipant {
+	return g.AddParticipant(user.displayName, "")
 }
 
 func (g *PersistibleGroup) PersistTo(ctx context.Context, p Persister) (*PersistedGroup, error) {
@@ -102,7 +93,7 @@ func (g *PersistibleGroup) PersistTo(ctx context.Context, p Persister) (*Persist
 			_, err := p.Exec(
 				ctx,
 				`INSERT INTO user_participants (user_id, participant_id, role, is_primary) VALUES ($1, $2, $3, $4)`,
-				userLink.userID, participantID, userLink.role, isPrimaryInt,
+				userLink.user, participantID, string(userLink.role), isPrimaryInt,
 			)
 			if err != nil {
 				return nil, err
@@ -126,11 +117,19 @@ type PersistibleParticipant struct {
 	userLinks   []userParticipantData
 }
 
-func (p *PersistibleParticipant) AddUser(userID int64, role string, isPrimary bool) {
+func (p *PersistibleParticipant) AddPrimaryUser(user *PersistedUser, role ParticipantRole) {
 	p.userLinks = append(p.userLinks, userParticipantData{
-		userID:    userID,
+		user:      user,
 		role:      role,
-		isPrimary: isPrimary,
+		isPrimary: true,
+	})
+}
+
+func (p *PersistibleParticipant) AddMemberUser(user *PersistedUser, role ParticipantRole) {
+	p.userLinks = append(p.userLinks, userParticipantData{
+		user:      user,
+		role:      role,
+		isPrimary: false,
 	})
 }
 
@@ -156,31 +155,23 @@ func NewPersistibleCategory(name, description, color, icon string, groupExternal
 }
 
 func (c *PersistibleCategory) PersistTo(ctx context.Context, p Persister) (*PersistedCategory, error) {
-	var groupID int64
-	err := p.QueryRow(
-		ctx,
-		[]any{&groupID},
-		`SELECT id FROM budgeting_groups WHERE external_id = $1 AND revoked_at IS NULL`,
-		c.groupExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: group not found", ErrNotFound)
-	}
-
 	var categoryID int64
 	var categoryExternalID uuid.UUID
 	var createdAt, updatedAt time.Time
 
-	err = p.QueryRow(
+	err := p.QueryRow(
 		ctx,
 		[]any{&categoryID, &categoryExternalID, &createdAt, &updatedAt},
-		`INSERT INTO expense_categories (name, description, color, icon, budgeting_group_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, external_id, created_at, updated_at`,
-		c.name, c.description, c.color, c.icon, groupID,
+		`INSERT INTO expense_categories (name, description, color, icon, budgeting_group_id)
+		SELECT $1, $2, $3, $4, bg.id
+		FROM budgeting_groups bg
+		WHERE bg.external_id = $5 AND bg.revoked_at IS NULL
+		RETURNING id, external_id, created_at, updated_at`,
+		c.name, c.description, c.color, c.icon, c.groupExternalID,
 	)
 	if err != nil {
-		return nil, err
+		return nil, wrapNotFound(err, "group not found")
 	}
-
 	return &PersistedCategory{
 		id:          categoryID,
 		externalID:  categoryExternalID,
@@ -218,29 +209,22 @@ func NewPersistibleBudget(name, description string, startDate, endDate time.Time
 }
 
 func (b *PersistibleBudget) PersistTo(ctx context.Context, p Persister) (*PersistedBudget, error) {
-	var groupID int64
-	err := p.QueryRow(
-		ctx,
-		[]any{&groupID},
-		`SELECT id FROM budgeting_groups WHERE external_id = $1 AND revoked_at IS NULL`,
-		b.groupExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: group not found", ErrNotFound)
-	}
-
 	var budgetID int64
 	var budgetExternalID uuid.UUID
 	var createdAt, updatedAt time.Time
 
-	err = p.QueryRow(
+	err := p.QueryRow(
 		ctx,
 		[]any{&budgetID, &budgetExternalID, &createdAt, &updatedAt},
-		`INSERT INTO budgets (name, description, start_date, end_date, budgeting_group_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, external_id, created_at, updated_at`,
-		b.name, b.description, b.startDate, b.endDate, groupID,
+		`INSERT INTO budgets (name, description, start_date, end_date, budgeting_group_id)
+		SELECT $1, $2, $3, $4, bg.id
+		FROM budgeting_groups bg
+		WHERE bg.external_id = $5 AND bg.revoked_at IS NULL
+		RETURNING id, external_id, created_at, updated_at`,
+		b.name, b.description, b.startDate, b.endDate, b.groupExternalID,
 	)
 	if err != nil {
-		return nil, err
+		return nil, wrapNotFound(err, "group not found")
 	}
 
 	return &PersistedBudget{
@@ -283,40 +267,23 @@ func NewPersistibleExpectedExpense(name, description, encryptedAmount string, bu
 }
 
 func (e *PersistibleExpectedExpense) PersistTo(ctx context.Context, p Persister) (*PersistedExpectedExpense, error) {
-	var budgetID int64
-	err := p.QueryRow(
-		ctx,
-		[]any{&budgetID},
-		`SELECT id FROM budgets WHERE external_id = $1 AND revoked_at IS NULL`,
-		e.budgetExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: budget not found", ErrNotFound)
-	}
-
-	var categoryID int64
-	err = p.QueryRow(
-		ctx,
-		[]any{&categoryID},
-		`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
-		e.categoryExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: category not found", ErrNotFound)
-	}
-
 	var expenseID int64
 	var expenseExternalID uuid.UUID
 	var createdAt, updatedAt time.Time
 
-	err = p.QueryRow(
+	err := p.QueryRow(
 		ctx,
 		[]any{&expenseID, &expenseExternalID, &createdAt, &updatedAt},
-		`INSERT INTO expected_expenses (name, description, encrypted_amount, budget_id, category_id) VALUES ($1, $2, $3, $4, $5) RETURNING id, external_id, created_at, updated_at`,
-		e.name, e.description, e.encryptedAmount, budgetID, categoryID,
+		`INSERT INTO expected_expenses (name, description, encrypted_amount, budget_id, category_id)
+		SELECT $1, $2, $3, b.id, ec.id
+		FROM budgets b, expense_categories ec
+		WHERE b.external_id = $4 AND b.revoked_at IS NULL
+		AND ec.external_id = $5 AND ec.revoked_at IS NULL
+		RETURNING id, external_id, created_at, updated_at`,
+		e.name, e.description, e.encryptedAmount, e.budgetExternalID, e.categoryExternalID,
 	)
 	if err != nil {
-		return nil, err
+		return nil, wrapNotFound(err, "budget or category not found")
 	}
 
 	return &PersistedExpectedExpense{
@@ -363,55 +330,26 @@ func NewPersistibleActualExpense(name, description string, expenseDate time.Time
 }
 
 func (e *PersistibleActualExpense) PersistTo(ctx context.Context, p Persister) (*PersistedActualExpense, error) {
-	var budgetID int64
-	err := p.QueryRow(
-		ctx,
-		[]any{&budgetID},
-		`SELECT id FROM budgets WHERE external_id = $1 AND revoked_at IS NULL`,
-		e.budgetExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: budget not found", ErrNotFound)
-	}
-
-	var categoryID int64
-	err = p.QueryRow(
-		ctx,
-		[]any{&categoryID},
-		`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
-		e.categoryExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: category not found", ErrNotFound)
-	}
-
-	var expectedExpenseID *int64
-	if e.expectedExpenseExternalID != nil {
-		var expID int64
-		err := p.QueryRow(
-			ctx,
-			[]any{&expID},
-			`SELECT id FROM expected_expenses WHERE external_id = $1 AND revoked_at IS NULL`,
-			*e.expectedExpenseExternalID,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("%w: expected expense not found", ErrNotFound)
-		}
-		expectedExpenseID = &expID
-	}
-
 	var expenseID int64
 	var expenseExternalID uuid.UUID
 	var createdAt, updatedAt time.Time
 
-	err = p.QueryRow(
+	err := p.QueryRow(
 		ctx,
 		[]any{&expenseID, &expenseExternalID, &createdAt, &updatedAt},
-		`INSERT INTO actual_expenses (name, description, expense_date, encrypted_amount, budget_id, category_id, expected_expense_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, external_id, created_at, updated_at`,
-		e.name, e.description, e.expenseDate, e.encryptedAmount, budgetID, categoryID, expectedExpenseID,
+		`INSERT INTO actual_expenses (name, description, expense_date, encrypted_amount, budget_id, category_id, expected_expense_id)
+		SELECT $1, $2, $3, $4, b.id, ec.id, ee.id
+		FROM budgets b
+		CROSS JOIN expense_categories ec
+		LEFT JOIN expected_expenses ee ON ee.external_id = $7 AND ee.revoked_at IS NULL
+		WHERE b.external_id = $5 AND b.revoked_at IS NULL
+		AND ec.external_id = $6 AND ec.revoked_at IS NULL
+		AND ($7 IS NULL OR ee.id IS NOT NULL)
+		RETURNING id, external_id, created_at, updated_at`,
+		e.name, e.description, e.expenseDate, e.encryptedAmount, e.budgetExternalID, e.categoryExternalID, e.expectedExpenseExternalID,
 	)
 	if err != nil {
-		return nil, err
+		return nil, wrapNotFound(err, "budget, category or expected expense not found")
 	}
 
 	return &PersistedActualExpense{
@@ -445,14 +383,14 @@ func PersistedGroupFromPersistence(ctx context.Context, externalID uuid.UUID, p 
 		externalID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: group not found", ErrNotFound)
+		return nil, wrapNotFound(err, "group not found")
 	}
 	return &g, nil
 }
 
 // Render returns the final wire representation of this group.
 func (g *PersistedGroup) Render() Rendered[representation.Group] {
-	return Render(representation.Group{
+	return render(representation.Group{
 		ID:          g.externalID,
 		Name:        g.name,
 		Description: g.description,
@@ -513,14 +451,14 @@ func PersistedCategoryFromPersistence(ctx context.Context, externalID uuid.UUID,
 		externalID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: category not found", ErrNotFound)
+		return nil, wrapNotFound(err, "category not found")
 	}
 	return &c, nil
 }
 
 // Render returns the final wire representation of this category.
 func (c *PersistedCategory) Render() Rendered[representation.Category] {
-	return Render(representation.Category{
+	return render(representation.Category{
 		ID:          c.externalID,
 		Name:        c.name,
 		Description: c.description,
@@ -591,14 +529,14 @@ func PersistedBudgetFromPersistence(ctx context.Context, externalID uuid.UUID, p
 		externalID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: budget not found", ErrNotFound)
+		return nil, wrapNotFound(err, "budget not found")
 	}
 	return &b, nil
 }
 
-// ConversionCutoffAt returns the as-of date for historical conversion of this
+// conversionCutoffAt returns the as-of date for historical conversion of this
 // budget's expected expenses: the earlier of the budget's end date and now.
-func (b *PersistedBudget) ConversionCutoffAt(now time.Time) time.Time {
+func (b *PersistedBudget) conversionCutoffAt(now time.Time) time.Time {
 	if b.endDate.After(now) {
 		return now
 	}
@@ -607,7 +545,7 @@ func (b *PersistedBudget) ConversionCutoffAt(now time.Time) time.Time {
 
 // Render returns the final wire representation of this budget.
 func (b *PersistedBudget) Render() Rendered[representation.Budget] {
-	return Render(representation.Budget{
+	return render(representation.Budget{
 		ID:          b.externalID,
 		Name:        b.name,
 		Description: b.description,
@@ -682,7 +620,7 @@ func PersistedExpectedExpenseFromPersistence(ctx context.Context, externalID uui
 		externalID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: expected expense not found", ErrNotFound)
+		return nil, wrapNotFound(err, "expected expense not found")
 	}
 	return &e, nil
 }
@@ -704,26 +642,19 @@ func (e *PersistedExpectedExpense) UpdateCategoryExternalID(categoryExternalID u
 }
 
 func (e *PersistedExpectedExpense) UpdateIn(ctx context.Context, p Persister) error {
-	var categoryID int64
+	var updatedAt time.Time
 	err := p.QueryRow(
 		ctx,
-		[]any{&categoryID},
-		`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
-		e.categoryExternalID,
-	)
-	if err != nil {
-		return fmt.Errorf("%w: category not found", ErrNotFound)
-	}
-
-	var updatedAt time.Time
-	err = p.QueryRow(
-		ctx,
 		[]any{&updatedAt},
-		`UPDATE expected_expenses SET name = $1, description = $2, encrypted_amount = $3, category_id = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING updated_at`,
-		e.name, e.description, e.encryptedAmount, categoryID, e.id,
+		`UPDATE expected_expenses ee
+		SET name = $1, description = $2, encrypted_amount = $3, category_id = ec.id, updated_at = CURRENT_TIMESTAMP
+		FROM expense_categories ec
+		WHERE ee.id = $4 AND ec.external_id = $5 AND ec.revoked_at IS NULL
+		RETURNING ee.updated_at`,
+		e.name, e.description, e.encryptedAmount, e.id, e.categoryExternalID,
 	)
 	if err != nil {
-		return err
+		return wrapNotFound(err, "category not found")
 	}
 	e.updatedAt = updatedAt
 	return nil
@@ -762,7 +693,7 @@ func PersistedActualExpenseFromPersistence(ctx context.Context, externalID uuid.
 		externalID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: actual expense not found", ErrNotFound)
+		return nil, wrapNotFound(err, "actual expense not found")
 	}
 	return &e, nil
 }
@@ -788,26 +719,19 @@ func (e *PersistedActualExpense) UpdateCategoryExternalID(categoryExternalID uui
 }
 
 func (e *PersistedActualExpense) UpdateIn(ctx context.Context, p Persister) error {
-	var categoryID int64
+	var updatedAt time.Time
 	err := p.QueryRow(
 		ctx,
-		[]any{&categoryID},
-		`SELECT id FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL`,
-		e.categoryExternalID,
-	)
-	if err != nil {
-		return fmt.Errorf("%w: category not found", ErrNotFound)
-	}
-
-	var updatedAt time.Time
-	err = p.QueryRow(
-		ctx,
 		[]any{&updatedAt},
-		`UPDATE actual_expenses SET name = $1, description = $2, expense_date = $3, encrypted_amount = $4, category_id = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6 RETURNING updated_at`,
-		e.name, e.description, e.expenseDate, e.encryptedAmount, categoryID, e.id,
+		`UPDATE actual_expenses ae
+		SET name = $1, description = $2, expense_date = $3, encrypted_amount = $4, category_id = ec.id, updated_at = CURRENT_TIMESTAMP
+		FROM expense_categories ec
+		WHERE ae.id = $5 AND ec.external_id = $6 AND ec.revoked_at IS NULL
+		RETURNING ae.updated_at`,
+		e.name, e.description, e.expenseDate, e.encryptedAmount, e.id, e.categoryExternalID,
 	)
 	if err != nil {
-		return err
+		return wrapNotFound(err, "category not found")
 	}
 	e.updatedAt = updatedAt
 	return nil
@@ -822,213 +746,7 @@ func (e *PersistedActualExpense) DeleteFrom(ctx context.Context, p Persister) er
 	return err
 }
 
-type SecurityGuard interface {
-	AuthorizeGroupAccess(ctx context.Context, p Persister, groupExternalID uuid.UUID) error
-	AuthorizeGroupOwnership(ctx context.Context, p Persister, groupExternalID uuid.UUID) error
-	AuthorizeInvitationOwnership(ctx context.Context, p Persister, invitationExternalID uuid.UUID) error
-	AuthorizeBudgetAccess(ctx context.Context, p Persister, budgetExternalID uuid.UUID) error
-	AuthorizeCategoryAccess(ctx context.Context, p Persister, categoryExternalID uuid.UUID) error
-	AuthorizeExpenseAccess(ctx context.Context, p Persister, expenseExternalID uuid.UUID) error
-}
-
-type securityGuard struct {
-	userID int64
-}
-
-func NewSecurityGuard(userID int64) SecurityGuard {
-	return &securityGuard{userID: userID}
-}
-
-func (s *securityGuard) AuthorizeGroupAccess(ctx context.Context, p Persister, groupExternalID uuid.UUID) error {
-	var exists bool
-	err := p.QueryRow(
-		ctx,
-		[]any{&exists},
-		`SELECT EXISTS(
-			SELECT 1 FROM user_participants up
-			JOIN participants pt ON up.participant_id = pt.id
-			JOIN budgeting_groups bg ON pt.budgeting_group_id = bg.id
-			WHERE up.user_id = $1 AND bg.external_id = $2
-			AND up.revoked_at IS NULL AND pt.revoked_at IS NULL
-		)`,
-		s.userID, groupExternalID,
-	)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return ErrForbidden
-	}
-	return nil
-}
-
-func (s *securityGuard) AuthorizeGroupOwnership(ctx context.Context, p Persister, groupExternalID uuid.UUID) error {
-	var isOwner bool
-	err := p.QueryRow(
-		ctx,
-		[]any{&isOwner},
-		`SELECT EXISTS(
-			SELECT 1 FROM user_participants up
-			JOIN participants pt ON up.participant_id = pt.id
-			JOIN budgeting_groups bg ON pt.budgeting_group_id = bg.id
-			WHERE up.user_id = $1 AND bg.external_id = $2 AND up.role = 'owner'
-			AND up.revoked_at IS NULL AND pt.revoked_at IS NULL AND bg.revoked_at IS NULL
-		)`,
-		s.userID, groupExternalID,
-	)
-	if err != nil {
-		return err
-	}
-	if !isOwner {
-		return ErrForbidden
-	}
-	return nil
-}
-
-func (s *securityGuard) AuthorizeBudgetAccess(ctx context.Context, p Persister, budgetExternalID uuid.UUID) error {
-	var budgetExists bool
-	err := p.QueryRow(
-		ctx,
-		[]any{&budgetExists},
-		`SELECT EXISTS(SELECT 1 FROM budgets WHERE external_id = $1 AND revoked_at IS NULL)`,
-		budgetExternalID,
-	)
-	if err != nil {
-		return err
-	}
-	if !budgetExists {
-		return ErrNotFound
-	}
-
-	var hasAccess bool
-	err = p.QueryRow(
-		ctx,
-		[]any{&hasAccess},
-		`SELECT EXISTS(
-			SELECT 1 FROM user_participants up
-			JOIN participants pt ON up.participant_id = pt.id
-			JOIN budgets b ON b.budgeting_group_id = pt.budgeting_group_id
-			WHERE up.user_id = $1 AND b.external_id = $2
-			AND up.revoked_at IS NULL AND pt.revoked_at IS NULL AND b.revoked_at IS NULL
-		)`,
-		s.userID, budgetExternalID,
-	)
-	if err != nil {
-		return err
-	}
-	if !hasAccess {
-		return ErrForbidden
-	}
-	return nil
-}
-
-func (s *securityGuard) AuthorizeInvitationOwnership(ctx context.Context, p Persister, invitationExternalID uuid.UUID) error {
-	var isOwner bool
-	err := p.QueryRow(
-		ctx,
-		[]any{&isOwner},
-		`SELECT EXISTS(
-			SELECT 1 FROM user_participants up
-			JOIN participants pt ON up.participant_id = pt.id
-			JOIN group_invitations gi ON gi.budgeting_group_id = pt.budgeting_group_id
-			WHERE up.user_id = $1 AND gi.external_id = $2 AND up.role = 'owner'
-			AND up.revoked_at IS NULL AND pt.revoked_at IS NULL AND gi.revoked_at IS NULL
-		)`,
-		s.userID, invitationExternalID,
-	)
-	if err != nil {
-		return err
-	}
-	if !isOwner {
-		return ErrForbidden
-	}
-	return nil
-}
-
-func (s *securityGuard) AuthorizeCategoryAccess(ctx context.Context, p Persister, categoryExternalID uuid.UUID) error {
-	var categoryExists bool
-	err := p.QueryRow(
-		ctx,
-		[]any{&categoryExists},
-		`SELECT EXISTS(SELECT 1 FROM expense_categories WHERE external_id = $1 AND revoked_at IS NULL)`,
-		categoryExternalID,
-	)
-	if err != nil {
-		return err
-	}
-	if !categoryExists {
-		return ErrNotFound
-	}
-
-	var hasAccess bool
-	err = p.QueryRow(
-		ctx,
-		[]any{&hasAccess},
-		`SELECT EXISTS(
-			SELECT 1 FROM user_participants up
-			JOIN participants pt ON up.participant_id = pt.id
-			JOIN expense_categories ec ON ec.budgeting_group_id = pt.budgeting_group_id
-			WHERE up.user_id = $1 AND ec.external_id = $2
-			AND up.revoked_at IS NULL AND pt.revoked_at IS NULL AND ec.revoked_at IS NULL
-		)`,
-		s.userID, categoryExternalID,
-	)
-	if err != nil {
-		return err
-	}
-	if !hasAccess {
-		return ErrForbidden
-	}
-	return nil
-}
-
-func (s *securityGuard) AuthorizeExpenseAccess(ctx context.Context, p Persister, expenseExternalID uuid.UUID) error {
-	var expenseExists bool
-	err := p.QueryRow(
-		ctx,
-		[]any{&expenseExists},
-		`SELECT EXISTS(
-			SELECT 1 FROM expected_expenses WHERE external_id = $1 AND revoked_at IS NULL
-			UNION
-			SELECT 1 FROM actual_expenses WHERE external_id = $1 AND revoked_at IS NULL
-		)`,
-		expenseExternalID,
-	)
-	if err != nil {
-		return err
-	}
-	if !expenseExists {
-		return ErrNotFound
-	}
-
-	var hasAccess bool
-	err = p.QueryRow(
-		ctx,
-		[]any{&hasAccess},
-		`SELECT EXISTS(
-			SELECT 1 FROM user_participants up
-			JOIN participants pt ON up.participant_id = pt.id
-			LEFT JOIN expected_expenses ee ON ee.budget_id IN (
-				SELECT id FROM budgets WHERE budgeting_group_id = pt.budgeting_group_id AND revoked_at IS NULL
-			) AND ee.external_id = $2 AND ee.revoked_at IS NULL
-			LEFT JOIN actual_expenses ae ON ae.budget_id IN (
-				SELECT id FROM budgets WHERE budgeting_group_id = pt.budgeting_group_id AND revoked_at IS NULL
-			) AND ae.external_id = $2 AND ae.revoked_at IS NULL
-			WHERE up.user_id = $1 AND (ee.id IS NOT NULL OR ae.id IS NOT NULL)
-			AND up.revoked_at IS NULL AND pt.revoked_at IS NULL
-		)`,
-		s.userID, expenseExternalID,
-	)
-	if err != nil {
-		return err
-	}
-	if !hasAccess {
-		return ErrForbidden
-	}
-	return nil
-}
-
-func PersistedGroupsForUser(ctx context.Context, userID int64, p Persister) ([]PersistedGroup, error) {
+func PersistedGroupsForUser(ctx context.Context, user *PersistedUser, p Persister) ([]PersistedGroup, error) {
 	groups := make([]PersistedGroup, 0)
 	err := p.QueryRows(
 		ctx,
@@ -1045,7 +763,7 @@ func PersistedGroupsForUser(ctx context.Context, userID int64, p Persister) ([]P
 		WHERE up.user_id = $1
 		AND bg.revoked_at IS NULL AND pt.revoked_at IS NULL AND up.revoked_at IS NULL
 		ORDER BY bg.created_at DESC`,
-		userID,
+		user,
 	)
 	if err != nil {
 		return nil, err
@@ -1054,19 +772,8 @@ func PersistedGroupsForUser(ctx context.Context, userID int64, p Persister) ([]P
 }
 
 func PersistedCategoriesForGroup(ctx context.Context, groupExternalID uuid.UUID, p Persister) ([]PersistedCategory, error) {
-	var groupID int64
-	err := p.QueryRow(
-		ctx,
-		[]any{&groupID},
-		`SELECT id FROM budgeting_groups WHERE external_id = $1 AND revoked_at IS NULL`,
-		groupExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: group not found", ErrNotFound)
-	}
-
 	categories := make([]PersistedCategory, 0)
-	err = p.QueryRows(
+	err := p.QueryRows(
 		ctx,
 		func() []any {
 			var c PersistedCategory
@@ -1074,11 +781,12 @@ func PersistedCategoriesForGroup(ctx context.Context, groupExternalID uuid.UUID,
 			idx := len(categories) - 1
 			return []any{&categories[idx].id, &categories[idx].externalID, &categories[idx].name, &categories[idx].description, &categories[idx].color, &categories[idx].icon, &categories[idx].createdAt, &categories[idx].updatedAt}
 		},
-		`SELECT id, external_id, name, description, color, icon, created_at, updated_at
-		FROM expense_categories
-		WHERE budgeting_group_id = $1 AND revoked_at IS NULL
-		ORDER BY created_at DESC`,
-		groupID,
+		`SELECT ec.id, ec.external_id, ec.name, ec.description, ec.color, ec.icon, ec.created_at, ec.updated_at
+		FROM expense_categories ec
+		JOIN budgeting_groups bg ON ec.budgeting_group_id = bg.id
+		WHERE bg.external_id = $1 AND bg.revoked_at IS NULL AND ec.revoked_at IS NULL
+		ORDER BY ec.created_at DESC`,
+		groupExternalID,
 	)
 	if err != nil {
 		return nil, err
@@ -1087,19 +795,8 @@ func PersistedCategoriesForGroup(ctx context.Context, groupExternalID uuid.UUID,
 }
 
 func PersistedBudgetsForGroup(ctx context.Context, groupExternalID uuid.UUID, p Persister) ([]PersistedBudget, error) {
-	var groupID int64
-	err := p.QueryRow(
-		ctx,
-		[]any{&groupID},
-		`SELECT id FROM budgeting_groups WHERE external_id = $1 AND revoked_at IS NULL`,
-		groupExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: group not found", ErrNotFound)
-	}
-
 	budgets := make([]PersistedBudget, 0)
-	err = p.QueryRows(
+	err := p.QueryRows(
 		ctx,
 		func() []any {
 			var b PersistedBudget
@@ -1107,11 +804,12 @@ func PersistedBudgetsForGroup(ctx context.Context, groupExternalID uuid.UUID, p 
 			idx := len(budgets) - 1
 			return []any{&budgets[idx].id, &budgets[idx].externalID, &budgets[idx].name, &budgets[idx].description, &budgets[idx].startDate, &budgets[idx].endDate, &budgets[idx].createdAt, &budgets[idx].updatedAt}
 		},
-		`SELECT id, external_id, name, description, start_date, end_date, created_at, updated_at
-		FROM budgets
-		WHERE budgeting_group_id = $1 AND revoked_at IS NULL
-		ORDER BY created_at DESC`,
-		groupID,
+		`SELECT b.id, b.external_id, b.name, b.description, b.start_date, b.end_date, b.created_at, b.updated_at
+		FROM budgets b
+		JOIN budgeting_groups bg ON b.budgeting_group_id = bg.id
+		WHERE bg.external_id = $1 AND bg.revoked_at IS NULL AND b.revoked_at IS NULL
+		ORDER BY b.created_at DESC`,
+		groupExternalID,
 	)
 	if err != nil {
 		return nil, err
@@ -1120,19 +818,8 @@ func PersistedBudgetsForGroup(ctx context.Context, groupExternalID uuid.UUID, p 
 }
 
 func PersistedExpectedExpensesForBudget(ctx context.Context, budgetExternalID uuid.UUID, p Persister) ([]PersistedExpectedExpense, error) {
-	var budgetID int64
-	err := p.QueryRow(
-		ctx,
-		[]any{&budgetID},
-		`SELECT id FROM budgets WHERE external_id = $1 AND revoked_at IS NULL`,
-		budgetExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: budget not found", ErrNotFound)
-	}
-
 	expenses := make([]PersistedExpectedExpense, 0)
-	err = p.QueryRows(
+	err := p.QueryRows(
 		ctx,
 		func() []any {
 			var e PersistedExpectedExpense
@@ -1143,9 +830,10 @@ func PersistedExpectedExpensesForBudget(ctx context.Context, budgetExternalID uu
 		`SELECT ee.id, ee.external_id, ee.name, ee.description, ee.encrypted_amount, ec.external_id, ee.created_at, ee.updated_at
 		FROM expected_expenses ee
 		JOIN expense_categories ec ON ee.category_id = ec.id AND ec.revoked_at IS NULL
-		WHERE ee.budget_id = $1 AND ee.revoked_at IS NULL
+		JOIN budgets b ON ee.budget_id = b.id AND b.revoked_at IS NULL
+		WHERE b.external_id = $1 AND ee.revoked_at IS NULL
 		ORDER BY ee.created_at DESC`,
-		budgetID,
+		budgetExternalID,
 	)
 	if err != nil {
 		return nil, err
@@ -1154,14 +842,17 @@ func PersistedExpectedExpensesForBudget(ctx context.Context, budgetExternalID uu
 }
 
 type PersistibleUserPreference struct {
-	userID             int64
+	user               *PersistedUser
 	theme              Theme
 	language           Language
 	displayCurrency    Currency
 	preferredQuoteType QuoteType
 }
 
-func NewPersistibleUserPreference(userID int64, theme Theme, language Language, displayCurrency Currency, preferredQuoteType QuoteType) (*PersistibleUserPreference, error) {
+func NewPersistibleUserPreference(user *PersistedUser, theme Theme, language Language, displayCurrency Currency, preferredQuoteType QuoteType) (*PersistibleUserPreference, error) {
+	if user == nil {
+		return nil, fmt.Errorf("%w: user is required", ErrValidation)
+	}
 	if !theme.IsValid() {
 		return nil, fmt.Errorf("%w: invalid theme", ErrValidation)
 	}
@@ -1175,7 +866,7 @@ func NewPersistibleUserPreference(userID int64, theme Theme, language Language, 
 		return nil, fmt.Errorf("%w: invalid quote type", ErrValidation)
 	}
 	return &PersistibleUserPreference{
-		userID:             userID,
+		user:               user,
 		theme:              theme,
 		language:           language,
 		displayCurrency:    displayCurrency,
@@ -1196,7 +887,7 @@ func (pref *PersistibleUserPreference) PersistTo(ctx context.Context, p Persiste
 		 ON CONFLICT (user_id) WHERE revoked_at IS NULL
 		 DO UPDATE SET theme = EXCLUDED.theme, language = EXCLUDED.language, display_currency = EXCLUDED.display_currency, preferred_quote_type = EXCLUDED.preferred_quote_type, updated_at = CURRENT_TIMESTAMP
 		 RETURNING id, external_id, created_at, updated_at`,
-		pref.userID, pref.theme, pref.language, pref.displayCurrency, pref.preferredQuoteType,
+		pref.user, pref.theme, pref.language, pref.displayCurrency, pref.preferredQuoteType,
 	)
 	if err != nil {
 		return nil, err
@@ -1205,7 +896,7 @@ func (pref *PersistibleUserPreference) PersistTo(ctx context.Context, p Persiste
 	return &PersistedUserPreference{
 		id:                id,
 		externalID:        externalID,
-		userID:            pref.userID,
+		userID:            pref.user.id,
 		theme:             pref.theme,
 		language:          pref.language,
 		displayCurrency:   pref.displayCurrency,
@@ -1227,20 +918,57 @@ type PersistedUserPreference struct {
 	updatedAt         time.Time
 }
 
-func PersistedUserPreferenceFromPersistence(ctx context.Context, userID int64, p Persister) (*PersistedUserPreference, error) {
+func PersistedUserPreferenceFromPersistence(ctx context.Context, user *PersistedUser, p Persister) (*PersistedUserPreference, error) {
 	var pref PersistedUserPreference
 	err := p.QueryRow(
 		ctx,
 		[]any{&pref.id, &pref.externalID, &pref.theme, &pref.language, &pref.displayCurrency, &pref.preferredQuoteType, &pref.createdAt, &pref.updatedAt},
 		`SELECT id, external_id, theme, language, display_currency, preferred_quote_type, created_at, updated_at
 		 FROM user_preferences WHERE user_id = $1 AND revoked_at IS NULL`,
-		userID,
+		user,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w: user preferences not found", ErrNotFound)
+		return nil, wrapNotFound(err, "user preferences not found")
 	}
-	pref.userID = userID
+	pref.userID = user.id
 	return &pref, nil
+}
+
+// PersistedUserPreferenceFor loads the user's preferences, creating and
+// persisting a defaults row when none exists yet (find-or-create).
+func PersistedUserPreferenceFor(ctx context.Context, user *PersistedUser, p Persister) (*PersistedUserPreference, error) {
+	pref, err := PersistedUserPreferenceFromPersistence(ctx, user, p)
+	if err == nil {
+		return pref, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+	persistible, err := NewPersistibleUserPreference(user, ThemeLight, LanguageEN, CurrencyUSD, QuoteOfficial)
+	if err != nil {
+		return nil, err
+	}
+	return persistible.PersistTo(ctx, p)
+}
+
+// PersistedUserPreferenceOrDefault loads the user's preferences without
+// writing; when none are stored it returns an in-memory defaults object
+// (NullObject) instead of an error.
+func PersistedUserPreferenceOrDefault(ctx context.Context, user *PersistedUser, p Persister) (*PersistedUserPreference, error) {
+	pref, err := PersistedUserPreferenceFromPersistence(ctx, user, p)
+	if err == nil {
+		return pref, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+	return &PersistedUserPreference{
+		userID:             user.id,
+		theme:              ThemeLight,
+		language:           LanguageEN,
+		displayCurrency:    CurrencyUSD,
+		preferredQuoteType: QuoteOfficial,
+	}, nil
 }
 
 // Presentation returns the display settings used when converting and
@@ -1251,7 +979,7 @@ func (pref *PersistedUserPreference) Presentation() PresentationPrefs {
 
 // Render returns the final wire representation of these preferences.
 func (pref *PersistedUserPreference) Render() Rendered[representation.Preference] {
-	return Render(representation.Preference{
+	return render(representation.Preference{
 		Theme:              string(pref.theme),
 		Language:           string(pref.language),
 		DisplayCurrency:    string(pref.displayCurrency),
@@ -1307,19 +1035,8 @@ func (pref *PersistedUserPreference) UpdateIn(ctx context.Context, p Persister) 
 }
 
 func PersistedActualExpensesForBudget(ctx context.Context, budgetExternalID uuid.UUID, p Persister) ([]PersistedActualExpense, error) {
-	var budgetID int64
-	err := p.QueryRow(
-		ctx,
-		[]any{&budgetID},
-		`SELECT id FROM budgets WHERE external_id = $1 AND revoked_at IS NULL`,
-		budgetExternalID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("%w: budget not found", ErrNotFound)
-	}
-
 	expenses := make([]PersistedActualExpense, 0)
-	err = p.QueryRows(
+	err := p.QueryRows(
 		ctx,
 		func() []any {
 			var e PersistedActualExpense
@@ -1330,9 +1047,10 @@ func PersistedActualExpensesForBudget(ctx context.Context, budgetExternalID uuid
 		`SELECT ae.id, ae.external_id, ae.name, ae.description, ae.expense_date, ae.encrypted_amount, ec.external_id, ae.created_at, ae.updated_at
 		FROM actual_expenses ae
 		JOIN expense_categories ec ON ae.category_id = ec.id AND ec.revoked_at IS NULL
-		WHERE ae.budget_id = $1 AND ae.revoked_at IS NULL
+		JOIN budgets b ON ae.budget_id = b.id AND b.revoked_at IS NULL
+		WHERE b.external_id = $1 AND ae.revoked_at IS NULL
 		ORDER BY ae.created_at DESC`,
-		budgetID,
+		budgetExternalID,
 	)
 	if err != nil {
 		return nil, err
