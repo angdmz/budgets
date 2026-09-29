@@ -175,6 +175,7 @@ jobs:
           AUTH0_MGMT_CLIENT_ID=ci-mgmt-client-id
           AUTH0_DB_CONNECTION=Username-Password-Authentication
           SECRETS_PROVIDER=docker
+          EXCHANGE_PROVIDER=stub
           INTEGRATION_TESTS_BASE_URL=http://nginx
           INTEGRATION_TESTS_SCREENSHOTS_DIR=/tests/screenshots
           INTEGRATION_TESTS_SCREENSHOTS_HOST_DIR=./tests/screenshots

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/budgets/core/internal/config"
@@ -32,11 +31,6 @@ type TestSuite struct {
 
 func SetupTestSuite(t *testing.T) *TestSuite {
 	t.Helper()
-
-	// Skip if not running integration tests
-	if os.Getenv("INTEGRATION_TEST") != "true" {
-		t.Skip("Skipping integration test. Set INTEGRATION_TEST=true to run.")
-	}
 
 	gin.SetMode(gin.TestMode)
 
