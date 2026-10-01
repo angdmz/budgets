@@ -1,6 +1,18 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
+
+// wrapNotFound annotates ErrNotFound with a resource-specific message while
+// letting any other persistence error propagate unmasked.
+func wrapNotFound(err error, message string) error {
+	if errors.Is(err, ErrNotFound) {
+		return fmt.Errorf("%w: %s", ErrNotFound, message)
+	}
+	return err
+}
 
 var (
 	ErrNotFound          = errors.New("resource not found")

@@ -3,30 +3,40 @@ package handler
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/shopspring/decimal"
 
 	"github.com/budgets/core/internal/currency"
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/encryption"
 	"github.com/budgets/core/internal/middleware"
+	"github.com/budgets/core/internal/representation"
 )
 
 type ExpenseHandler struct {
 	pool        *pgxpool.Pool
 	encryptor   *encryption.Encryptor
+	decrypter   domain.AmountDecrypter
 	marketplace *currency.CurrencyMarketplace
 }
 
 func NewExpenseHandler(pool *pgxpool.Pool, encryptor *encryption.Encryptor, marketplace *currency.CurrencyMarketplace) *ExpenseHandler {
-	return &ExpenseHandler{pool: pool, encryptor: encryptor, marketplace: marketplace}
+	return &ExpenseHandler{pool: pool, encryptor: encryptor, decrypter: encryptorDecrypter{enc: encryptor}, marketplace: marketplace}
+}
+
+// converter returns the configured marketplace as a MoneyConverter, or the
+// NullObject when no marketplace is wired — conversion pipelines degrade to
+// identity instead of needing nil checks.
+func (h *ExpenseHandler) converter() domain.MoneyConverter {
+	if h.marketplace == nil {
+		return domain.NullMoneyConverter{}
+	}
+	return h.marketplace
 }
 
 // CreateExpectedExpense godoc
@@ -68,9 +78,9 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	var response ExpectedExpenseResponse
+	var response domain.Rendered[representation.ExpectedExpense]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, budgetID); err != nil {
 			return err
 		}
@@ -91,12 +101,12 @@ func (h *ExpenseHandler) CreateExpectedExpense(c *gin.Context) {
 			return err
 		}
 
-		decryptedMoney, err := h.encryptor.DecryptMoney(persistedExpense.EncryptedAmount())
+		decrypted, err := domain.NewDecryptedExpectedExpense(persistedExpense, h.decrypter)
 		if err != nil {
 			return err
 		}
 
-		response = toExpectedExpenseResponse(persistedExpense, decryptedMoney, nil)
+		response = decrypted.Render()
 		return nil
 	})
 
@@ -135,9 +145,9 @@ func (h *ExpenseHandler) GetExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	var response ExpectedExpenseResponse
+	var response domain.Rendered[representation.ExpectedExpense]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -147,12 +157,12 @@ func (h *ExpenseHandler) GetExpectedExpense(c *gin.Context) {
 			return err
 		}
 
-		decryptedMoney, err := h.encryptor.DecryptMoney(expense.EncryptedAmount())
+		decrypted, err := domain.NewDecryptedExpectedExpense(expense, h.decrypter)
 		if err != nil {
 			return err
 		}
 
-		response = toExpectedExpenseResponse(expense, decryptedMoney, nil)
+		response = decrypted.Render()
 		return nil
 	})
 
@@ -190,87 +200,42 @@ func (h *ExpenseHandler) GetExpectedExpenses(c *gin.Context) {
 		return
 	}
 
-	log.Printf("[DEBUG] GetExpectedExpenses: budgetID=%s userID=%d", budgetID, user.ID)
-
-	var expenses []domain.PersistedExpectedExpense
-	displayCurrency := domain.CurrencyUSD
-	preferredQuote := domain.QuoteOfficial
-	var expectedDate time.Time
-
+	var response domain.Rendered[[]representation.ExpectedExpense]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		log.Printf("[DEBUG] GetExpectedExpenses: inside transaction, authorizing budget access")
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, budgetID); err != nil {
-			log.Printf("[DEBUG] GetExpectedExpenses: AuthorizeBudgetAccess failed: %v", err)
 			return err
 		}
 
-		var eErr error
-		expenses, eErr = domain.PersistedExpectedExpensesForBudget(ctx, budgetID, p)
-		if eErr != nil {
-			log.Printf("[DEBUG] GetExpectedExpenses: PersistedExpectedExpensesForBudget failed: %v", eErr)
-			return eErr
+		expenses, err := domain.PersistedExpectedExpensesForBudget(ctx, budgetID, p)
+		if err != nil {
+			return err
 		}
-		log.Printf("[DEBUG] GetExpectedExpenses: loaded %d expenses", len(expenses))
 
-		pref, pErr := domain.PersistedUserPreferenceFromPersistence(ctx, user.ID, p)
-		if pErr == nil {
-			displayCurrency = pref.DisplayCurrency()
-			preferredQuote = pref.PreferredQuoteType()
+		pref, err := domain.PersistedUserPreferenceOrDefault(ctx, user, p)
+		if err != nil {
+			return err
 		}
-		log.Printf("[DEBUG] GetExpectedExpenses: displayCurrency=%s preferredQuote=%s prefErr=%v", displayCurrency, preferredQuote, pErr)
 
-		budget, bErr := domain.PersistedBudgetFromPersistence(ctx, budgetID, p)
-		if bErr == nil {
-			expectedDate = budget.EndDate()
-			if expectedDate.After(time.Now()) {
-				expectedDate = time.Now()
-			}
+		budget, err := domain.PersistedBudgetFromPersistence(ctx, budgetID, p)
+		if err != nil {
+			return err
 		}
-		log.Printf("[DEBUG] GetExpectedExpenses: expectedDate=%v budgetErr=%v", expectedDate, bErr)
 
-		log.Printf("[DEBUG] GetExpectedExpenses: returning nil from transaction fn")
+		views, err := budget.ExpectedExpenseViews(ctx, expenses, h.decrypter, pref.Presentation(), h.converter(), time.Now())
+		if err != nil {
+			return err
+		}
+
+		response = views.Render()
 		return nil
 	})
 
 	if err != nil {
-		log.Printf("[DEBUG] GetExpectedExpenses: WithPersister returned error: %v", err)
 		handleServiceError(c, err)
 		return
 	}
-	log.Printf("[DEBUG] GetExpectedExpenses: transaction committed OK, converting %d expenses", len(expenses))
 
-	response := make([]ExpectedExpenseResponse, len(expenses))
-	for i, e := range expenses {
-		decryptedMoney, dErr := h.encryptor.DecryptMoney(e.EncryptedAmount())
-		if dErr != nil {
-			log.Printf("[DEBUG] GetExpectedExpenses: DecryptMoney failed for expense %d: %v", i, dErr)
-			handleServiceError(c, dErr)
-			return
-		}
-
-		var convertedAmount *MoneyResponse
-		origCurrency := domain.Currency(decryptedMoney.Currency)
-		if origCurrency != displayCurrency && h.marketplace != nil && !expectedDate.IsZero() {
-			log.Printf("[DEBUG] GetExpectedExpenses: converting expense %d: %s %s -> %s (date=%v)", i, decryptedMoney.Amount.String(), origCurrency, displayCurrency, expectedDate)
-			money := domain.NewMoney(decryptedMoney.Amount, origCurrency)
-			converted, cErr := h.marketplace.ConvertHistorical(c.Request.Context(), money, displayCurrency, preferredQuote, expectedDate)
-			if cErr == nil {
-				convertedAmount = &MoneyResponse{
-					Amount:    converted.Amount.String(),
-					Currency:  string(converted.Currency),
-					Converted: true,
-				}
-				log.Printf("[DEBUG] GetExpectedExpenses: conversion OK: %s %s -> %s %s", decryptedMoney.Amount.String(), origCurrency, converted.Amount.String(), converted.Currency)
-			} else {
-				log.Printf("[DEBUG] GetExpectedExpenses: conversion FAILED for expense %d: %v", i, cErr)
-			}
-		}
-
-		response[i] = toExpectedExpenseResponse(&e, decryptedMoney, convertedAmount)
-	}
-
-	log.Printf("[DEBUG] GetExpectedExpenses: sending response with %d items", len(response))
 	c.JSON(http.StatusOK, response)
 }
 
@@ -313,9 +278,9 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 		return
 	}
 
-	var response ExpectedExpenseResponse
+	var response domain.Rendered[representation.ExpectedExpense]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -340,12 +305,12 @@ func (h *ExpenseHandler) UpdateExpectedExpense(c *gin.Context) {
 			return err
 		}
 
-		decryptedMoney, err := h.encryptor.DecryptMoney(expense.EncryptedAmount())
+		decrypted, err := domain.NewDecryptedExpectedExpense(expense, h.decrypter)
 		if err != nil {
 			return err
 		}
 
-		response = toExpectedExpenseResponse(expense, decryptedMoney, nil)
+		response = decrypted.Render()
 		return nil
 	})
 
@@ -383,7 +348,7 @@ func (h *ExpenseHandler) DeleteExpectedExpense(c *gin.Context) {
 	}
 
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -448,9 +413,9 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 		return
 	}
 
-	var response ActualExpenseResponse
+	var response domain.Rendered[representation.ActualExpense]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, budgetID); err != nil {
 			return err
 		}
@@ -471,12 +436,12 @@ func (h *ExpenseHandler) CreateActualExpense(c *gin.Context) {
 			return err
 		}
 
-		decryptedMoney, err := h.encryptor.DecryptMoney(persistedExpense.EncryptedAmount())
+		decrypted, err := domain.NewDecryptedActualExpense(persistedExpense, h.decrypter)
 		if err != nil {
 			return err
 		}
 
-		response = toActualExpenseResponse(persistedExpense, decryptedMoney, nil)
+		response = decrypted.Render()
 		return nil
 	})
 
@@ -515,9 +480,9 @@ func (h *ExpenseHandler) GetActualExpense(c *gin.Context) {
 		return
 	}
 
-	var response ActualExpenseResponse
+	var response domain.Rendered[representation.ActualExpense]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -527,12 +492,12 @@ func (h *ExpenseHandler) GetActualExpense(c *gin.Context) {
 			return err
 		}
 
-		decryptedMoney, err := h.encryptor.DecryptMoney(expense.EncryptedAmount())
+		decrypted, err := domain.NewDecryptedActualExpense(expense, h.decrypter)
 		if err != nil {
 			return err
 		}
 
-		response = toActualExpenseResponse(expense, decryptedMoney, nil)
+		response = decrypted.Render()
 		return nil
 	})
 
@@ -570,77 +535,37 @@ func (h *ExpenseHandler) GetActualExpenses(c *gin.Context) {
 		return
 	}
 
-	log.Printf("[DEBUG] GetActualExpenses: budgetID=%s userID=%d", budgetID, user.ID)
-
-	var expenses []domain.PersistedActualExpense
-	displayCurrency := domain.CurrencyUSD
-	preferredQuote := domain.QuoteOfficial
-
+	var response domain.Rendered[[]representation.ActualExpense]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		log.Printf("[DEBUG] GetActualExpenses: inside transaction, authorizing budget access")
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, budgetID); err != nil {
-			log.Printf("[DEBUG] GetActualExpenses: AuthorizeBudgetAccess failed: %v", err)
 			return err
 		}
 
-		var eErr error
-		expenses, eErr = domain.PersistedActualExpensesForBudget(ctx, budgetID, p)
-		if eErr != nil {
-			log.Printf("[DEBUG] GetActualExpenses: PersistedActualExpensesForBudget failed: %v", eErr)
-			return eErr
+		expenses, err := domain.PersistedActualExpensesForBudget(ctx, budgetID, p)
+		if err != nil {
+			return err
 		}
-		log.Printf("[DEBUG] GetActualExpenses: loaded %d expenses", len(expenses))
 
-		pref, pErr := domain.PersistedUserPreferenceFromPersistence(ctx, user.ID, p)
-		if pErr == nil {
-			displayCurrency = pref.DisplayCurrency()
-			preferredQuote = pref.PreferredQuoteType()
+		pref, err := domain.PersistedUserPreferenceOrDefault(ctx, user, p)
+		if err != nil {
+			return err
 		}
-		log.Printf("[DEBUG] GetActualExpenses: displayCurrency=%s preferredQuote=%s prefErr=%v", displayCurrency, preferredQuote, pErr)
 
-		log.Printf("[DEBUG] GetActualExpenses: returning nil from transaction fn")
+		views, err := domain.NewActualExpenseViews(ctx, expenses, h.decrypter, pref.Presentation(), h.converter())
+		if err != nil {
+			return err
+		}
+
+		response = views.Render()
 		return nil
 	})
 
 	if err != nil {
-		log.Printf("[DEBUG] GetActualExpenses: WithPersister returned error: %v", err)
 		handleServiceError(c, err)
 		return
 	}
-	log.Printf("[DEBUG] GetActualExpenses: transaction committed OK, converting %d expenses", len(expenses))
 
-	response := make([]ActualExpenseResponse, len(expenses))
-	for i, e := range expenses {
-		decryptedMoney, dErr := h.encryptor.DecryptMoney(e.EncryptedAmount())
-		if dErr != nil {
-			log.Printf("[DEBUG] GetActualExpenses: DecryptMoney failed for expense %d: %v", i, dErr)
-			handleServiceError(c, dErr)
-			return
-		}
-
-		var convertedAmount *MoneyResponse
-		origCurrency := domain.Currency(decryptedMoney.Currency)
-		if origCurrency != displayCurrency && h.marketplace != nil {
-			log.Printf("[DEBUG] GetActualExpenses: converting expense %d: %s %s -> %s (date=%v)", i, decryptedMoney.Amount.String(), origCurrency, displayCurrency, e.ExpenseDate())
-			money := domain.NewMoney(decryptedMoney.Amount, origCurrency)
-			converted, cErr := h.marketplace.ConvertHistorical(c.Request.Context(), money, displayCurrency, preferredQuote, e.ExpenseDate())
-			if cErr == nil {
-				convertedAmount = &MoneyResponse{
-					Amount:    converted.Amount.String(),
-					Currency:  string(converted.Currency),
-					Converted: true,
-				}
-				log.Printf("[DEBUG] GetActualExpenses: conversion OK: %s %s -> %s %s", decryptedMoney.Amount.String(), origCurrency, converted.Amount.String(), converted.Currency)
-			} else {
-				log.Printf("[DEBUG] GetActualExpenses: conversion FAILED for expense %d: %v", i, cErr)
-			}
-		}
-
-		response[i] = toActualExpenseResponse(&e, decryptedMoney, convertedAmount)
-	}
-
-	log.Printf("[DEBUG] GetActualExpenses: sending response with %d items", len(response))
 	c.JSON(http.StatusOK, response)
 }
 
@@ -688,9 +613,9 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 		return
 	}
 
-	var response ActualExpenseResponse
+	var response domain.Rendered[representation.ActualExpense]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -716,12 +641,12 @@ func (h *ExpenseHandler) UpdateActualExpense(c *gin.Context) {
 			return err
 		}
 
-		decryptedMoney, err := h.encryptor.DecryptMoney(expense.EncryptedAmount())
+		decrypted, err := domain.NewDecryptedActualExpense(expense, h.decrypter)
 		if err != nil {
 			return err
 		}
 
-		response = toActualExpenseResponse(expense, decryptedMoney, nil)
+		response = decrypted.Render()
 		return nil
 	})
 
@@ -759,7 +684,7 @@ func (h *ExpenseHandler) DeleteActualExpense(c *gin.Context) {
 	}
 
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeExpenseAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -822,106 +747,61 @@ func (h *ExpenseHandler) GetBudgetSummary(c *gin.Context) {
 		return
 	}
 
-	log.Printf("[DEBUG] GetBudgetSummary: budgetID=%s userID=%d", budgetID, user.ID)
-
-	displayCurrency := domain.CurrencyUSD
-	preferredQuote := domain.QuoteOfficial
-	var expectedDate time.Time
-	var expectedExpenses []domain.PersistedExpectedExpense
-	var actualExpenses []domain.PersistedActualExpense
-
+	var response domain.Rendered[representation.BudgetSummary]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		log.Printf("[DEBUG] GetBudgetSummary: inside transaction, authorizing budget access")
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, budgetID); err != nil {
-			log.Printf("[DEBUG] GetBudgetSummary: AuthorizeBudgetAccess failed: %v", err)
 			return err
 		}
 
-		pref, pErr := domain.PersistedUserPreferenceFromPersistence(ctx, user.ID, p)
-		if pErr == nil {
-			displayCurrency = pref.DisplayCurrency()
-			preferredQuote = pref.PreferredQuoteType()
-		}
-		log.Printf("[DEBUG] GetBudgetSummary: displayCurrency=%s preferredQuote=%s prefErr=%v", displayCurrency, preferredQuote, pErr)
-
-		budget, bErr := domain.PersistedBudgetFromPersistence(ctx, budgetID, p)
-		if bErr != nil {
-			log.Printf("[DEBUG] GetBudgetSummary: PersistedBudgetFromPersistence failed: %v", bErr)
-			return bErr
+		pref, err := domain.PersistedUserPreferenceOrDefault(ctx, user, p)
+		if err != nil {
+			return err
 		}
 
-		expectedDate = budget.EndDate()
-		if expectedDate.After(time.Now()) {
-			expectedDate = time.Now()
+		budget, err := domain.PersistedBudgetFromPersistence(ctx, budgetID, p)
+		if err != nil {
+			return err
 		}
-		log.Printf("[DEBUG] GetBudgetSummary: expectedDate=%v", expectedDate)
 
-		var eeErr error
-		expectedExpenses, eeErr = domain.PersistedExpectedExpensesForBudget(ctx, budgetID, p)
-		if eeErr != nil {
-			log.Printf("[DEBUG] GetBudgetSummary: PersistedExpectedExpensesForBudget failed: %v", eeErr)
-			return eeErr
+		expectedExpenses, err := domain.PersistedExpectedExpensesForBudget(ctx, budgetID, p)
+		if err != nil {
+			return err
 		}
-		log.Printf("[DEBUG] GetBudgetSummary: loaded %d expected expenses", len(expectedExpenses))
 
-		var aeErr error
-		actualExpenses, aeErr = domain.PersistedActualExpensesForBudget(ctx, budgetID, p)
-		if aeErr != nil {
-			log.Printf("[DEBUG] GetBudgetSummary: PersistedActualExpensesForBudget failed: %v", aeErr)
-			return aeErr
+		actualExpenses, err := domain.PersistedActualExpensesForBudget(ctx, budgetID, p)
+		if err != nil {
+			return err
 		}
-		log.Printf("[DEBUG] GetBudgetSummary: loaded %d actual expenses", len(actualExpenses))
 
-		log.Printf("[DEBUG] GetBudgetSummary: returning nil from transaction fn")
+		expected := make([]*domain.DecryptedExpectedExpense, len(expectedExpenses))
+		for i := range expectedExpenses {
+			expected[i], err = domain.NewDecryptedExpectedExpense(&expectedExpenses[i], h.decrypter)
+			if err != nil {
+				return err
+			}
+		}
+
+		actual := make([]*domain.DecryptedActualExpense, len(actualExpenses))
+		for i := range actualExpenses {
+			actual[i], err = domain.NewDecryptedActualExpense(&actualExpenses[i], h.decrypter)
+			if err != nil {
+				return err
+			}
+		}
+
+		summary, err := domain.NewBudgetSummary(ctx, budget, expected, actual, pref.Presentation(), h.converter(), time.Now())
+		if err != nil {
+			return err
+		}
+
+		response = summary.Render()
 		return nil
 	})
 
 	if err != nil {
-		log.Printf("[DEBUG] GetBudgetSummary: WithPersister returned error: %v", err)
 		handleServiceError(c, err)
 		return
-	}
-	log.Printf("[DEBUG] GetBudgetSummary: transaction committed OK, converting expenses")
-
-	expectedTotal := decimal.Zero
-	for _, e := range expectedExpenses {
-		decrypted, dErr := h.encryptor.DecryptMoney(e.EncryptedAmount())
-		if dErr != nil {
-			handleServiceError(c, dErr)
-			return
-		}
-		money := domain.NewMoney(decrypted.Amount, domain.Currency(decrypted.Currency))
-		converted, cErr := h.marketplace.ConvertHistorical(c.Request.Context(), money, displayCurrency, preferredQuote, expectedDate)
-		if cErr != nil {
-			handleServiceError(c, cErr)
-			return
-		}
-		expectedTotal = expectedTotal.Add(converted.Amount)
-	}
-
-	actualTotal := decimal.Zero
-	for _, e := range actualExpenses {
-		decrypted, dErr := h.encryptor.DecryptMoney(e.EncryptedAmount())
-		if dErr != nil {
-			handleServiceError(c, dErr)
-			return
-		}
-		money := domain.NewMoney(decrypted.Amount, domain.Currency(decrypted.Currency))
-		converted, cErr := h.marketplace.ConvertHistorical(c.Request.Context(), money, displayCurrency, preferredQuote, e.ExpenseDate())
-		if cErr != nil {
-			handleServiceError(c, cErr)
-			return
-		}
-		actualTotal = actualTotal.Add(converted.Amount)
-	}
-
-	diff := expectedTotal.Sub(actualTotal)
-	response := BudgetSummaryResponse{
-		BudgetID: budgetID,
-		ExpectedTotal: MoneyResponse{Amount: expectedTotal.String(), Currency: string(displayCurrency), Converted: true},
-		ActualTotal:   MoneyResponse{Amount: actualTotal.String(), Currency: string(displayCurrency), Converted: true},
-		Difference:    MoneyResponse{Amount: diff.String(), Currency: string(displayCurrency), Converted: true},
 	}
 
 	c.JSON(http.StatusOK, response)

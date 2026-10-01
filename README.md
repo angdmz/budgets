@@ -655,7 +655,6 @@ cp .env.example .env
 | `EXCHANGE_PROVIDER` | Exchange rate provider | `frankfurter` | No |
 | `DOCKER_REGISTRY_PREFIX` | ghcr.io image prefix | `angdmz/budgets` | No |
 | `IMAGE_TAG` | Docker image tag | `latest` | No |
-| `INTEGRATION_TEST` | Integration test flag | `true` | No |
 | `INTEGRATION_TESTS_BASE_URL` | Integration test base URL | `http://nginx` | No |
 | `INTEGRATION_TESTS_SCREENSHOTS_DIR` | Screenshots dir (container) | `/tests/screenshots` | No |
 | `INTEGRATION_TESTS_SCREENSHOTS_HOST_DIR` | Screenshots dir (host) | `./tests/screenshots` | No |

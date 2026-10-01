@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -18,7 +17,7 @@ import (
 func TestAuthMiddleware_GenerateAndValidateToken(t *testing.T) {
 	middleware := NewAuthMiddleware("test-secret-key-32-chars-long!!")
 
-	user := &domain.User{
+	user := &AuthUser{
 		ExternalProviderID: "user-123",
 		Email:              "test@example.com",
 		DisplayName:        "Test User",
@@ -41,7 +40,7 @@ func TestAuthMiddleware_RequireAuth(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	middleware := NewAuthMiddleware("test-secret-key-32-chars-long!!")
 
-	user := &domain.User{
+	user := &AuthUser{
 		ExternalProviderID: "user-123",
 		Email:              "test@example.com",
 		DisplayName:        "Test User",
@@ -221,19 +220,14 @@ func TestUserResolver_Auth0PasswordUser(t *testing.T) {
 		email       string
 		displayName string
 	}
-	mockResolveFunc := func(ctx context.Context, tx pgx.Tx, providerID string, provider domain.AuthProvider, email, displayName, avatarURL string) (*domain.User, error) {
+	mockResolveFunc := func(ctx context.Context, providerID string, provider domain.AuthProvider, email, displayName, avatarURL string, p domain.Persister) (*domain.PersistedUser, error) {
 		resolveCalls = append(resolveCalls, struct {
 			providerID  string
 			provider    domain.AuthProvider
 			email       string
 			displayName string
 		}{providerID, provider, email, displayName})
-		return &domain.User{
-			ExternalProviderID: providerID,
-			AuthProvider:       provider,
-			Email:              email,
-			DisplayName:        displayName,
-		}, nil
+		return &domain.PersistedUser{}, nil
 	}
 
 	t.Run("auth0_password_user_resolves_as_LOCAL", func(t *testing.T) {
@@ -241,7 +235,7 @@ func TestUserResolver_Auth0PasswordUser(t *testing.T) {
 
 		// Create a token simulating an auth0| user (password login).
 		// Email is the username; display name defaults to email when absent.
-		testUser := &domain.User{
+		testUser := &AuthUser{
 			ExternalProviderID: "auth0|6a2eb82f8451dc995b556d08",
 			Email:              "user@example.com",
 			DisplayName:        "user@example.com",
@@ -261,7 +255,7 @@ func TestUserResolver_Auth0PasswordUser(t *testing.T) {
 			}
 			// Simulate the resolver logic
 			provider := authUser.AuthProvider
-			_, _ = mockResolveFunc(c.Request.Context(), nil, authUser.ExternalProviderID, provider, authUser.Email, authUser.DisplayName, "")
+			_, _ = mockResolveFunc(c.Request.Context(), authUser.ExternalProviderID, provider, authUser.Email, authUser.DisplayName, "", nil)
 			c.Next()
 		})
 		router.GET("/api/v1/groups", func(c *gin.Context) {
@@ -284,7 +278,7 @@ func TestUserResolver_Auth0PasswordUser(t *testing.T) {
 	t.Run("google_oauth2_user_resolves_as_GOOGLE", func(t *testing.T) {
 		resolveCalls = nil
 
-		testUser := &domain.User{
+		testUser := &AuthUser{
 			ExternalProviderID: "google-oauth2|114928371234",
 			Email:              "user@gmail.com",
 			DisplayName:        "Google User",
@@ -302,7 +296,7 @@ func TestUserResolver_Auth0PasswordUser(t *testing.T) {
 				return
 			}
 			provider := authUser.AuthProvider
-			_, _ = mockResolveFunc(c.Request.Context(), nil, authUser.ExternalProviderID, provider, authUser.Email, authUser.DisplayName, "")
+			_, _ = mockResolveFunc(c.Request.Context(), authUser.ExternalProviderID, provider, authUser.Email, authUser.DisplayName, "", nil)
 			c.Next()
 		})
 		router.GET("/api/v1/groups", func(c *gin.Context) {

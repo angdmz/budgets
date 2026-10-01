@@ -67,7 +67,7 @@ func TestUpdateCategory_InvalidRequestBody(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	c.Request = httptest.NewRequest("PUT", "/categories/"+uuid.New().String(), bytes.NewReader([]byte("invalid json")))

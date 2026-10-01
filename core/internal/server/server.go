@@ -10,9 +10,9 @@ import (
 	_ "github.com/budgets/core/docs"
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/encryption"
+	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/handler"
 	"github.com/budgets/core/internal/middleware"
-	"github.com/budgets/core/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -32,8 +32,6 @@ type Dependencies struct {
 
 // BuildDependencies creates the Dependencies struct with all handlers and middleware.
 func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor, cfg *config.Config) Dependencies {
-	userRepo := repository.NewUserRepository()
-
 	var exchangeProvider currency.ExchangeRateProvider
 	switch cfg.Exchange.Provider {
 	case "frankfurter":
@@ -48,7 +46,7 @@ func BuildDependencies(pool *pgxpool.Pool, enc *encryption.Encryptor, cfg *confi
 	exchangeCache := currency.NewInMemoryCache()
 	marketplace := currency.NewCurrencyMarketplace(exchangeProvider, exchangeCache)
 
-	userResolver := middleware.NewUserResolver(pool, userRepo.GetOrCreateByProvider)
+	userResolver := middleware.NewUserResolver(pool, domain.PersistedUserForProvider)
 
 	return Dependencies{
 		Encryptor:          enc,

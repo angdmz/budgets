@@ -12,6 +12,7 @@ import (
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/middleware"
+	"github.com/budgets/core/internal/representation"
 )
 
 type GroupHandler struct {
@@ -48,32 +49,35 @@ func (h *GroupHandler) CreateGroup(c *gin.Context) {
 		return
 	}
 
-	var response GroupResponse
-	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		persistibleGroup, err := domain.NewPersistibleGroup(req.Name, req.Description)
-		if err != nil {
-			return err
+	persistibleGroup, err := domain.NewPersistibleGroup(req.Name, req.Description)
+	if err != nil {
+		if errors.Is(err, domain.ErrValidation) {
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "validation_error", Message: "Invalid request data"})
+			return
 		}
+		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
+		return
+	}
 
-		participant := persistibleGroup.AddParticipant(user.DisplayName, "")
-		participant.AddUser(user.ID, "owner", true)
+	var response domain.Rendered[representation.Group]
+	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
+		participant := persistibleGroup.AddParticipantForUser(user)
+		participant.AddPrimaryUser(user, domain.ParticipantRoleOwner)
 
 		persistedGroup, err := persistibleGroup.PersistTo(ctx, p)
 		if err != nil {
 			return err
 		}
 
-		response = GroupResponse{
-			ID:          persistedGroup.ExternalID(),
-			Name:        persistedGroup.Name(),
-			Description: persistedGroup.Description(),
-			CreatedAt:   persistedGroup.CreatedAt(),
-			UpdatedAt:   persistedGroup.UpdatedAt(),
-		}
+		response = persistedGroup.Render()
 		return nil
 	})
 
 	if err != nil {
+		if errors.Is(err, domain.ErrValidation) {
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "validation_error", Message: "Invalid request data"})
+			return
+		}
 		SafeErrorResponse(c, http.StatusInternalServerError, "internal_error", err)
 		return
 	}
@@ -98,22 +102,16 @@ func (h *GroupHandler) GetGroups(c *gin.Context) {
 		return
 	}
 
-	var response []GroupResponse
+	var response []domain.Rendered[representation.Group]
 	err := database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		groups, err := domain.PersistedGroupsForUser(ctx, user.ID, p)
+		groups, err := domain.PersistedGroupsForUser(ctx, user, p)
 		if err != nil {
 			return err
 		}
 
-		response = make([]GroupResponse, len(groups))
-		for i, g := range groups {
-			response[i] = GroupResponse{
-				ID:          g.ExternalID(),
-				Name:        g.Name(),
-				Description: g.Description(),
-				CreatedAt:   g.CreatedAt(),
-				UpdatedAt:   g.UpdatedAt(),
-			}
+		response = make([]domain.Rendered[representation.Group], len(groups))
+		for i := range groups {
+			response[i] = groups[i].Render()
 		}
 		return nil
 	})
@@ -153,9 +151,9 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 		return
 	}
 
-	var response GroupResponse
+	var response domain.Rendered[representation.Group]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeGroupAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -165,13 +163,7 @@ func (h *GroupHandler) GetGroup(c *gin.Context) {
 			return err
 		}
 
-		response = GroupResponse{
-			ID:          group.ExternalID(),
-			Name:        group.Name(),
-			Description: group.Description(),
-			CreatedAt:   group.CreatedAt(),
-			UpdatedAt:   group.UpdatedAt(),
-		}
+		response = group.Render()
 		return nil
 	})
 
@@ -226,9 +218,9 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	var response GroupResponse
+	var response domain.Rendered[representation.Group]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeGroupAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -245,13 +237,7 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 			return err
 		}
 
-		response = GroupResponse{
-			ID:          group.ExternalID(),
-			Name:        group.Name(),
-			Description: group.Description(),
-			CreatedAt:   group.CreatedAt(),
-			UpdatedAt:   group.UpdatedAt(),
-		}
+		response = group.Render()
 		return nil
 	})
 
@@ -299,8 +285,8 @@ func (h *GroupHandler) DeleteGroup(c *gin.Context) {
 	}
 
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
-		if err := guard.AuthorizeGroupAccess(ctx, p, id); err != nil {
+		guard := middleware.NewSecurityGuard(user)
+		if err := guard.AuthorizeGroupOwnership(ctx, p, id); err != nil {
 			return err
 		}
 

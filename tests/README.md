@@ -14,7 +14,6 @@ The integration tests read configuration from the root `.env` file (via `env_fil
 | `INTEGRATION_TESTS_SCREENSHOTS_DIR` | `/tests/screenshots` | `settings.py:13` → `Settings.screenshots_dir` | Directory inside the test container where screenshots are saved. |
 | `INTEGRATION_TESTS_SCREENSHOTS_HOST_DIR` | `./tests/screenshots` | `docker-compose.yml:190` → `volumes` | Host directory mapped to the container's screenshots directory, so screenshots are accessible on the host after tests run. |
 | `INTEGRATION_TESTS_SECRETS_PROVIDER` | `env` | `settings.py:14` → `Settings.secrets_provider` | Secrets provider for test credentials. Set to `docker` in Docker Compose to read from `/run/secrets/`. |
-| `INTEGRATION_TEST` | `true` | `docker-compose.yml` | Flag indicating integration test mode. |
 | `AUTH0_DOMAIN` | _(empty)_ | `settings.py:20` → `Settings.auth0_domain` | Auth0 tenant domain. Used to obtain Management API tokens for dynamic test user creation/deletion. |
 | `AUTH0_MGMT_CLIENT_ID` | _(empty)_ | `settings.py:23` → `Settings.auth0_mgmt_client_id` | Auth0 Machine-to-Machine (M2M) client ID. Used to authenticate with the Auth0 Management API for creating and deleting test users. |
 | `AUTH0_CLIENT_ID` | _(empty)_ | `settings.py:37` → `Settings.auth0_client_id` | Auth0 SPA client ID. Used for test user login flows. |

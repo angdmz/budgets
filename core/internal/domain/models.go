@@ -1,9 +1,6 @@
 package domain
 
 import (
-	"time"
-
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -71,51 +68,13 @@ const (
 	AuthProviderLocal  AuthProvider = "LOCAL"
 )
 
-type BaseModel struct {
-	ID         int64      `json:"-"`
-	ExternalID uuid.UUID  `json:"id"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
-	RevokedAt  *time.Time `json:"-"`
-}
+// ParticipantRole is the role a user plays inside a budgeting group.
+type ParticipantRole string
 
-func (b *BaseModel) IsRevoked() bool {
-	return b.RevokedAt != nil
-}
-
-// User represents an authenticated user in the system
-type User struct {
-	BaseModel
-	ExternalProviderID string       `json:"-"`
-	AuthProvider       AuthProvider `json:"provider"`
-	Email              string       `json:"email"`
-	DisplayName        string       `json:"display_name,omitempty"`
-	AvatarURL          string       `json:"avatar_url,omitempty"`
-}
-
-type BudgetingGroup struct {
-	BaseModel
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-}
-
-// Participant represents a business-level participant in a group
-// Multiple users can be associated with the same participant
-type Participant struct {
-	BaseModel
-	Name             string `json:"name"`
-	Description      string `json:"description,omitempty"`
-	BudgetingGroupID int64  `json:"-"`
-}
-
-// UserParticipant represents the association between a User and a Participant
-type UserParticipant struct {
-	BaseModel
-	UserID        int64  `json:"-"`
-	ParticipantID int64  `json:"-"`
-	Role          string `json:"role"`
-	IsPrimary     bool   `json:"is_primary"`
-}
+const (
+	ParticipantRoleOwner  ParticipantRole = "owner"
+	ParticipantRoleMember ParticipantRole = "member"
+)
 
 // Theme represents UI theme options
 type Theme string
@@ -150,28 +109,11 @@ func (l Language) IsValid() bool {
 	return false
 }
 
-type ExpenseCategory struct {
-	BaseModel
-	Name             string `json:"name"`
-	Description      string `json:"description,omitempty"`
-	Color            string `json:"color,omitempty"`
-	Icon             string `json:"icon,omitempty"`
-	BudgetingGroupID int64  `json:"-"`
-}
-
-type Budget struct {
-	BaseModel
-	Name             string    `json:"name"`
-	Description      string    `json:"description,omitempty"`
-	StartDate        time.Time `json:"start_date"`
-	EndDate          time.Time `json:"end_date"`
-	BudgetingGroupID int64     `json:"-"`
-}
-
-// Money represents a monetary value with currency
+// Money represents a monetary value with currency. It carries no JSON tags:
+// the wire shape is representation.Money produced by Render methods.
 type Money struct {
-	Amount   decimal.Decimal `json:"amount"`
-	Currency Currency        `json:"currency"`
+	Amount   decimal.Decimal
+	Currency Currency
 }
 
 func NewMoney(amount decimal.Decimal, currency Currency) Money {
@@ -192,24 +134,4 @@ func NewARSMoney(amount decimal.Decimal) Money {
 
 func NewEURMoney(amount decimal.Decimal) Money {
 	return NewMoney(amount, CurrencyEUR)
-}
-
-type ExpectedExpense struct {
-	BaseModel
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Amount      Money  `json:"amount"`
-	BudgetID    int64  `json:"-"`
-	CategoryID  int64  `json:"-"`
-}
-
-type ActualExpense struct {
-	BaseModel
-	Name              string    `json:"name"`
-	Description       string    `json:"description,omitempty"`
-	ExpenseDate       time.Time `json:"expense_date"`
-	Amount            Money     `json:"amount"`
-	BudgetID          int64     `json:"-"`
-	CategoryID        *int64    `json:"-"`
-	ExpectedExpenseID *int64    `json:"-"`
 }

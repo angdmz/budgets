@@ -24,7 +24,7 @@ func TestCreateActualExpense_InvalidUUID(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	handler := &ExpenseHandler{}
@@ -72,7 +72,7 @@ func TestCreateActualExpense_MissingCategoryID(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	body := `{"name":"Rent","description":"","expense_date":"2025-06-15","amount":{"amount":"100.00","currency":"USD"}}`
@@ -140,7 +140,7 @@ func TestUpdateActualExpense_InvalidRequestBody(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	c.Request = httptest.NewRequest("PUT", "/actual-expenses/"+uuid.New().String(), bytes.NewReader([]byte("invalid json")))
@@ -163,7 +163,7 @@ func TestCreateExpectedExpense_InvalidUUID(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	handler := &ExpenseHandler{}
@@ -307,7 +307,7 @@ func TestCreateActualExpense_InvalidCurrency(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	body := `{"name":"Rent","description":"","expense_date":"2025-06-15","amount":{"amount":"100.00","currency":"BTC"},"category_id":"` + uuid.New().String() + `"}`
@@ -331,7 +331,7 @@ func TestUpdateActualExpense_InvalidCurrency(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	body := `{"name":"Rent","description":"","expense_date":"2025-06-15","amount":{"amount":"100.00","currency":"FAKE"},"category_id":"` + uuid.New().String() + `"}`
@@ -355,7 +355,7 @@ func TestCreateExpectedExpense_InvalidCurrency(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	body := `{"name":"Expected Rent","description":"","amount":{"amount":"100.00","currency":"BTC"},"category_id":"` + uuid.New().String() + `"}`
@@ -379,7 +379,7 @@ func TestUpdateExpectedExpense_InvalidCurrency(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{Env: "test"}}
 	c.Set("config", cfg)
 
-	user := &domain.User{}
+	user := &domain.PersistedUser{}
 	c.Set("db_user", user)
 
 	body := `{"name":"Expected Rent","description":"","amount":{"amount":"100.00","currency":"FAKE"},"category_id":"` + uuid.New().String() + `"}`

@@ -8,10 +8,10 @@ import (
 	"github.com/budgets/core/internal/domain"
 )
 
-// LoginStrategy extracts a domain.User from validated JWT claims
+// LoginStrategy extracts an AuthUser from validated JWT claims
 // based on the login type detected from the sub claim prefix.
 type LoginStrategy interface {
-	ExtractUser(claims jwt.MapClaims) (*domain.User, error)
+	ExtractUser(claims jwt.MapClaims) (*AuthUser, error)
 }
 
 // SSOLoginStrategy handles google-oauth2| and github| logins.
@@ -20,7 +20,7 @@ type SSOLoginStrategy struct {
 	provider domain.AuthProvider
 }
 
-func (s *SSOLoginStrategy) ExtractUser(claims jwt.MapClaims) (*domain.User, error) {
+func (s *SSOLoginStrategy) ExtractUser(claims jwt.MapClaims) (*AuthUser, error) {
 	sub := getStringClaim(claims, "sub")
 	if sub == "" {
 		return nil, fmt.Errorf("missing sub claim")
@@ -30,7 +30,7 @@ func (s *SSOLoginStrategy) ExtractUser(claims jwt.MapClaims) (*domain.User, erro
 	if displayName == "" {
 		displayName = email
 	}
-	return &domain.User{
+	return &AuthUser{
 		ExternalProviderID: sub,
 		Email:              email,
 		DisplayName:        displayName,
@@ -43,7 +43,7 @@ func (s *SSOLoginStrategy) ExtractUser(claims jwt.MapClaims) (*domain.User, erro
 // The username is the email; uses email as display name when name is absent.
 type UsernamePasswordLoginStrategy struct{}
 
-func (s *UsernamePasswordLoginStrategy) ExtractUser(claims jwt.MapClaims) (*domain.User, error) {
+func (s *UsernamePasswordLoginStrategy) ExtractUser(claims jwt.MapClaims) (*AuthUser, error) {
 	sub := getStringClaim(claims, "sub")
 	if sub == "" {
 		return nil, fmt.Errorf("missing sub claim")
@@ -53,7 +53,7 @@ func (s *UsernamePasswordLoginStrategy) ExtractUser(claims jwt.MapClaims) (*doma
 	if displayName == "" {
 		displayName = email
 	}
-	return &domain.User{
+	return &AuthUser{
 		ExternalProviderID: sub,
 		Email:              email,
 		DisplayName:        displayName,

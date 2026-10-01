@@ -13,6 +13,7 @@ import (
 	"github.com/budgets/core/internal/database"
 	"github.com/budgets/core/internal/domain"
 	"github.com/budgets/core/internal/middleware"
+	"github.com/budgets/core/internal/representation"
 )
 
 type BudgetHandler struct {
@@ -72,9 +73,9 @@ func (h *BudgetHandler) CreateBudget(c *gin.Context) {
 		return
 	}
 
-	var response BudgetResponse
+	var response domain.Rendered[representation.Budget]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
 			return err
 		}
@@ -89,15 +90,7 @@ func (h *BudgetHandler) CreateBudget(c *gin.Context) {
 			return err
 		}
 
-		response = BudgetResponse{
-			ID:          persistedBudget.ExternalID(),
-			Name:        persistedBudget.Name(),
-			Description: persistedBudget.Description(),
-			StartDate:   persistedBudget.StartDate().Format(dateFormat),
-			EndDate:     persistedBudget.EndDate().Format(dateFormat),
-			CreatedAt:   persistedBudget.CreatedAt(),
-			UpdatedAt:   persistedBudget.UpdatedAt(),
-		}
+		response = persistedBudget.Render()
 		return nil
 	})
 
@@ -144,9 +137,9 @@ func (h *BudgetHandler) GetBudgets(c *gin.Context) {
 		return
 	}
 
-	var response []BudgetResponse
+	var response []domain.Rendered[representation.Budget]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeGroupAccess(ctx, p, groupID); err != nil {
 			return err
 		}
@@ -156,17 +149,9 @@ func (h *BudgetHandler) GetBudgets(c *gin.Context) {
 			return err
 		}
 
-		response = make([]BudgetResponse, len(budgets))
-		for i, b := range budgets {
-			response[i] = BudgetResponse{
-				ID:          b.ExternalID(),
-				Name:        b.Name(),
-				Description: b.Description(),
-				StartDate:   b.StartDate().Format(dateFormat),
-				EndDate:     b.EndDate().Format(dateFormat),
-				CreatedAt:   b.CreatedAt(),
-				UpdatedAt:   b.UpdatedAt(),
-			}
+		response = make([]domain.Rendered[representation.Budget], len(budgets))
+		for i := range budgets {
+			response[i] = budgets[i].Render()
 		}
 		return nil
 	})
@@ -214,9 +199,9 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 		return
 	}
 
-	var response BudgetResponse
+	var response domain.Rendered[representation.Budget]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -226,15 +211,7 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 			return err
 		}
 
-		response = BudgetResponse{
-			ID:          budget.ExternalID(),
-			Name:        budget.Name(),
-			Description: budget.Description(),
-			StartDate:   budget.StartDate().Format(dateFormat),
-			EndDate:     budget.EndDate().Format(dateFormat),
-			CreatedAt:   budget.CreatedAt(),
-			UpdatedAt:   budget.UpdatedAt(),
-		}
+		response = budget.Render()
 		return nil
 	})
 
@@ -301,9 +278,9 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 		return
 	}
 
-	var response BudgetResponse
+	var response domain.Rendered[representation.Budget]
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, id); err != nil {
 			return err
 		}
@@ -323,15 +300,7 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 			return err
 		}
 
-		response = BudgetResponse{
-			ID:          budget.ExternalID(),
-			Name:        budget.Name(),
-			Description: budget.Description(),
-			StartDate:   budget.StartDate().Format(dateFormat),
-			EndDate:     budget.EndDate().Format(dateFormat),
-			CreatedAt:   budget.CreatedAt(),
-			UpdatedAt:   budget.UpdatedAt(),
-		}
+		response = budget.Render()
 		return nil
 	})
 
@@ -379,7 +348,7 @@ func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
 	}
 
 	err = database.WithPersister(c.Request.Context(), h.pool, func(ctx context.Context, p *database.PgxPersister) error {
-		guard := domain.NewSecurityGuard(user.ID)
+		guard := middleware.NewSecurityGuard(user)
 		if err := guard.AuthorizeBudgetAccess(ctx, p, id); err != nil {
 			return err
 		}
